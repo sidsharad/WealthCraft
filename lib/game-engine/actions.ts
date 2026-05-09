@@ -631,10 +631,10 @@ export function resolveTrade(
 
 // ─── WIN CONDITION ────────────────────────────────────────────────────────────
 
-export function checkWinCondition(state: GameState): { triggered: boolean } {
+export function checkWinCondition(state: GameState): { triggered: boolean; triggeringPlayerId?: string } {
   for (const player of state.players) {
     if (netWorth(player) >= WIN_CONDITION) {
-      return { triggered: true };
+      return { triggered: true, triggeringPlayerId: player.id };
     }
   }
   return { triggered: false };
