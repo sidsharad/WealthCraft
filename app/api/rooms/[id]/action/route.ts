@@ -19,13 +19,12 @@ import {
   applyIPO,
   applyIncomeFreezeToPlayer,
   applyEmergency,
-  applyLottery,
+  applyLotteryReward,
   applyTaxRaid,
   applyHostileTakeover,
-  applyTrade,
+  resolveTrade,
   calculateYearEndReturns,
   applyYearEndRebalance,
-  applyMidYearRebalance,
   resolveHouseAuction,
   processWealthDeclaration,
   processAudit,
@@ -296,15 +295,9 @@ export async function POST(
     if (!state.pendingTrade) return NextResponse.json({ error: "No pending trade" }, { status: 400 });
 
     if (payload?.accept) {
-      const fromIdx = state.players.findIndex((p) => p.id === state.pendingTrade!.fromPlayerId);
-      const toIdx = state.players.findIndex((p) => p.id === state.pendingTrade!.toPlayerId);
-      const result = applyTrade(state, fromIdx, toIdx, state.pendingTrade!.offer, state.pendingTrade!.request);
-      if (!result.valid) return NextResponse.json({ error: result.error }, { status: 400 });
-      state = { ...result.state, pendingTrade: undefined, phase: "trade" };
+      state = resolveTrade(state, true);
     } else {
-      state = { ...state, pendingTrade: undefined, phase: "trade" };
-      const currentP = state.players[currentPlayerIdx];
-      // Add log entry about rejected trade
+      state = resolveTrade(state, false);
     }
 
     await updateGameState(roomId, state);
