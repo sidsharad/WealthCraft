@@ -38,12 +38,12 @@ import { netWorth } from "@/lib/game-engine/validators";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: roomId } = await params;
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const roomId = params.id;
   const body = await req.json();
   const { action, payload } = body;
   const userId = (session.user as { id?: string }).id!;
