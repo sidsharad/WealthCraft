@@ -414,7 +414,7 @@ export default function GameRoomPage() {
                   bids: [...existingBids, { playerId: bidderId, amount: payload.amount }]
                 }
               };
-              if (state.auctionState.bids.length >= eligibleBiddersCount) {
+              if (state.auctionState?.bids && state.auctionState.bids.length >= eligibleBiddersCount) {
                 const res = resolveHouseAuction(state);
                 state = res.state;
               } else if (isLocal) {
