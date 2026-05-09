@@ -169,7 +169,7 @@ export default function GameRoomPage() {
   }, [TIPS.length]);
 
 
-  const isMyTurn = isLocal || (gameState?.phase === "auction" ? !!currentBiddingPlayer : (gameState && gameState.players[gameState.currentPlayerIndex].id === userId));
+  const isMyTurn = !!(isLocal || (gameState?.phase === "auction" ? !!currentBiddingPlayer : (gameState && gameState.players[gameState.currentPlayerIndex].id === userId)));
   const currentPlayer = gameState?.players[gameState.currentPlayerIndex];
   
   // ─── INITIAL LOAD ────────────────────────────────────────────────────────────
