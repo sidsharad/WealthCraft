@@ -38,7 +38,6 @@ import {
   resolveTrade,
   calculateYearEndReturns,
   applyYearEndRebalance,
-  applyMidYearRebalance,
   resolveHouseAuction,
   processWealthDeclaration,
   processAudit,
