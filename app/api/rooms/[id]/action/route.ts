@@ -185,13 +185,12 @@ export async function POST(
         break;
       case "hostile-takeover":
         if (payload?.targetIdx !== undefined) {
-          const htResult = applyHostileTakeover(
-            state,
-            currentPlayerIdx,
-            payload.targetIdx,
-            payload.spendAmount,
-            payload.demandType
-          );
+            const htResult = applyHostileTakeover(
+              state,
+              currentPlayerIdx,
+              payload.targetIdx,
+              payload.demandType
+            );
           if (!htResult.valid) return NextResponse.json({ error: htResult.error }, { status: 400 });
           state = htResult.state;
         }
