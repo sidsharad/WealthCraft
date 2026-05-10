@@ -581,6 +581,18 @@ export default function GameRoomPage() {
   };
 
   const handleTileAction = async (payload?: any) => {
+    // For online mode, we need to show the modal locally before sending the action to the server
+    if (!payload && currentPlayer && !isLocal) {
+      const tile = getTileByPosition(currentPlayer.position);
+      if (["ipo", "lottery", "emergency"].includes(tile.effect)) {
+        setShowChoiceModal(tile.effect as any);
+        return;
+      }
+      if (["tax-raid", "hostile-takeover"].includes(tile.effect)) {
+        setShowTargetedAction(tile.effect as any);
+        return;
+      }
+    }
     await performAction("tile-action", payload);
   };
 
