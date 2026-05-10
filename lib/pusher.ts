@@ -33,7 +33,7 @@ export function getPusherServer() {
   return _pusherServer;
 }
 
-// Keep the named export for backwards compatibility with existing API routes
+// Server-side Pusher — singleton
 export const pusherServer = hasPusherServer
   ? (() => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -46,7 +46,10 @@ export const pusherServer = hasPusherServer
         useTLS: true,
       });
     })()
-  : null;
+  : {
+      trigger: async () => { console.warn("Pusher not configured. Skipping trigger."); return {}; },
+      authorizeChannel: () => ({ auth: "dummy" }),
+    } as any;
 
 // Client-side Pusher (singleton for browser)
 let pusherClientInstance: PusherClient | null = null;

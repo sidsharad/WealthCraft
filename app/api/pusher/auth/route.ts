@@ -20,6 +20,10 @@ export async function POST(req: NextRequest) {
     },
   };
 
+  if (!pusherServer) {
+    return NextResponse.json({ error: "Pusher not configured" }, { status: 503 });
+  }
+
   const authResponse = pusherServer.authorizeChannel(socketId, channelName, presenceData);
   return NextResponse.json(authResponse);
 }
