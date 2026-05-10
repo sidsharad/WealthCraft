@@ -712,10 +712,9 @@ export default function GameRoomPage() {
               isPrivate={isLocal ? gameState.currentPlayerIndex !== i : p.id !== userId}
             />
           ))}
-        </div>
-
-        <div className="mt-auto">
-          <GameLog log={gameState.log} />
+          <div className="pt-2">
+            <GameLog log={gameState.log} />
+          </div>
         </div>
       </div>
 
@@ -724,7 +723,7 @@ export default function GameRoomPage() {
         {/* Top Section: Board and Rules Sidebar */}
         <div className="flex flex-col lg:flex-row items-center lg:items-start justify-center gap-4 w-full">
           {/* Left Side: Board and Notifications */}
-          <div className="w-full max-w-3xl relative flex flex-col items-center">
+          <div className="w-full max-w-3xl relative flex flex-col items-center gap-4">
             <Board 
               tiles={TILES} 
               players={gameState.players} 
@@ -737,156 +736,75 @@ export default function GameRoomPage() {
               announcement={gameState.announcement}
               privateMessage={isMyTurn ? gameState.privateMessage : undefined}
             />
-          </div>
 
-          {/* Right Side: Tips & Rules Sidebar */}
-          <div className="w-full lg:w-80 flex flex-col gap-6 animate-slide-in">
-            <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/50 border-l-4 border-l-[var(--gold)]">
-              <h2 className="text-xl font-black text-[var(--navy)] mb-4 flex items-center gap-2">
-                <span className="text-2xl">📜</span> Rules & Returns
-              </h2>
-              
-              <div className="space-y-4">
-                <section>
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Market Returns</h3>
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                      <div className="text-xs font-bold text-blue-800 mb-1">Bonds</div>
-                      <div className="text-sm font-black text-blue-900">+1L Return <span className="text-[10px] font-normal opacity-70">per 5L block</span></div>
-                    </div>
-                    <div className="bg-purple-50 p-3 rounded-xl border border-purple-100">
-                      <div className="text-xs font-bold text-purple-800 mb-1">Stocks</div>
-                      <div className="text-sm font-black text-purple-900">+2L Return <span className="text-[10px] font-normal opacity-70">per 5L block</span></div>
-                    </div>
+            {/* Bottom Section: Controls Overlay - Now Centered Below Board */}
+            <div className="w-full flex items-center justify-center gap-4 bg-white/90 backdrop-blur-md p-3 rounded-3xl shadow-xl border border-white/50 animate-slide-in scale-90 md:scale-95">
+              <DiceRoller 
+                onRoll={handleRoll} 
+                rolling={rolling} 
+                dice={lastDice} 
+                disabled={!isMyTurn || (gameState.phase !== "roll" && diceMode !== "lottery")} 
+                label={diceMode === "lottery" ? "Roll" : "Roll Dice"}
+              />
+
+              {timeLeft !== null && (
+                <div className={`flex flex-col items-center justify-center px-4 py-2 rounded-2xl border-2 transition-colors ${timeLeft < 10 ? 'border-red-500 bg-red-50 animate-pulse' : 'border-blue-100 bg-blue-50'}`}>
+                  <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest mb-1">Time</div>
+                  <div className={`text-xl font-black ${timeLeft < 10 ? 'text-red-600' : 'text-blue-600'}`}>
+                    {timeLeft}s
                   </div>
-                </section>
-
-                <section>
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Important Rules</h3>
-                  <ul className="space-y-2 text-xs font-bold text-gray-600">
-                    <li className="flex gap-2">
-                      <span className="text-[var(--gold)]">●</span>
-                      <span>Rebalancing mid-turn costs <span className="text-red-500">3L Penalty</span>.</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-[var(--gold)]">●</span>
-                      <span>No penalty during Year-End rebalance.</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-[var(--gold)]">●</span>
-                      <span>House MUST be bought by end of Year 3.</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-[var(--gold)]">●</span>
-                      <span>Emergency costs can be <span className="text-red-500 font-black">3L, 5L, or 10L</span>.</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-[var(--gold)]">●</span>
-                      <span>Winning Target: <span className="text-green-600">100L Total Wealth</span>.</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-[var(--gold)]">●</span>
-                      <span>Lottery costs <span className="text-blue-500">2L</span> to win up to <span className="text-green-600">5L</span>.</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-[var(--gold)]">●</span>
-                      <span>Tax Raid: Pay <span className="text-red-500">2L</span> to fine target <span className="text-red-500">5L</span>.</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-[var(--gold)]">●</span>
-                      <span>Takeover: Take <span className="text-purple-600">5L</span> in assets from anyone.</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-[var(--gold)]">●</span>
-                      <span>Audit: Assets &gt; <span className="text-orange-600 font-black">40L</span> are auditable!</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <span className="text-gray-400 ml-4">↳</span>
-                      <span className="text-gray-500">Failed audit costs auditor <span className="text-red-500">5L Penalty</span>.</span>
-                    </li>
-                  </ul>
-                </section>
-              </div>
-            </div>
-
-          <div className="bg-[var(--navy)] p-6 rounded-3xl shadow-xl text-white min-h-[140px] flex flex-col justify-center transition-all duration-500">
-            <h3 className="text-sm font-black uppercase tracking-widest mb-3 text-[var(--gold)] flex items-center gap-2">
-              <span className="animate-pulse">💡</span> Quick Tip
-            </h3>
-            <p className="text-xs font-bold leading-relaxed opacity-90 animate-fade-in key={activeTipIndex}">
-              {TIPS[activeTipIndex]}
-            </p>
-          </div>
-          </div>
-        </div>
-
-        {/* Bottom Section: Controls Overlay */}
-        <div className="mt-4 flex items-center gap-4 bg-white/80 backdrop-blur-md p-3 rounded-3xl shadow-xl border border-white/50 animate-slide-in scale-90 md:scale-95">
-          <DiceRoller 
-            onRoll={handleRoll} 
-            rolling={rolling} 
-            dice={lastDice} 
-            disabled={!isMyTurn || (gameState.phase !== "roll" && diceMode !== "lottery")} 
-            label={diceMode === "lottery" ? "Roll for Lottery" : "Roll Dice"}
-          />
-
-          {timeLeft !== null && (
-            <div className={`flex flex-col items-center justify-center px-4 py-2 rounded-2xl border-2 transition-colors ${timeLeft < 10 ? 'border-red-500 bg-red-50 animate-pulse' : 'border-blue-100 bg-blue-50'}`}>
-              <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest mb-1">Time Left</div>
-              <div className={`text-xl font-black ${timeLeft < 10 ? 'text-red-600' : 'text-blue-600'}`}>
-                {timeLeft}s
-              </div>
-            </div>
-          )}
-
-          <div className="h-16 w-px bg-gray-200" />
-
-          <div className="flex flex-col gap-2">
-            <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Current Action</div>
-            <div className="flex gap-3">
-              {isMyTurn && (gameState.phase === "action" || (gameState.phase === "auction" && !showAuction)) && (
-                <button onClick={() => {
-                  if (gameState.phase === "auction") setShowAuction(true);
-                  else handleTileAction();
-                }} className="btn-primary">
-                  {gameState.phase === "auction" ? "Resume Auction" : "Execute Tile"}
-                </button>
-              )}
-              {isMyTurn && gameState.phase === "trade" && (
-                <>
-                  <button 
-                    onClick={() => setShowTrade(true)} 
-                    disabled={currentPlayer?.hasTraded}
-                    className="btn-secondary flex items-center gap-2 disabled:opacity-50"
-                  >
-                    <MessageSquare size={16} /> Propose Trade
-                  </button>
-                  <button onClick={() => setShowRebalance(true)} className="btn-secondary">
-                    Rebalance (3L Penalty)
-                  </button>
-                  <button onClick={() => setShowTargetedAction("concentration-audit")} className="btn-secondary flex items-center gap-2">
-                    <ShieldAlert size={16} /> Audit Player
-                  </button>
-                  <button 
-                    onClick={handleEndTurn} 
-                    disabled={isEndingTurn}
-                    className="btn-primary disabled:opacity-50"
-                  >
-                    {isEndingTurn ? "Ending..." : "End Turn"}
-                  </button>
-                </>
-              )}
-              {isMyTurn && gameState.phase === "year-end" && (
-                <button onClick={() => setShowRebalance(true)} className="btn-primary w-full py-4 text-lg">Rebalance Portfolio</button>
-              )}
-              {!isMyTurn && gameState.phase !== "year-end" && (
-                <div className="bg-gray-100 text-gray-500 px-6 py-2 rounded-xl text-sm font-bold animate-pulse">
-                  Waiting for {currentPlayer?.name}...
                 </div>
               )}
+
+              <div className="h-16 w-px bg-gray-200" />
+
+              <div className="flex flex-col gap-1">
+                <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Action</div>
+                <div className="flex gap-2">
+                  {isMyTurn && (gameState.phase === "action" || (gameState.phase === "auction" && !showAuction)) && (
+                    <button onClick={() => {
+                      if (gameState.phase === "auction") setShowAuction(true);
+                      else handleTileAction();
+                    }} className="btn-primary px-8">
+                      {gameState.phase === "auction" ? "Join Auction" : "Execute Tile"}
+                    </button>
+                  )}
+                  {isMyTurn && gameState.phase === "trade" && (
+                    <>
+                      <button 
+                        onClick={() => setShowTrade(true)} 
+                        disabled={currentPlayer?.hasTraded}
+                        className="btn-secondary flex items-center gap-2 disabled:opacity-50 px-4"
+                      >
+                        <MessageSquare size={16} /> Trade
+                      </button>
+                      <button onClick={() => setShowRebalance(true)} className="btn-secondary px-4">
+                        Rebalance
+                      </button>
+                      <button onClick={() => setShowTargetedAction("concentration-audit")} className="btn-secondary flex items-center gap-2 px-4">
+                        <ShieldAlert size={16} /> Audit
+                      </button>
+                      <button 
+                        onClick={handleEndTurn} 
+                        disabled={isEndingTurn}
+                        className="btn-primary disabled:opacity-50 px-8"
+                      >
+                        {isEndingTurn ? "..." : "Next Turn"}
+                      </button>
+                    </>
+                  )}
+                  {isMyTurn && gameState.phase === "year-end" && (
+                    <button onClick={() => setShowRebalance(true)} className="btn-primary w-full py-2 px-8">Rebalance Portfolio</button>
+                  )}
+                  {!isMyTurn && gameState.phase !== "year-end" && (
+                    <div className="bg-gray-100 text-gray-500 px-6 py-2 rounded-xl text-xs font-bold animate-pulse">
+                      Waiting for {currentPlayer?.name}...
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Modals */}
