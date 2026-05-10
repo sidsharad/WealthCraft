@@ -250,9 +250,8 @@ export async function POST(
       },
     };
 
-    // Check if all players have bid
-    const playerCount = state.players.filter((p) => !p.isBot).length;
-    if (state.auctionState.bids.length >= state.players.length) {
+    const eligibleBiddersCount = state.players.filter(p => !p.hasHouse).length;
+    if (state.auctionState?.bids && state.auctionState.bids.length >= eligibleBiddersCount) {
       const result = resolveHouseAuction(state);
       state = result.state;
     }
