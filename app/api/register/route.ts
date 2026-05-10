@@ -1,3 +1,4 @@
+// Triggering fresh build for self-healing database fix
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
