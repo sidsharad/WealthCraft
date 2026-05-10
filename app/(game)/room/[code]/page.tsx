@@ -805,7 +805,50 @@ export default function GameRoomPage() {
               </div>
             </div>
           </div>
-      </div>
+
+          {/* Right Side: Tips & Rules Sidebar */}
+          <div className="w-full lg:w-80 flex flex-col gap-4 animate-slide-in">
+            <div className="bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-white/50 border-l-4 border-l-[var(--gold)]">
+              <h2 className="text-lg font-black text-[var(--navy)] mb-3 flex items-center gap-2">
+                <span className="text-xl">📜</span> Rules & Returns
+              </h2>
+              
+              <div className="space-y-3">
+                <section>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Market Returns</h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="bg-blue-50 p-2 rounded-xl border border-blue-100 flex justify-between items-center">
+                      <div className="text-[10px] font-bold text-blue-800 uppercase">Bonds</div>
+                      <div className="text-xs font-black text-blue-900">+1L <span className="text-[8px] font-normal opacity-70">/ 5L</span></div>
+                    </div>
+                    <div className="bg-purple-50 p-2 rounded-xl border border-purple-100 flex justify-between items-center">
+                      <div className="text-[10px] font-bold text-purple-800 uppercase">Stocks</div>
+                      <div className="text-xs font-black text-purple-900">+2L <span className="text-[8px] font-normal opacity-70">/ 5L</span></div>
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <ul className="space-y-1.5 text-[10px] font-bold text-gray-600">
+                    <li className="flex gap-2"><span className="text-[var(--gold)]">●</span> House by end of Year 3.</li>
+                    <li className="flex gap-2"><span className="text-[var(--gold)]">●</span> 100L Wealth to win.</li>
+                    <li className="flex gap-2"><span className="text-[var(--gold)]">●</span> Tax Raid: 2L fine target 5L.</li>
+                    <li className="flex gap-2"><span className="text-[var(--gold)]">●</span> Audit: &gt; 40L assets.</li>
+                  </ul>
+                </section>
+              </div>
+            </div>
+
+            <div className="bg-[var(--navy)] p-4 rounded-3xl shadow-xl text-white min-h-[100px] flex flex-col justify-center">
+              <h3 className="text-[10px] font-black uppercase tracking-widest mb-2 text-[var(--gold)] flex items-center gap-2">
+                <span className="animate-pulse">💡</span> Tip
+              </h3>
+              <p className="text-[10px] font-bold leading-relaxed opacity-90">
+                {TIPS[activeTipIndex]}
+              </p>
+            </div>
+          </div>
+        </div>
 
       {/* Modals */}
       <TradeModal 
