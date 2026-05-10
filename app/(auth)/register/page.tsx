@@ -16,14 +16,19 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-
+    console.log("Submitting registration for:", email);
     const res = await fetch("/api/register", {
       method: "POST",
       body: JSON.stringify({ name, email, password }),
       headers: { "Content-Type": "application/json" },
+    }).catch(err => {
+      console.error("Fetch error:", err);
+      return { ok: false, json: async () => ({ error: "Network error. Please check your connection." }) };
     });
 
     const data = await res.json();
+    console.log("Registration response:", res.status, data);
+    
     if (!res.ok) {
       setError(data.error || "Registration failed.");
       setLoading(false);
@@ -31,8 +36,21 @@ export default function RegisterPage() {
     }
 
     // Auto sign in
-    await signIn("credentials", { email, password, callbackUrl: "/lobby" });
-    setLoading(false);
+    console.log("Starting auto sign-in...");
+    const result = await signIn("credentials", { 
+      email, 
+      password, 
+      redirect: false,
+    });
+
+    console.log("Sign-in result:", result);
+
+    if (result?.error) {
+      setError("Account created, but could not sign in automatically. Please go to Login page.");
+      setLoading(false);
+    } else {
+      router.push("/lobby");
+    }
   }
 
   return (
@@ -48,8 +66,8 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-4">
-            {error}
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-4 animate-shake">
+            <strong>Error:</strong> {error}
           </div>
         )}
 
@@ -62,7 +80,6 @@ export default function RegisterPage() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
               required
-              minLength={2}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
           </div>
@@ -85,12 +102,16 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Min. 6 characters"
               required
-              minLength={6}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
           </div>
-          <button type="submit" disabled={loading} className="btn-primary w-full py-3">
-            {loading ? "Creating Account..." : "Create Account"}
+          <button type="submit" disabled={loading} className="btn-primary w-full py-3 shadow-lg hover:shadow-xl transition-all">
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                Creating Account...
+              </span>
+            ) : "Create Account"}
           </button>
         </form>
 
