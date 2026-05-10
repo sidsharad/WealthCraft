@@ -1,7 +1,7 @@
 // bot.ts — Standard Bot decision logic (pure, side-effect free)
 import type { GameState, PlayerState } from "../db/schema";
 import {
-  applyIPO, applyLottery, applyHostileTakeover, rollDice,
+  applyIPO, applyHostileTakeover, rollDice,
   processWealthDeclaration, calculateYearEndReturns,
 } from "./actions";
 import { netWorth, countBlocks } from "./validators";
