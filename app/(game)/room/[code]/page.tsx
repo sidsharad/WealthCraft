@@ -945,5 +945,6 @@ export default function GameRoomPage() {
         onResponse={(accept) => performAction("trade-response", { accept })}
       />
     </div>
+  </div>
   );
 }
