@@ -174,7 +174,7 @@ export async function POST(
         // Already applied at roll time
         break;
       case "emergency":
-        const emergencyAmount = payload?.amount as 3 | 5 ?? 3;
+        const emergencyAmount = payload?.amount ?? 3;
         state = applyEmergency(state, currentPlayerIdx, emergencyAmount);
         break;
       case "lottery":

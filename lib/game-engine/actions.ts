@@ -251,7 +251,7 @@ export function applyIncomeFreezeToPlayer(state: GameState, playerIdx: number): 
 }
 
 /** Returns emergency amount for this draw (random 3L or 5L) */
-export function applyEmergency(state: GameState, playerIdx: number, amount: 3 | 5): GameState {
+export function applyEmergency(state: GameState, playerIdx: number, amount: number): GameState {
   const player = state.players[playerIdx];
   const announcement = `🚨 EMERGENCY!`;
   const privateMessage = `➖ Cash: ${amount}L`;
