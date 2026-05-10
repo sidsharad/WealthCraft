@@ -185,10 +185,11 @@ export async function POST(
         break;
       case "hostile-takeover":
         if (payload?.targetIdx !== undefined) {
+            const targetIdx = typeof payload.targetIdx === 'string' ? parseInt(payload.targetIdx) : payload.targetIdx;
             const htResult = applyHostileTakeover(
               state,
               currentPlayerIdx,
-              payload.targetIdx,
+              targetIdx,
               payload.demandType
             );
           if (!htResult.valid) return NextResponse.json({ error: htResult.error }, { status: 400 });
@@ -197,7 +198,8 @@ export async function POST(
         break;
       case "tax-raid":
         if (payload?.targetIdx !== undefined) {
-          const trResult = applyTaxRaid(state, currentPlayerIdx, payload.targetIdx);
+          const targetIdx = typeof payload.targetIdx === 'string' ? parseInt(payload.targetIdx) : payload.targetIdx;
+          const trResult = applyTaxRaid(state, currentPlayerIdx, targetIdx);
           if (!trResult.valid) return NextResponse.json({ error: trResult.error }, { status: 400 });
           state = trResult.state;
         }
@@ -304,7 +306,7 @@ export async function POST(
   }
 
   if (action === "end-turn") {
-    if (state.phase !== "trade") return NextResponse.json({ error: "Cannot end turn yet" }, { status: 400 });
+    // Allow ending turn from any phase (e.g. on timeout)
 
     if (state.endgame) {
       // Check if all players have gone this round
@@ -359,7 +361,9 @@ export async function POST(
 
   if (action === "concentration-audit") {
     const auditorIdx = state.players.findIndex((p) => p.id === userId);
-    const targetIdx = payload?.targetIdx;
+    const rawTargetIdx = payload?.targetIdx;
+    const targetIdx = typeof rawTargetIdx === 'string' ? parseInt(rawTargetIdx) : rawTargetIdx;
+    
     if (auditorIdx === -1 || targetIdx === undefined) {
       return NextResponse.json({ error: "Invalid audit" }, { status: 400 });
     }

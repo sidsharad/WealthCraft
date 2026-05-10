@@ -61,6 +61,7 @@ export default function GameRoomPage() {
   const isLocal = code === "play-local";
 
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [room, setRoom] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [rolling, setRolling] = useState(false);
   const [lastDice, setLastDice] = useState<number | null>(null);
@@ -199,6 +200,7 @@ export default function GameRoomPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setGameState(data.room.gameState);
+      setRoom(data.room);
       setLoading(false);
     } catch (e: any) {
       setError(e.message);
@@ -651,10 +653,37 @@ export default function GameRoomPage() {
     <div className="bg-white p-10 rounded-3xl shadow-xl text-center max-w-md border-4 border-[var(--gold)]">
       <h2 className="text-2xl font-black text-[var(--navy)] mb-4">Waiting for Host...</h2>
       <p className="text-gray-500 mb-8">Share the code with your friends to join the game.</p>
-      <div className="bg-gray-100 p-6 rounded-2xl mb-8">
+      <div className="bg-gray-100 p-6 rounded-2xl mb-6">
         <span className="text-4xl font-black tracking-widest text-[var(--navy)]">{code}</span>
       </div>
-      <button onClick={() => performAction("start")} className="btn-primary w-full py-4 text-lg">Start Game</button>
+
+      {room?.playerIds && (
+        <div className="mb-8 text-left">
+          <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3 px-1">Players Joined ({room.playerIds.length}/4)</h3>
+          <div className="grid gap-2">
+            {room.playerIds.map((id: string, idx: number) => {
+              const pName = gameState?.players.find(p => p.id === id)?.name || (idx === 0 ? "Host" : `Player ${idx + 1}`);
+              return (
+                <div key={id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
+                    {pName[0].toUpperCase()}
+                  </div>
+                  <span className="font-bold text-sm text-[var(--navy)]">{pName}</span>
+                  {id === room.hostId && <span className="ml-auto text-[8px] font-black uppercase bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">Host</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {(isLocal || userId === room?.hostId) ? (
+        <button onClick={() => performAction("start")} className="btn-primary w-full py-4 text-lg">Start Game</button>
+      ) : (
+        <div className="bg-blue-50 text-blue-700 p-4 rounded-2xl text-sm font-bold animate-pulse border border-blue-100">
+          Waiting for host to start the game...
+        </div>
+      )}
     </div>
   </div>;
 
