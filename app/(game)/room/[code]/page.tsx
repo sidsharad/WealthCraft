@@ -689,10 +689,10 @@ export default function GameRoomPage() {
 
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[var(--cream)] overflow-hidden">
+    <div className="h-screen flex flex-col md:flex-row bg-[var(--cream)] overflow-hidden">
       {/* Sidebar: Players & Stats */}
-      <div className="w-full md:w-80 bg-white/50 backdrop-blur-md border-r border-gray-200 p-4 flex flex-col gap-4 overflow-y-auto">
-        <div className="flex items-center justify-between mb-2">
+      <div className="w-full md:w-80 bg-white/50 backdrop-blur-md border-r border-gray-200 p-3 flex flex-col gap-3 overflow-y-auto">
+        <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <span className="text-xl">💰</span>
             <span className="font-black text-sm tracking-tight">WealthCraft</span>
@@ -720,11 +720,11 @@ export default function GameRoomPage() {
       </div>
 
       {/* Main Game Area */}
-      <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 overflow-y-auto">
+      <div className="flex-1 flex flex-col items-center justify-start p-2 md:p-4 overflow-y-auto pt-4">
         {/* Top Section: Board and Rules Sidebar */}
-        <div className="flex flex-col lg:flex-row items-center lg:items-start justify-center gap-8 w-full">
+        <div className="flex flex-col lg:flex-row items-center lg:items-start justify-center gap-4 w-full">
           {/* Left Side: Board and Notifications */}
-          <div className="w-full max-w-4xl relative flex flex-col items-center">
+          <div className="w-full max-w-3xl relative flex flex-col items-center">
             <Board 
               tiles={TILES} 
               players={gameState.players} 
@@ -821,7 +821,7 @@ export default function GameRoomPage() {
         </div>
 
         {/* Bottom Section: Controls Overlay */}
-        <div className="mt-8 flex items-center gap-6 bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-white/50 animate-slide-in scale-90 md:scale-100">
+        <div className="mt-4 flex items-center gap-4 bg-white/80 backdrop-blur-md p-3 rounded-3xl shadow-xl border border-white/50 animate-slide-in scale-90 md:scale-95">
           <DiceRoller 
             onRoll={handleRoll} 
             rolling={rolling} 
