@@ -23,7 +23,7 @@ export default function RegisterPage() {
       headers: { "Content-Type": "application/json" },
     }).catch(err => {
       console.error("Fetch error:", err);
-      return { ok: false, json: async () => ({ error: "Network error. Please check your connection." }) };
+      return { ok: false, status: 500, json: async () => ({ error: "Network error. Please check your connection." }) };
     });
 
     const data = await res.json();
