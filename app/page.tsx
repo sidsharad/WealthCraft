@@ -67,14 +67,30 @@ export default function HomePage() {
           {[
             { icon: "🌐", title: "Online Multiplayer", desc: "Play with 2–4 friends with a 6-char room code. Real-time updates via live sync." },
             { icon: "🤝", title: "Pass-and-Play", desc: "No sign-in needed for friends on one device. Includes AI bot players." },
-            { icon: "📊", title: "Full Ruleset", desc: "Bonds, stocks, auctions, hostile takeovers, Leader's Dilemma — all implemented." },
-          ].map((f) => (
-            <div key={f.title} className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-left border border-white/20">
-              <div className="text-3xl mb-3">{f.icon}</div>
-              <h3 className="text-white font-bold text-lg mb-1">{f.title}</h3>
-              <p className="text-white/60 text-sm leading-relaxed">{f.desc}</p>
-            </div>
-          ))}
+            { icon: "📊", title: "Full Ruleset", desc: "Bonds, stocks, auctions, hostile takeovers, Leader's Dilemma — all implemented. Click to read v5.3 rulebook.", link: "/WealthCraft_Rulebook_v5.3.docx", download: true },
+          ].map((f) => {
+            const CardContent = (
+              <div className={`bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-left border border-white/20 h-full transition-all ${f.link ? 'hover:bg-white/15 cursor-pointer' : ''}`}>
+                <div className="text-3xl mb-3">{f.icon}</div>
+                <h3 className="text-white font-bold text-lg mb-1">{f.title}</h3>
+                <p className="text-white/60 text-sm leading-relaxed">{f.desc}</p>
+              </div>
+            );
+
+            if (f.link) {
+              return f.download ? (
+                <a key={f.title} href={f.link} download className="block no-underline h-full">
+                  {CardContent}
+                </a>
+              ) : (
+                <Link key={f.title} href={f.link} className="block no-underline h-full">
+                  {CardContent}
+                </Link>
+              );
+            }
+
+            return <div key={f.title} className="h-full">{CardContent}</div>;
+          })}
         </div>
       </main>
 
