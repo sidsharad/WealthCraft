@@ -67,7 +67,7 @@ export default function HomePage() {
           {[
             { icon: "🌐", title: "Online Multiplayer", desc: "Play with 2–4 friends with a 6-char room code. Real-time updates via live sync." },
             { icon: "🤝", title: "Pass-and-Play", desc: "No sign-in needed for friends on one device. Includes AI bot players." },
-            { icon: "📊", title: "The Complete Rulebook", desc: "bonds, stocks, cash, audit, auctions, hostile takeovers and traDE. cLICK HERE to read the entire rulebook", link: "/rules", download: false },
+            { icon: "📊", title: "The Complete Rulebook", desc: "Bonds, stocks, cash, audit, auctions, hostile takeovers and trade. Click here to read the entire rulebook", link: "/rules", download: false },
           ].map((f) => {
             const CardContent = (
               <div className={`bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-left border border-white/20 h-full transition-all ${f.link ? 'hover:bg-white/15 cursor-pointer' : ''}`}>
