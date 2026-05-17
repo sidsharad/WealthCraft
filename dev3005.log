@@ -1,0 +1,17 @@
+
+> wealthcraft@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3005
+- Network:       http://192.168.1.15:3005
+- Environments: .env.local
+✓ Ready in 507ms
+[Error: Failed to check database invalidation and cleanup
+
+Caused by:
+    0: Unable to remove invalid database. If this issue persists you can work around by deleting "C:\\Users\\Siddharth Sharad\\OneDrive\\Desktop\\Antigravity Test\\WealthCraft\\wealthcraft\\.next\\dev\\cache/turbopack".
+    1: The directory is not empty. (os error 145)] {
+  code: 'GenericFailure'
+}
+[?25h

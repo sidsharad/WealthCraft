@@ -1,19 +1,38 @@
-// actions.ts — pure functions for all tile effects and game state mutations
-// All functions are side-effect free: take state, return new state
 import type { GameState, PlayerState, LogEntry } from "../db/schema";
 import {
   TILE_COUNT, INCOME_PER_TURN, WIN_CONDITION,
   BOND_RETURN_PER_5L, STOCK_RETURN_PER_5L,
   MARKET_CRASH_PER_5L, MARKET_RALLY_PER_5L,
   STOCK_CRASH_PER_5L, STOCK_RALLY_PER_5L,
-  BONUS_AMOUNT, EMERGENCY_3L, EMERGENCY_5L, EMERGENCY_10L,
+  BONUS_AMOUNT,
   LOTTERY_COST, TAX_RAID_COST, TAX_RAID_PENALTY,
   HOUSE_MARKET_PRICE, HOUSE_AUCTION_MIN, HOUSE_MANDATORY_YEAR,
-  DECLARATION_THRESHOLD, IPO_MAX_INVEST,
+  IPO_MAX_INVEST,
   ASSET_CONCENTRATION_LIMIT, FALSE_AUDIT_PENALTY,
   getTileByPosition,
 } from "./tiles";
-import { netWorth, floorTo5L, countBlocks, getAuditPenalty } from "./validators";
+/** Floor to nearest 5L block (for return calculations) */
+function floorTo5L(amount: number): number {
+  return Math.floor(amount / 5) * 5;
+}
+
+/** Number of complete 5L blocks */
+export function countBlocks(amount: number): number {
+  return Math.floor(amount / 5);
+}
+
+/** Calculate net worth for a player */
+export function netWorth(player: PlayerState): number {
+  return player.cash + player.bonds + player.stocks;
+}
+
+/** Get audit penalty tier for a player's net worth */
+function getAuditPenalty(wealth: number): number {
+  if (wealth >= 90) return 20;
+  if (wealth >= 80) return 15;
+  if (wealth >= 70) return 10;
+  return 0;
+}
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
@@ -61,11 +80,11 @@ export function createInitialGameState(
       hasHouse: false,
       jobLossActive: false,
       incomeFreezeActive: false,
-      wealthDeclared: false,
       position: 0,    // Start tile (index 0)
       year: 1,
       turnsWithJobLoss: 0,
       hasTraded: false,
+      wealthDeclared: false,
     })),
     log: [{ turn: 0, text: "Game started! Each player begins with 10L cash.", timestamp: Date.now() }],
   };
@@ -138,6 +157,7 @@ export function collectIncome(state: GameState, playerIdx: number): GameState {
     return addLog(state, `${player.name} collected no income (Job Loss active).`);
   }
 
+  // Calculate salary (5L)
   let s = updatePlayer(state, playerIdx, { cash: player.cash + INCOME_PER_TURN });
   return addLog(s, `${player.name} collected ${INCOME_PER_TURN}L income.`);
 }
@@ -157,27 +177,23 @@ export function applyStockRally(state: GameState, playerIdx: number): GameState 
   const player = state.players[playerIdx];
   const blocks = countBlocks(player.stocks);
   const gain = blocks * STOCK_RALLY_PER_5L;
-  if (gain === 0) {
-    return addLog(state, `${player.name} landed on Stock Rally but holds no stocks.`);
-  }
   const announcement = `📈 STOCK RALLY!`;
+  const privateMessage = `📈 STOCK RALLY!\n+${gain}L Stocks`;
   let s = updatePlayer(state, playerIdx, { stocks: player.stocks + gain });
-  s = addLog(s, `${player.name} Stock Rally: +${gain}L stocks (${blocks} blocks × ${STOCK_RALLY_PER_5L}L).`);
-  return { ...s, announcement };
+  s = addLog(s, `📈 STOCK RALLY: ${player.name} received stocks from market rally.`);
+  return { ...s, announcement, privateMessage };
 }
 
 export function applyStockCrash(state: GameState, playerIdx: number): GameState {
   const player = state.players[playerIdx];
   const blocks = countBlocks(player.stocks);
   const loss = blocks * STOCK_CRASH_PER_5L;
-  if (loss === 0) {
-    return addLog(state, `${player.name} landed on Stock Crash but holds no stocks.`);
-  }
   const announcement = `📉 STOCK CRASH!`;
+  const privateMessage = `📉 STOCK CRASH!\n-${loss}L Stocks`;
   const newStocks = Math.max(0, player.stocks - loss);
   let s = updatePlayer(state, playerIdx, { stocks: newStocks });
-  s = addLog(s, `${player.name} Stock Crash: -${loss}L stocks (${blocks} blocks × ${STOCK_CRASH_PER_5L}L).`);
-  return { ...s, announcement };
+  s = addLog(s, `📉 STOCK CRASH: ${player.name}'s stocks were hit by a crash.`);
+  return { ...s, announcement, privateMessage };
 }
 
 export function applyMarketCrash(state: GameState, playerIdx: number): GameState {
@@ -189,15 +205,21 @@ export function applyMarketCrash(state: GameState, playerIdx: number): GameState
     const blocks = countBlocks(player.stocks);
     const loss = blocks * MARKET_CRASH_PER_5L;
     if (loss > 0) {
-      s = updatePlayer(s, idx, { stocks: Math.max(0, player.stocks - loss) });
-      messages.push(`${player.name} -${loss}L stocks`);
+      s = updatePlayer(s, idx, { 
+        stocks: Math.max(0, player.stocks - loss),
+        privateMessage: `📉 MARKET CRASH!\nYour Impact: -${loss}L Stocks`
+      });
+      messages.push(`${player.name}`);
       if (idx === playerIdx) currentPlayerLoss = loss;
+    } else {
+      s = updatePlayer(s, idx, { privateMessage: `📉 MARKET CRASH!\nNo impact on your portfolio.` });
     }
   });
 
   const announcement = `📉 MARKET CRASH!`;
-  s = addLog(s, `MARKET CRASH! ALL players: ${messages.length > 0 ? messages.join(", ") : "no effect"}.`);
-  return { ...s, announcement };
+  s = addLog(s, `📉 MARKET CRASH! IMPACTED PLAYERS: ${messages.length > 0 ? messages.join(", ") : "none"}.`);
+  const privateMessage = `📉 MARKET CRASH!\nYour Impact: -${currentPlayerLoss}L Stocks`;
+  return { ...s, announcement, privateMessage };
 }
 
 export function applyMarketRally(state: GameState, playerIdx: number): GameState {
@@ -209,15 +231,21 @@ export function applyMarketRally(state: GameState, playerIdx: number): GameState
     const blocks = countBlocks(player.stocks);
     const gain = blocks * MARKET_RALLY_PER_5L;
     if (gain > 0) {
-      s = updatePlayer(s, idx, { stocks: player.stocks + gain });
-      messages.push(`${player.name} +${gain}L stocks`);
+      s = updatePlayer(s, idx, { 
+        stocks: player.stocks + gain,
+        privateMessage: `🚀 MARKET RALLY!\nYour Impact: +${gain}L Stocks`
+      });
+      messages.push(`${player.name}`);
       if (idx === playerIdx) currentPlayerGain = gain;
+    } else {
+      s = updatePlayer(s, idx, { privateMessage: `🚀 MARKET RALLY!\nNo impact on your portfolio.` });
     }
   });
 
   const announcement = `🚀 MARKET RALLY!`;
-  s = addLog(s, `MARKET RALLY! ALL players: ${messages.length > 0 ? messages.join(", ") : "no effect"}.`);
-  return { ...s, announcement };
+  s = addLog(s, `🚀 MARKET RALLY! IMPACTED PLAYERS: ${messages.length > 0 ? messages.join(", ") : "none"}.`);
+  const privateMessage = `🚀 MARKET RALLY!\nYour Impact: +${currentPlayerGain}L Stocks`;
+  return { ...s, announcement, privateMessage };
 }
 
 export function applyIPO(state: GameState, playerIdx: number, investAmount: number): GameState {
@@ -229,7 +257,7 @@ export function applyIPO(state: GameState, playerIdx: number, investAmount: numb
     return addLog(state, `${player.name} declined to invest in IPO.`);
   }
   if (player.cash < investAmount) {
-    return addLog(state, `${player.name} IPO: insufficient cash (${player.cash}L < ${investAmount}L).`);
+    return addLog(state, `${player.name} IPO: insufficient cash to invest ${investAmount}L.`);
   }
   const stocksGained = investAmount * 2;
   const announcement = `🚀 IPO INVESTMENT`;
@@ -254,9 +282,9 @@ export function applyIncomeFreezeToPlayer(state: GameState, playerIdx: number): 
 export function applyEmergency(state: GameState, playerIdx: number, amount: number): GameState {
   const player = state.players[playerIdx];
   const announcement = `🚨 EMERGENCY!`;
-  const privateMessage = `➖ Cash: ${amount}L`;
+  const privateMessage = `🚨 EMERGENCY!\n➖ Cash: ${amount}L (Emergency Fee)`;
   let s = updatePlayer(state, playerIdx, { cash: player.cash - amount });
-  s = addLog(s, `${player.name} Emergency card: paid ${amount}L to bank. Cash: ${player.cash - amount}L.`);
+  s = addLog(s, `${player.name} paid an emergency fee to the bank.`);
   s = { ...s, announcement, privateMessage };
   return s;
 }
@@ -268,7 +296,7 @@ export function deductLotteryFee(state: GameState, playerIdx: number): GameState
   return addLog(s, `${player.name} paid ${LOTTERY_COST}L to enter the Lottery.`);
 }
 
-/** Lottery Part 2: Apply reward based on die result */
+/** Pay 2L to roll: 1-2=No reward | 3-4=+2L cash | 5-6=+5L cash. */
 export function applyLotteryReward(state: GameState, playerIdx: number, dieResult: number): GameState {
   const player = state.players[playerIdx];
   let reward = 0;
@@ -330,10 +358,9 @@ export function applyHostileTakeover(
   else if (targetGiveType === "bonds") actualTake = Math.min(target.bonds, TAKE_AMOUNT);
   else actualTake = Math.min(target.stocks, TAKE_AMOUNT);
 
-  if (actualTake <= 0) {
-    return { state, valid: false, error: `${target.name} has no ${targetGiveType} to take!` };
-  }
-
+  // We allow the action to proceed even if actualTake is 0. 
+  // This prevents the attacker from "probing" for zero assets without spending their action.
+  
   let s = state;
   if (targetGiveType === "cash") {
     s = updatePlayer(s, targetIdx, { cash: target.cash - actualTake });
@@ -347,8 +374,11 @@ export function applyHostileTakeover(
   }
 
   const announcement = `🤝 TAKEOVER!`;
-  const privateMessage = `➕ ${targetGiveType.charAt(0).toUpperCase() + targetGiveType.slice(1)}: ${actualTake}L`;
-  s = addLog(s, `🤝 TAKEOVER: ${attacker.name} took ${actualTake}L in ${targetGiveType} from ${target.name}!`);
+  const privateMessage = actualTake > 0 
+    ? `➕ ${targetGiveType.charAt(0).toUpperCase() + targetGiveType.slice(1)}: ${actualTake}L`
+    : `No ${targetGiveType} was taken.`;
+
+  s = addLog(s, `🤝 TAKEOVER: ${attacker.name} targeted ${target.name}'s ${targetGiveType}. ${actualTake > 0 ? `Took ${actualTake}L!` : "Target had none to take."}`);
 
   return { state: { ...s, announcement, privateMessage }, valid: true };
 }
@@ -364,14 +394,13 @@ export function calculateYearEndReturns(state: GameState, playerIdx: number): Ga
 
   const newPlayerYear = player.year + 1;
   const announcement = `🎊 YEAR ${player.year} END`;
-  const privateMessage = (bondReturn > 0 || stockReturn > 0) 
-    ? `➕ Bonds: ${bondReturn}L\n➕ Stocks: ${stockReturn}L`
-    : "No returns this year.";
+  const privateMessage = `🎊 YEAR-END RETURNS\n+${bondReturn}L added to Bonds\n+${stockReturn}L added to Stocks`;
 
   let s = updatePlayer(state, playerIdx, {
     bonds: player.bonds + bondReturn,
     stocks: player.stocks + stockReturn,
     year: newPlayerYear,
+    privateMessage, // also store per-player for online sync
   });
 
   // Also update global state year if it's the highest
@@ -379,7 +408,7 @@ export function calculateYearEndReturns(state: GameState, playerIdx: number): Ga
     s = { ...s, year: newPlayerYear };
   }
 
-  s = addLog(s, `🎊 YEAR-END RETURNS: ${player.name} received +${bondReturn}L into Bonds and +${stockReturn}L into Stocks.`);
+  s = addLog(s, `🎊 YEAR-END: ${player.name} received portfolio returns (+${bondReturn}L Bonds, +${stockReturn}L Stocks).`);
   
   // Check mandatory expenses at year-end
   s = enforceMandatoryExpenses(s, playerIdx);
@@ -391,7 +420,7 @@ function enforceMandatoryExpenses(state: GameState, playerIdx: number): GameStat
   const player = state.players[playerIdx];
   let s = state;
 
-  // House mandatory by Year 3
+  // House mandatory by Year 3 (must own by end of Year 3, so checked when year becomes 4)
   if (player.year >= HOUSE_MANDATORY_YEAR && !player.hasHouse) {
     const msg = `🏠 MANDATORY PURCHASE: ${player.name} has bought a house for ${HOUSE_MARKET_PRICE}L!`;
     s = updatePlayer(s, playerIdx, {
@@ -433,7 +462,7 @@ export function applyYearEndRebalance(
     };
   }
   if (newCash < 0 || newBonds < 0 || newStocks < 0) {
-    return { state, valid: false, error: "Amounts cannot be negative." };
+    return { state: state, valid: false, error: "Amounts cannot be negative." };
   }
 
   let s = updatePlayer(state, playerIdx, {
@@ -441,7 +470,7 @@ export function applyYearEndRebalance(
     bonds: newBonds,
     stocks: newStocks,
   });
-  s = addLog(s, `${player.name} year-end rebalanced: ${newCash}L cash, ${newBonds}L bonds, ${newStocks}L stocks.`);
+  s = addLog(s, `${player.name} rebalanced their portfolio.`);
   return { state: s, valid: true };
 }
 
@@ -492,46 +521,7 @@ export function resolveHouseAuction(
   return { state: s, winnerId: winner.playerId, winnerBid: winner.amount };
 }
 
-// ─── LEADER'S DILEMMA ─────────────────────────────────────────────────────────
 
-export function processWealthDeclaration(
-  state: GameState,
-  playerIdx: number
-): GameState {
-  const player = state.players[playerIdx];
-  let s = updatePlayer(state, playerIdx, { wealthDeclared: true });
-  return addLog(s, `${player.name} declared wealth of ${netWorth(player)}L.`);
-}
-
-export function processAudit(
-  state: GameState,
-  auditorIdx: number,
-  targetIdx: number
-): { state: GameState; valid: boolean; error?: string } {
-  const auditor = state.players[auditorIdx];
-  const target = state.players[targetIdx];
-
-  if (target.wealthDeclared) {
-    return { state, valid: false, error: `${target.name} has already declared wealth and cannot be audited.` };
-  }
-
-  const targetWealth = netWorth(target);
-
-  if (targetWealth < DECLARATION_THRESHOLD) {
-    // False audit — auditor pays 5L
-    const msg = `🔍 TAX AUDIT: False alarm! ${auditor.name} paid 5L penalty.`;
-    let s = updatePlayer(state, auditorIdx, { cash: auditor.cash - 5 });
-    s = addLog(s, `${auditor.name} audited ${target.name} (wealth: ${targetWealth}L < 70L) — FALSE AUDIT! ${auditor.name} pays 5L.`);
-    return { state: { ...s, announcement: msg }, valid: true };
-  }
-
-  // Target has 70L+ and hasn't declared — penalty
-  const penalty = getAuditPenalty(targetWealth);
-  const msg = `🔍 TAX AUDIT: ${target.name} caught! Paid ${penalty}L penalty.`;
-  let s = updatePlayer(state, targetIdx, { cash: target.cash - penalty, wealthDeclared: true });
-  s = addLog(s, `${auditor.name} audited ${target.name} (wealth: ${targetWealth}L) — CAUGHT! ${target.name} pays ${penalty}L penalty.`);
-  return { state: { ...s, announcement: msg }, valid: true };
-}
 
 /** 
  * Asset Concentration Audit:
@@ -545,6 +535,8 @@ export function processConcentrationAudit(
 ): { state: GameState; valid: boolean; error?: string; auditFailed?: boolean; needsRebalance?: boolean } {
   const auditor = state.players[auditorIdx];
   const target = state.players[targetIdx];
+
+  if (auditorIdx === targetIdx) return { state, valid: false, error: "You cannot audit yourself." };
 
   const overCash = target.cash > ASSET_CONCENTRATION_LIMIT;
   const overBonds = target.bonds > ASSET_CONCENTRATION_LIMIT;
@@ -611,22 +603,73 @@ export function resolveTrade(
   const from = state.players[fromIdx];
   const to = state.players[toIdx];
 
+  // Verify both players can afford the trade at the exact moment of execution
+  const fromCanAfford = 
+    from.cash >= trade.offer.cash &&
+    from.bonds >= trade.offer.bonds &&
+    from.stocks >= trade.offer.stocks;
+
+  const toCanAfford = 
+    to.cash >= trade.request.cash &&
+    to.bonds >= trade.request.bonds &&
+    to.stocks >= trade.request.stocks;
+
+  if (!fromCanAfford || !toCanAfford) {
+    return { 
+      ...state, 
+      pendingTrade: undefined, 
+      phase: "trade", 
+      announcement: "🤝 TRADE FAILED: Insufficient assets to complete the trade." 
+    };
+  }
+
   // Execute trade
   let s = state;
+
+  const toNum = (val: any) => Number(val) || 0;
+
+  const offerCash = toNum(trade.offer?.cash);
+  const offerBonds = toNum(trade.offer?.bonds);
+  const offerStocks = toNum(trade.offer?.stocks);
+
+  const requestCash = toNum(trade.request?.cash);
+  const requestBonds = toNum(trade.request?.bonds);
+  const requestStocks = toNum(trade.request?.stocks);
+
+  // Check if the proposing player (from) is located on a Free Trade Zone tile
+  const fromTile = getTileByPosition(toNum(from.position));
+  const isFreeTradeZone = fromTile.effect === "free-trade-zone";
+
+  // Calculate trade volume (total assets swapped)
+  const offerVal = offerCash + offerBonds + offerStocks;
+  const requestVal = requestCash + requestBonds + requestStocks;
+  const totalWorth = offerVal + requestVal;
+
+  const hasFreeTradeBonus = isFreeTradeZone && totalWorth >= 25;
+  const bonusAmount = hasFreeTradeBonus ? 5 : 0;
+
   s = updatePlayer(s, fromIdx, {
-    cash: from.cash - trade.offer.cash + trade.request.cash,
-    bonds: from.bonds - trade.offer.bonds + trade.request.bonds,
-    stocks: from.stocks - trade.offer.stocks + trade.request.stocks,
+    cash: toNum(from.cash) - offerCash + requestCash + bonusAmount,
+    bonds: toNum(from.bonds) - offerBonds + requestBonds,
+    stocks: toNum(from.stocks) - offerStocks + requestStocks,
     hasTraded: true, // Only set to true on successful trade
   });
   s = updatePlayer(s, toIdx, {
-    cash: to.cash - trade.request.cash + trade.offer.cash,
-    bonds: to.bonds - trade.request.bonds + trade.offer.bonds,
-    stocks: to.stocks - trade.request.stocks + trade.offer.stocks,
+    cash: toNum(to.cash) - requestCash + offerCash + bonusAmount,
+    bonds: toNum(to.bonds) - requestBonds + offerBonds,
+    stocks: toNum(to.stocks) - requestStocks + offerStocks,
   });
 
-  s = { ...s, pendingTrade: undefined, phase: "trade", announcement: "🤝 TRADE COMPLETED!" };
-  return addLog(s, `🤝 Trade successful between ${from.name} and ${to.name}.`);
+  let announcement = "🤝 TRADE COMPLETED!";
+  let logMessage = `🤝 Trade successful between ${from.name} and ${to.name}.`;
+
+  if (hasFreeTradeBonus) {
+    announcement = "🤝 FREE TRADE ZONE BONUS! Both players receive +5L Cash!";
+    logMessage = `🤝 Free Trade Zone: Proposer ${from.name} completed trade worth ${totalWorth}L. Both players received +5L cash bonus!`;
+  }
+
+  s = { ...s, pendingTrade: undefined, phase: "trade", announcement };
+  return addLog(s, logMessage);
 }
 
 // ─── WIN CONDITION ────────────────────────────────────────────────────────────
@@ -643,7 +686,10 @@ export function checkWinCondition(state: GameState): { triggered: boolean; trigg
 export function getLeaderboard(state: GameState): Array<PlayerState & { rank: number; total: number }> {
   return state.players
     .map((p) => ({ ...p, rank: 0, total: netWorth(p) }))
-    .sort((a, b) => b.total - a.total)
+    .sort((a, b) => {
+      if (b.total !== a.total) return b.total - a.total;
+      return b.stocks - a.stocks; // Tiebreaker: Most Stocks wins
+    })
     .map((p, i) => ({ ...p, rank: i + 1 }));
 }
 
@@ -660,6 +706,13 @@ export function advanceTurn(state: GameState): GameState {
     announcement: undefined,
     privateMessage: undefined,
   };
+
+  // Reset per-player private messages and hasTraded for the new round/turn
+  s.players = s.players.map((p, i) => ({
+    ...p,
+    privateMessage: undefined,
+    hasTraded: i === nextIdx ? false : p.hasTraded
+  }));
 
   // If a round is completed
   if (nextIdx === 0) {
@@ -679,13 +732,7 @@ export function advanceTurn(state: GameState): GameState {
     }
   }
 
-  // Reset hasTraded for the new current player
-  s = updatePlayer(s, nextIdx, { hasTraded: false });
 
-  // Process Year-End Returns if entering year-end phase (but skip first turn of game)
-  if (s.phase === "year-end" && s.turn >= s.players.length) {
-    s = calculateYearEndReturns(s, nextIdx);
-  }
 
   return addLog(s, `--- Turn ${s.turn}: ${s.players[nextIdx].name}'s turn ---`);
 }

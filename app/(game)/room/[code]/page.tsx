@@ -1,11 +1,10 @@
 "use client";
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { getPusherClient, getRoomChannel, PUSHER_EVENTS } from "@/lib/pusher";
-import { TILES, TILE_COUNT, HOUSE_MARKET_PRICE, HOUSE_AUCTION_MIN } from "@/lib/game-engine/tiles";
-import { GameState, PlayerState, LogEntry } from "@/lib/db/schema";
-import { netWorth } from "@/lib/game-engine/validators";
+import { TILES, HOUSE_MARKET_PRICE, HOUSE_AUCTION_MIN } from "@/lib/game-engine/tiles";
+import { netWorth } from "@/lib/game-engine/actions";
+import { useGameTurn } from "@/hooks/useGameTurn";
 import Board from "@/components/board/Board";
 import PortfolioPanel from "@/components/game/PortfolioPanel";
 import DiceRoller from "@/components/game/DiceRoller";
@@ -18,106 +17,22 @@ import TargetedActionModal from "@/components/game/TargetedActionModal";
 import ChoiceModal from "@/components/game/ChoiceModal";
 import PassDeviceScreen from "@/components/game/PassDeviceScreen";
 import TradeResponseModal from "@/components/game/TradeResponseModal";
-import { 
-  createInitialGameState,
-  rollDice,
-  processDiceRoll,
-  collectIncome,
-  applyBonus,
-  applyStockRally,
-  applyStockCrash,
-  applyMarketCrash,
-  applyMarketRally,
-  applyIPO,
-  applyIncomeFreezeToPlayer,
-  applyEmergency,
-  deductLotteryFee,
-  applyLotteryReward,
-  applyTaxRaid,
-  applyHostileTakeover,
-  resolveTrade,
-  calculateYearEndReturns,
-  applyYearEndRebalance,
-  resolveHouseAuction,
-  processWealthDeclaration,
-  processAudit,
-  processConcentrationAudit,
-  checkWinCondition,
-  advanceTurn,
-  addLog,
-} from "@/lib/game-engine/actions";
-import { getTileByPosition } from "@/lib/game-engine/tiles";
-import { Trophy, Home, Settings, LogOut, MessageSquare, ShieldAlert } from "lucide-react";
-import { getBotDecision, BotAction } from "@/lib/game-engine/bot";
+import { LogOut, MessageSquare, ShieldAlert } from "lucide-react";
 
 const PLAYER_COLORS = ["#3B82F6", "#F97316", "#A855F7", "#EC4899"];
 
 export default function GameRoomPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const router = useRouter();
   const code = params.code as string;
   const isLocal = code === "play-local";
-
-  const [gameState, setGameState] = useState<GameState | null>(null);
-  const [room, setRoom] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [rolling, setRolling] = useState(false);
-  const [lastDice, setLastDice] = useState<number | null>(null);
-  const [error, setError] = useState("");
-
   const userId = (session?.user as { id?: string })?.id;
 
-  const currentBiddingPlayer = useMemo(() => {
-    if (!gameState || gameState.phase !== "auction") return null;
-    return gameState.players.find(p => !p.hasHouse && !gameState.auctionState?.bids.find(b => b.playerId === p.id));
-  }, [gameState]);
+  const turn = useGameTurn({ code, isLocal, userId });
 
-  const eligibleBiddersCount = useMemo(() => {
-    if (!gameState) return 0;
-    return gameState.players.filter(p => !p.hasHouse).length;
-  }, [gameState]);
-  const [showTrade, setShowTrade] = useState(false);
-  const [showAuction, setShowAuction] = useState(false);
-  const [showRebalance, setShowRebalance] = useState(false);
-  const [showLeadersDilemma, setShowLeadersDilemma] = useState(false);
-  const [showTargetedAction, setShowTargetedAction] = useState<"tax-raid" | "hostile-takeover" | "concentration-audit" | null>(null);
-  const [showChoiceModal, setShowChoiceModal] = useState<"lottery" | "ipo" | "emergency" | null>(null);
-  const [showPassDevice, setShowPassDevice] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  const [rebalancePenaltyOverride, setRebalancePenaltyOverride] = useState<number | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Turn Timer Logic
-  useEffect(() => {
-    if (!gameState || gameState.endgame || gameState.phase === "finished") return;
-
-    // Start timer when phase changes to something active (not roll, not year-end)
-    const needsTimer = ["action", "auction", "trade", "waiting-trade"].includes(gameState.phase);
-    
-    if (needsTimer && timeLeft === null) {
-      setTimeLeft(60);
-    } else if (!needsTimer) {
-      if (timeLeft !== null) setTimeLeft(null);
-    }
-
-    if (timeLeft !== null && timeLeft > 0) {
-      timerRef.current = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-    } else if (timeLeft === 0) {
-      handleEndTurn();
-    }
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [gameState?.phase, gameState?.currentPlayerIndex, timeLeft]);
-
-  const [isBotProcessing, setIsBotProcessing] = useState(false);
-  const [overlayMessage, setOverlayMessage] = useState<string | null>(null);
-  const [diceMode, setDiceMode] = useState<"move" | "lottery">("move");
-
-  const allPlayersHaveHouses = gameState?.players.every(p => p.hasHouse) ?? false;
+  // ─── UI LOGIC (TIPS) ────────────────────────────────────────────────────────
+  const [activeTipIndex, setActiveTipIndex] = useState(0);
 
   const TIPS = useMemo(() => {
     const base = [
@@ -133,523 +48,38 @@ export default function GameRoomPage() {
       "📉 Market Crash coming? Trade your high stock concentration for someone else's cash to hedge your risk.",
     ];
 
-    if (!allPlayersHaveHouses) {
+    if (!turn.allPlayersHaveHouses) {
       base.push("House Auctions are the cheapest way to get a home. Try to keep 10-15L cash ready!");
       base.push("🏠 Need cash for a House Auction? Propose a trade! It's faster and cheaper than selling assets back to the bank.");
       base.push("🏘️ MANDATORY PURCHASE: Keep enough cash for your mandatory house purchase at the end of Year 3!");
     }
 
     return base;
-  }, [allPlayersHaveHouses]);
-  const [activeTipIndex, setActiveTipIndex] = useState(0);
-
-  const [turnStartPortfolio, setTurnStartPortfolio] = useState<PlayerState | null>(null);
-  const [isEndingTurn, setIsEndingTurn] = useState(false);
-
-  const generatePortfolioDiff = (oldP: PlayerState, newP: PlayerState) => {
-    const diffs = [];
-    if (newP.cash !== oldP.cash) diffs.push(`${newP.cash > oldP.cash ? '➕' : '➖'} Cash: ${Math.abs(newP.cash - oldP.cash)}L`);
-    if (newP.bonds !== oldP.bonds) diffs.push(`${newP.bonds > oldP.bonds ? '➕' : '➖'} Bonds: ${Math.abs(newP.bonds - oldP.bonds)}L`);
-    if (newP.stocks !== oldP.stocks) diffs.push(`${newP.stocks > oldP.stocks ? '➕' : '➖'} Stocks: ${Math.abs(newP.stocks - oldP.stocks)}L`);
-    if (newP.hasHouse && !oldP.hasHouse) diffs.push("🏠 Acquired House");
-    return diffs.join("\n");
-  };
-
-  useEffect(() => {
-    if (gameState && currentPlayer) {
-      console.log(`[Turn Start] Capturing portfolio for ${currentPlayer.name}`);
-      setTurnStartPortfolio(JSON.parse(JSON.stringify(currentPlayer)));
-    }
-  }, [gameState?.currentPlayerIndex]);
+  }, [turn.allPlayersHaveHouses]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveTipIndex((prev) => (prev + 1) % TIPS.length);
-    }, 10000); // Change tip every 10 seconds
+    }, 10000);
     return () => clearInterval(interval);
   }, [TIPS.length]);
 
-
-  const isMyTurn = !!(isLocal || (gameState?.phase === "auction" ? !!currentBiddingPlayer : (gameState && gameState.players[gameState.currentPlayerIndex].id === userId)));
-  const currentPlayer = gameState?.players[gameState.currentPlayerIndex];
-  
-  // ─── INITIAL LOAD ────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (isLocal) {
-      const playersJson = searchParams.get("players");
-      const botsJson = searchParams.get("bots");
-      if (playersJson && !gameState) {
-        try {
-          const playerNames = JSON.parse(playersJson);
-          const botNames = botsJson ? JSON.parse(botsJson) : [];
-          initLocalGame(playerNames, botNames);
-        } catch (e) {
-          setError("Failed to initialize local game. Check URL parameters.");
-        }
-      }
-      setLoading(false);
-    } else {
-      fetchRoom();
-    }
-  }, [code, isLocal]);
-
-  async function fetchRoom() {
-    try {
-      const res = await fetch(`/api/rooms?code=${code}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setGameState(data.room.gameState);
-      setRoom(data.room);
-      setLoading(false);
-    } catch (e: any) {
-      setError(e.message);
-      setLoading(false);
-    }
-  }
-
-  function initLocalGame(names: string[], bots: string[]) {
-    const allPlayers = [
-      ...names.map((name, i) => ({
-        id: `player_${i}`,
-        name,
-        avatar: "",
-        isBot: false,
-      })),
-      ...bots.map((name, i) => ({
-        id: `bot_${i}`,
-        name,
-        avatar: "",
-        isBot: true,
-      })),
-    ];
-
-    const initialState = createInitialGameState(allPlayers);
-    setGameState(initialState);
-  }
-
-  const [portfolios, setPortfolios] = useState<Record<string, { cash: number, bonds: number, stocks: number }>>({});
-
-  // Auto-clear overlay message
-  useEffect(() => {
-    if (overlayMessage) {
-      const timer = setTimeout(() => setOverlayMessage(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [overlayMessage]);
-
-  useEffect(() => {
-    if (isLocal || !code) return;
-
-    const pusher = getPusherClient();
-    if (!pusher) return; // Pusher not configured — online mode unavailable
-
-    const channel = pusher.subscribe(getRoomChannel(code));
-
-    channel.bind(PUSHER_EVENTS.GAME_STATE_UPDATE, (data: { gameState: GameState }) => {
-      setGameState(data.gameState);
-    });
-
-    channel.bind(PUSHER_EVENTS.GAME_STARTED, (data: { gameState: GameState }) => {
-      setGameState(data.gameState);
-    });
-
-    channel.bind(PUSHER_EVENTS.GAME_FINISHED, (data: { gameState: GameState, leaderboard: any }) => {
-      setGameState(data.gameState);
-    });
-
-    return () => {
-      pusher.unsubscribe(getRoomChannel(code));
-    };
-  }, [code, isLocal]);
-
-
-  // ─── GAME ACTIONS ─────────────────────────────────────────────────────────────
-
-  const performAction = useCallback(async (action: string, payload?: any) => {
-    if (isLocal) {
-      if (action === "start" && !gameState) {
-        const playersJson = searchParams.get("players");
-        const playerNames = playersJson ? JSON.parse(playersJson) : ["Player 1", "Player 2"];
-        const botsJson = searchParams.get("bots");
-        const botNames = botsJson ? JSON.parse(botsJson) : [];
-        initLocalGame(playerNames, botNames);
-        return;
-      }
-
-      if (gameState) {
-        let state = { ...gameState };
-        const playerIdx = state.currentPlayerIndex;
-        const player = state.players[playerIdx];
-
-        switch (action) {
-          case "roll":
-            const diceValue = rollDice();
-            const result = processDiceRoll(state, playerIdx, diceValue);
-            state = result.state;
-            setLastDice(result.dice);
-
-            const tile = getTileByPosition(result.newPosition);
-            if (tile.effect === "income-freeze") {
-              state = applyIncomeFreezeToPlayer(state, playerIdx);
-            } else {
-              state = collectIncome(state, playerIdx);
-            }
-
-            if (result.passedStart) {
-              state = calculateYearEndReturns(state, playerIdx);
-              state = { ...state, phase: "year-end" };
-            } else {
-              state = { ...state, phase: "action" };
-            }
-            break;
-            
-          case "lottery-resolve":
-            state = applyLotteryReward(state, playerIdx, payload.dice || (Math.floor(Math.random() * 6) + 1));
-            state = { ...state, phase: "trade" };
-            break;
-
-          case "tile-action":
-            const currentTile = getTileByPosition(player.position);
-            switch (currentTile.effect) {
-              case "bonus": state = applyBonus(state, playerIdx); break;
-              case "stock-rally": state = applyStockRally(state, playerIdx); break;
-              case "stock-crash": state = applyStockCrash(state, playerIdx); break;
-              case "market-crash": state = applyMarketCrash(state, playerIdx); break;
-              case "market-rally": state = applyMarketRally(state, playerIdx); break;
-              case "ipo": 
-                if (!payload) {
-                  setShowChoiceModal("ipo");
-                  return;
-                }
-                if (player.cash < payload.amount) {
-                  alert(`Insufficient cash for IPO. You must rebalance first (3L penalty applies).`);
-                  setShowRebalance(true);
-                  return;
-                }
-                state = applyIPO(state, playerIdx, payload.amount); 
-                break;
-              case "emergency": 
-                if (!payload) {
-                  setShowChoiceModal("emergency");
-                  return;
-                }
-                if (player.cash < payload.amount) {
-                  alert(`Insufficient cash for Emergency. You must rebalance first (3L penalty applies).`);
-                  setShowRebalance(true);
-                  return;
-                }
-                state = applyEmergency(state, playerIdx, payload.amount); 
-                break;
-              case "lottery": 
-                if (!payload) {
-                  setShowChoiceModal("lottery");
-                  return;
-                }
-                if (payload.play) {
-                  state = deductLotteryFee(state, playerIdx);
-                  setDiceMode("lottery");
-                  setShowChoiceModal(null);
-                  setOverlayMessage("🎰 ROLL FOR YOUR LOTTERY PRIZE!");
-                } else {
-                  state = { ...state, phase: "trade" };
-                }
-                break;
-                break;
-              case "tax-raid": 
-                if (!payload) {
-                  setShowTargetedAction("tax-raid");
-                  return;
-                }
-                const targetIdx = typeof payload.targetIdx === 'string' ? parseInt(payload.targetIdx) : payload.targetIdx;
-                if (payload.skip) {
-                  state = addLog(state, `${player.name} chose to take no action.`);
-                } else {
-                  const tr = applyTaxRaid(state, playerIdx, targetIdx);
-                  if (tr.valid) {
-                    state = tr.state;
-                  } else {
-                    alert(tr.error);
-                    return;
-                  }
-                }
-                break;
-              case "hostile-takeover": 
-                if (!payload) {
-                  setShowTargetedAction("hostile-takeover");
-                  return;
-                }
-                const htTargetIdx = typeof payload.targetIdx === 'string' ? parseInt(payload.targetIdx) : payload.targetIdx;
-                if (payload.skip) {
-                  state = addLog(state, `${player.name} chose to take no action.`);
-                } else {
-                  const ht = applyHostileTakeover(state, playerIdx, htTargetIdx, payload.demandType);
-                  if (ht.valid) {
-                    state = ht.state;
-                  } else {
-                    alert(ht.error);
-                    return;
-                  }
-                }
-                break;
-              case "house-auction": 
-                const eligibleCount = state.players.filter(p => !p.hasHouse).length;
-                if (eligibleCount > 0) {
-                  state = { ...state, phase: "auction", auctionState: { bids: [], open: true, timerStart: Date.now() } };
-                  setShowAuction(true);
-                } else {
-                  state = { ...state, phase: "trade", announcement: "🏠 NO AUCTION: All players already own houses." };
-                }
-                break;
-            }
-            if (state.phase !== "auction") state = { ...state, phase: "trade" };
-            break;
-
-          case "bid":
-            if (state.auctionState?.open) {
-              const bidderId = payload.bidderId || player.id;
-              const existingBids = state.auctionState.bids.filter(b => b.playerId !== bidderId);
-              state = {
-                ...state,
-                auctionState: {
-                  ...state.auctionState,
-                  bids: [...existingBids, { playerId: bidderId, amount: payload.amount }]
-                }
-              };
-              if (state.auctionState?.bids && state.auctionState.bids.length >= eligibleBiddersCount) {
-                const res = resolveHouseAuction(state);
-                state = res.state;
-              } else if (isLocal) {
-                setShowPassDevice(true);
-              }
-            }
-            break;
-
-          case "rebalance":
-            const reb = applyYearEndRebalance(state, playerIdx, payload.newCash, payload.newBonds, payload.newStocks, payload.penalty || 0);
-            if (reb.valid) {
-              const isMidYear = state.phase !== "year-end";
-              const nextPhase = isMidYear ? "action" : (state.turn < state.players.length ? "roll" : "trade");
-              state = { ...reb.state, phase: nextPhase };
-            } else {
-              alert(`Rebalance failed: ${reb.error}`);
-            }
-            break;
-
-          case "trade-offer":
-            state = {
-              ...state,
-              phase: "waiting-trade",
-              pendingTrade: {
-                fromPlayerId: player.id,
-                toPlayerId: payload.toPlayerId,
-                offer: payload.offer,
-                request: payload.request
-              }
-            };
-            if (isLocal) setShowPassDevice(true);
-            break;
-          case "trade-response":
-            state = resolveTrade(state, payload.accept);
-            break;
-          case "end-turn":
-            state = advanceTurn(state);
-            break;
-          case "concentration-audit":
-            const caTargetIdx = typeof payload.targetIdx === 'string' ? parseInt(payload.targetIdx) : payload.targetIdx;
-            const ca = processConcentrationAudit(state, playerIdx, caTargetIdx);
-            if (ca.valid) {
-              state = ca.state;
-              if (ca.needsRebalance) {
-                setRebalancePenaltyOverride(5 + (state.phase !== "year-end" ? 3 : 0));
-                setShowRebalance(true);
-              }
-            } else {
-              alert(ca.error);
-              return;
-            }
-            break;
-        }
-
-        const win = checkWinCondition(state);
-        if (win.triggered && !state.endgame) {
-          state = { ...state, endgame: true };
-          const msg = `🚨 FINAL ROUND! A player has reached 100L. Everyone gets one last turn!`;
-          state = addLog(state, msg);
-          state = { ...state, announcement: msg };
-        }
-
-        if (state.currentPlayerIndex !== gameState.currentPlayerIndex) {
-          setShowPassDevice(true);
-        } 
-        setGameState(state);
-      }
-      return;
-    }
-
-    try {
-      const roomRes = await fetch(`/api/rooms?code=${code}`);
-      const roomData = await roomRes.json();
-      if (!roomRes.ok) throw new Error(roomData.error);
-      const roomId = roomData.room.id;
-
-      const actionRes = await fetch(`/api/rooms/${roomId}/action`, {
-        method: "POST",
-        body: JSON.stringify({ action, payload }),
-        headers: { "Content-Type": "application/json" },
-      });
-      const data = await actionRes.json();
-      if (!actionRes.ok) throw new Error(data.error);
-      setGameState(data.gameState);
-      if (data.dice) setLastDice(data.dice);
-      
-      if (data.needsRebalance) {
-        setRebalancePenaltyOverride(5 + (data.gameState.phase !== "year-end" ? 3 : 0));
-        setShowRebalance(true);
-      }
-    } catch (e: any) {
-      setError(e.message);
-    }
-  }, [code, gameState, isLocal, userId, isBotProcessing, currentBiddingPlayer]);
-
-  // Effect to show portfolio changes to the specific player
-  useEffect(() => {
-    if (!gameState) return;
-    
-    // Find "my" player index
-    let myIdx = -1;
-    if (isLocal) {
-      myIdx = gameState.currentPlayerIndex;
-    } else if (userId) {
-      myIdx = gameState.players.findIndex(p => p.id === userId);
-    }
-    
-    if (myIdx === -1) return;
-    const myP = gameState.players[myIdx];
-    const prev = portfolios[myP.id];
-    
-    if (prev) {
-      const changes: string[] = [];
-      const cashDiff = myP.cash - prev.cash;
-      const bondDiff = myP.bonds - prev.bonds;
-      const stockDiff = myP.stocks - prev.stocks;
-
-      if (cashDiff !== 0) changes.push(`${cashDiff > 0 ? "+" : ""}${cashDiff}L Cash`);
-      if (bondDiff !== 0) changes.push(`${bondDiff > 0 ? "+" : ""}${bondDiff}L Bonds`);
-      if (stockDiff !== 0) changes.push(`${stockDiff > 0 ? "+" : ""}${stockDiff}L Stocks`);
-
-      if (changes.length > 0) {
-        const isGain = (cashDiff + bondDiff + stockDiff) >= 0;
-        setOverlayMessage(`${isGain ? "💰" : "📉"} ${isGain ? "Gained" : "Lost"}: ${changes.join(", ")}`);
-      }
-    }
-    
-    // Update the portfolio map for all players in gameState to stay in sync
-    const newPortfolios = { ...portfolios };
-    let hasChanged = false;
-    gameState.players.forEach(p => {
-      const current = portfolios[p.id];
-      if (!current || current.cash !== p.cash || current.bonds !== p.bonds || current.stocks !== p.stocks) {
-        newPortfolios[p.id] = { cash: p.cash, bonds: p.bonds, stocks: p.stocks };
-        hasChanged = true;
-      }
-    });
-    if (hasChanged) setPortfolios(newPortfolios);
-  }, [gameState?.players, gameState?.currentPlayerIndex, isLocal, userId]);
-
-  const handleRebalance = useCallback((newCash: number, newBonds: number, newStocks: number) => {
-    // Check if it's a mid-year rebalance (penalty applies)
-    const isMidYear = gameState?.phase !== "year-end";
-    const payload: any = { newCash, newBonds, newStocks };
-    if (isMidYear) {
-      payload.penalty = 3; // REBALANCE_PENALTY
-    }
-    performAction("rebalance", payload);
-  }, [performAction, gameState?.phase]);
-
-  const handleRoll = async () => {
-    setRolling(true);
-    setTimeout(async () => {
-      if (diceMode === "lottery") {
-        const dice = Math.floor(Math.random() * 6) + 1;
-        setLastDice(dice);
-        await performAction("lottery-resolve", { dice });
-        setDiceMode("move");
-      } else {
-        await performAction("roll");
-      }
-      setRolling(false);
-    }, 1200); // Increased to match 3D transition length
-  };
-
-  const handleTileAction = async (payload?: any) => {
-    // For online mode, we need to show the modal locally before sending the action to the server
-    if (!payload && currentPlayer && !isLocal) {
-      const tile = getTileByPosition(currentPlayer.position);
-      if (["ipo", "lottery", "emergency"].includes(tile.effect)) {
-        setShowChoiceModal(tile.effect as any);
-        return;
-      }
-      if (["tax-raid", "hostile-takeover"].includes(tile.effect)) {
-        setShowTargetedAction(tile.effect as any);
-        return;
-      }
-    }
-    await performAction("tile-action", payload);
-  };
-
-  const handleEndTurn = async () => {
-    if (isEndingTurn) return;
-    setIsEndingTurn(true);
-
-    await performAction("end-turn");
-    if (isLocal) setShowPassDevice(true);
-    setIsEndingTurn(false);
-  };
-
-  // ─── BOT LOGIC ────────────────────────────────────────────────────────────────
-
-  /* Bot logic disabled for manual mode
-  useEffect(() => {
-    if (gameState && currentPlayer?.isBot && gameState.phase !== "finished" && !isBotProcessing) {
-      const decision = getBotDecision(gameState, gameState.currentPlayerIndex);
-      if (decision.type !== "skip") {
-        processBotAction(decision);
-      } else if (gameState.phase === "roll") {
-        setTimeout(handleRoll, 1500);
-      } else if (gameState.phase === "action") {
-        setTimeout(() => handleTileAction(), 1500);
-      } else if (gameState.phase === "trade") {
-        setTimeout(handleEndTurn, 1500);
-      }
-    }
-  }, [gameState, currentPlayer, isBotProcessing]);
-  */
-
-  async function processBotAction(decision: BotAction) {
-    setIsBotProcessing(true);
-    setTimeout(async () => {
-      await performAction(decision.type, decision.payload);
-      setIsBotProcessing(false);
-    }, 1500);
-  }
-
   // ─── RENDERING ───────────────────────────────────────────────────────────────
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-[var(--cream)]">
+  if (turn.loading) return <div className="min-h-screen flex items-center justify-center bg-[var(--cream)]">
     <div className="animate-spin text-4xl">💰</div>
   </div>;
 
-  if (error) return <div className="min-h-screen flex items-center justify-center bg-red-50 p-6">
+  if (turn.error) return <div className="min-h-screen flex items-center justify-center bg-red-50 p-6">
     <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-sm">
       <div className="text-red-500 text-5xl mb-4">⚠️</div>
       <h2 className="text-xl font-bold text-gray-800 mb-2">Error</h2>
-      <p className="text-gray-500 text-sm mb-6">{error}</p>
+      <p className="text-gray-500 text-sm mb-6">{turn.error}</p>
       <button onClick={() => router.push("/lobby")} className="btn-primary w-full">Back to Lobby</button>
     </div>
   </div>;
 
-  if (!gameState) return <div className="min-h-screen flex items-center justify-center bg-[var(--cream)] p-6">
+  if (!turn.gameState) return <div className="min-h-screen flex items-center justify-center bg-[var(--cream)] p-6">
     <div className="bg-white p-10 rounded-3xl shadow-xl text-center max-w-md border-4 border-[var(--gold)]">
       <h2 className="text-2xl font-black text-[var(--navy)] mb-4">Waiting for Host...</h2>
       <p className="text-gray-500 mb-8">Share the code with your friends to join the game.</p>
@@ -657,19 +87,19 @@ export default function GameRoomPage() {
         <span className="text-4xl font-black tracking-widest text-[var(--navy)]">{code}</span>
       </div>
 
-      {room?.playerIds && (
+      {turn.room?.playerIds && (
         <div className="mb-8 text-left">
-          <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3 px-1">Players Joined ({room.playerIds.length}/4)</h3>
+          <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3 px-1">Players Joined ({turn.room.playerIds.length}/4)</h3>
           <div className="grid gap-2">
-            {room.playerIds.map((id: string, idx: number) => {
-              const pName = gameState?.players.find(p => p.id === id)?.name || (idx === 0 ? "Host" : `Player ${idx + 1}`);
+            {turn.room.playerIds.map((id: string, idx: number) => {
+              const pName = idx === 0 ? "Host" : `Player ${idx + 1}`;
               return (
                 <div key={id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
                   <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
                     {pName[0].toUpperCase()}
                   </div>
                   <span className="font-bold text-sm text-[var(--navy)]">{pName}</span>
-                  {id === room.hostId && <span className="ml-auto text-[8px] font-black uppercase bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">Host</span>}
+                  {id === turn.room.hostId && <span className="ml-auto text-[8px] font-black uppercase bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">Host</span>}
                 </div>
               );
             })}
@@ -677,8 +107,8 @@ export default function GameRoomPage() {
         </div>
       )}
 
-      {(isLocal || userId === room?.hostId) ? (
-        <button onClick={() => performAction("start")} className="btn-primary w-full py-4 text-lg">Start Game</button>
+      {(isLocal || userId === turn.room?.hostId) ? (
+        <button onClick={() => turn.performAction("start")} className="btn-primary w-full py-4 text-lg">Start Game</button>
       ) : (
         <div className="bg-blue-50 text-blue-700 p-4 rounded-2xl text-sm font-bold animate-pulse border border-blue-100">
           Waiting for host to start the game...
@@ -686,7 +116,6 @@ export default function GameRoomPage() {
       )}
     </div>
   </div>;
-
 
   return (
     <div className="h-screen flex flex-col md:flex-row bg-[var(--cream)] overflow-hidden">
@@ -703,106 +132,117 @@ export default function GameRoomPage() {
         </div>
 
         <div className="space-y-3">
-          {gameState.players.map((p, i) => (
+          {turn.gameState.players.map((p, i) => (
             <PortfolioPanel
               key={p.id}
               player={p}
-              isActive={gameState.currentPlayerIndex === i}
+              isActive={turn.gameState!.currentPlayerIndex === i}
               color={PLAYER_COLORS[i % PLAYER_COLORS.length]}
-              isPrivate={isLocal ? gameState.currentPlayerIndex !== i : p.id !== userId}
+              isPrivate={isLocal ? turn.gameState!.currentPlayerIndex !== i : p.id !== userId}
             />
           ))}
           <div className="pt-2">
-            <GameLog log={gameState.log} />
+            <GameLog log={turn.gameState.log} />
           </div>
         </div>
       </div>
 
       {/* Main Game Area */}
-      <div className="flex-1 flex flex-col items-center justify-start p-2 md:p-4 overflow-y-auto pt-4">
+      <div className="flex-1 flex flex-col items-center justify-start p-2 md:p-4 overflow-y-auto pt-4 relative">
         {/* Top Section: Board and Rules Sidebar */}
-        <div className="flex flex-col lg:flex-row items-center lg:items-start justify-center gap-4 w-full">
+        <div className={`flex flex-col lg:flex-row items-center lg:items-start justify-center gap-4 w-full transition-all duration-1000 ${turn.isInitialSetup ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}>
           {/* Left Side: Board and Notifications */}
           <div className="w-full max-w-3xl relative flex flex-col items-center gap-4">
-            <Board 
-              tiles={TILES} 
-              players={gameState.players} 
-              onTileClick={(tile) => {
-                // Show tile info popover/tooltip
-              }}
-              rolling={rolling}
-              dice={lastDice}
-              overlayMessage={overlayMessage}
-              announcement={gameState.announcement}
-              privateMessage={isMyTurn ? gameState.privateMessage : undefined}
+            <Board
+              tiles={TILES}
+              players={turn.gameState.players}
+              onTileClick={() => { }}
+              rolling={turn.rolling}
+              dice={turn.lastDice}
+              overlayMessage={turn.overlayMessage}
+              announcement={turn.gameState.announcement}
+              privateMessage={turn.myPrivateMessage}
+              disabled={turn.isInitialSetup}
             />
 
-            {/* Bottom Section: Controls Overlay - Now Centered Below Board */}
-            <div className="w-full flex items-center justify-center gap-4 bg-white/90 backdrop-blur-md p-3 rounded-3xl shadow-xl border border-white/50 animate-slide-in scale-90 md:scale-95">
-              <DiceRoller 
-                onRoll={handleRoll} 
-                rolling={rolling} 
-                dice={lastDice} 
-                disabled={!isMyTurn || (gameState.phase !== "roll" && diceMode !== "lottery")} 
-                label={diceMode === "lottery" ? "Roll" : "Roll Dice"}
-              />
+            {/* Bottom Section: Controls Overlay */}
+            <div className={`w-full flex items-center justify-center gap-4 bg-white/90 backdrop-blur-md p-3 rounded-3xl shadow-xl border border-white/50 animate-slide-in scale-90 md:scale-95 transition-all duration-500 ${turn.isInitialSetup ? 'opacity-80' : ''}`}>
+              {!turn.isInitialSetup && (
+                <DiceRoller
+                  onRoll={turn.handleRoll}
+                  rolling={turn.rolling}
+                  dice={turn.lastDice}
+                  disabled={!turn.isMyTurn || (turn.gameState.phase !== "roll" && turn.diceMode !== "lottery")}
+                  label={turn.diceMode === "lottery" ? "Roll" : "Roll Dice"}
+                />
+              )}
 
-              {timeLeft !== null && (
-                <div className={`flex flex-col items-center justify-center px-4 py-2 rounded-2xl border-2 transition-colors ${timeLeft < 10 ? 'border-red-500 bg-red-50 animate-pulse' : 'border-blue-100 bg-blue-50'}`}>
+              {!turn.isSetupPhase && turn.timeLeft !== null && (
+                <div className={`flex flex-col items-center justify-center px-4 py-2 rounded-2xl border-2 transition-colors ${turn.timeLeft < 10 ? 'border-red-500 bg-red-50 animate-pulse' : 'border-blue-100 bg-blue-50'}`}>
                   <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest mb-1">Time</div>
-                  <div className={`text-xl font-black ${timeLeft < 10 ? 'text-red-600' : 'text-blue-600'}`}>
-                    {timeLeft}s
+                  <div className={`text-xl font-black ${turn.timeLeft < 10 ? 'text-red-600' : 'text-blue-600'}`}>
+                    {turn.timeLeft}s
                   </div>
                 </div>
               )}
 
-              <div className="h-16 w-px bg-gray-200" />
+              {!turn.isInitialSetup && (
+                <>
+                  <div className="h-16 w-px bg-gray-200" />
 
-              <div className="flex flex-col gap-1">
-                <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Action</div>
-                <div className="flex gap-2">
-                  {isMyTurn && (gameState.phase === "action" || (gameState.phase === "auction" && !showAuction)) && (
-                    <button onClick={() => {
-                      if (gameState.phase === "auction") setShowAuction(true);
-                      else handleTileAction();
-                    }} className="btn-primary px-8">
-                      {gameState.phase === "auction" ? "Join Auction" : "Execute Tile"}
-                    </button>
-                  )}
-                  {isMyTurn && gameState.phase === "trade" && (
-                    <>
-                      <button 
-                        onClick={() => setShowTrade(true)} 
-                        disabled={currentPlayer?.hasTraded}
-                        className="btn-secondary flex items-center gap-2 disabled:opacity-50 px-4"
-                      >
-                        <MessageSquare size={16} /> Trade
-                      </button>
-                      <button onClick={() => setShowRebalance(true)} className="btn-secondary px-4">
-                        Rebalance
-                      </button>
-                      <button onClick={() => setShowTargetedAction("concentration-audit")} className="btn-secondary flex items-center gap-2 px-4">
-                        <ShieldAlert size={16} /> Audit
-                      </button>
-                      <button 
-                        onClick={handleEndTurn} 
-                        disabled={isEndingTurn}
-                        className="btn-primary disabled:opacity-50 px-8"
-                      >
-                        {isEndingTurn ? "..." : "Next Turn"}
-                      </button>
-                    </>
-                  )}
-                  {isMyTurn && gameState.phase === "year-end" && (
-                    <button onClick={() => setShowRebalance(true)} className="btn-primary w-full py-2 px-8">Rebalance Portfolio</button>
-                  )}
-                  {!isMyTurn && gameState.phase !== "year-end" && (
-                    <div className="bg-gray-100 text-gray-500 px-6 py-2 rounded-xl text-xs font-bold animate-pulse">
-                      Waiting for {currentPlayer?.name}...
+                  <div className="flex flex-col gap-1">
+                    <div className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Action</div>
+                    <div className="flex gap-2">
+                      {turn.isMyTurn && turn.diceMode !== "lottery" && (turn.gameState.phase === "action" || (turn.gameState.phase === "auction" && !turn.showAuction)) && (
+                        <button onClick={() => {
+                          if (turn.gameState!.phase === "auction") turn.setShowAuction(true);
+                          else turn.handleTileAction();
+                        }} className="btn-primary px-8">
+                          {turn.gameState.phase === "auction" ? "Join Auction" : "Execute Tile"}
+                        </button>
+                      )}
+                      {(turn.gameState.phase === "trade" || turn.gameState.phase === "year-end") && turn.isMyTurn && (
+                        <>
+                          <button
+                            onClick={() => turn.setShowTrade(true)}
+                            disabled={turn.currentPlayer?.hasTraded || turn.gameState.phase === "year-end"}
+                            className="btn-secondary flex items-center gap-2 disabled:opacity-50 px-4"
+                          >
+                            <MessageSquare size={16} /> Trade
+                          </button>
+                          <button
+                            onClick={() => turn.setShowRebalance(true)}
+                            className={`px-4 ${turn.gameState.phase === "year-end" ? "btn-primary" : "btn-secondary"}`}
+                          >
+                            Rebalance
+                          </button>
+                          <button
+                            onClick={() => turn.setShowTargetedAction("audit")}
+                            disabled={turn.gameState.phase === "year-end"}
+                            className="btn-secondary flex items-center gap-2 disabled:opacity-50 px-4"
+                          >
+                            <ShieldAlert size={16} /> Audit
+                          </button>
+                          {turn.gameState.phase === "trade" && (
+                            <button
+                              onClick={turn.handleEndTurn}
+                              disabled={turn.isEndingTurn}
+                              className="btn-primary disabled:opacity-50 px-8"
+                            >
+                              {turn.isEndingTurn ? "..." : "Next Turn"}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {!turn.isMyTurn && turn.gameState.phase !== "year-end" && (
+                        <div className="bg-gray-100 text-gray-500 px-6 py-2 rounded-xl text-xs font-bold animate-pulse">
+                          Waiting for {turn.currentPlayer?.name}...
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -812,29 +252,75 @@ export default function GameRoomPage() {
               <h2 className="text-lg font-black text-[var(--navy)] mb-3 flex items-center gap-2">
                 <span className="text-xl">📜</span> Rules & Returns
               </h2>
-              
-              <div className="space-y-3">
+
+              <div className="space-y-4 max-h-[620px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200">
                 <section>
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Market Returns</h3>
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="bg-blue-50 p-2 rounded-xl border border-blue-100 flex justify-between items-center">
-                      <div className="text-[10px] font-bold text-blue-800 uppercase">Bonds</div>
-                      <div className="text-xs font-black text-blue-900">+1L <span className="text-[8px] font-normal opacity-70">/ 5L</span></div>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Market Returns (Paid in Asset)</h3>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    <div className="bg-blue-50/75 p-2 rounded-xl border border-blue-100/60 flex justify-between items-center">
+                      <div className="text-[10px] font-bold text-blue-800 uppercase">Bonds Return</div>
+                      <div className="text-xs font-black text-blue-900">+1L Bond <span className="text-[8px] font-normal opacity-70">/ 5L held</span></div>
                     </div>
-                    <div className="bg-purple-50 p-2 rounded-xl border border-purple-100 flex justify-between items-center">
-                      <div className="text-[10px] font-bold text-purple-800 uppercase">Stocks</div>
-                      <div className="text-xs font-black text-purple-900">+2L <span className="text-[8px] font-normal opacity-70">/ 5L</span></div>
+                    <div className="bg-purple-50/75 p-2 rounded-xl border border-purple-100/60 flex justify-between items-center">
+                      <div className="text-[10px] font-bold text-purple-800 uppercase">Stocks Return</div>
+                      <div className="text-xs font-black text-purple-900">+2L Stock <span className="text-[8px] font-normal opacity-70">/ 5L held</span></div>
                     </div>
                   </div>
                 </section>
 
                 <section>
-                  <ul className="space-y-1.5 text-[10px] font-bold text-gray-600">
-                    <li className="flex gap-2"><span className="text-[var(--gold)]">●</span> House by end of Year 3.</li>
-                    <li className="flex gap-2"><span className="text-[var(--gold)]">●</span> 100L Wealth to win.</li>
-                    <li className="flex gap-2"><span className="text-[var(--gold)]">●</span> Tax Raid: 2L fine target 5L.</li>
-                    <li className="flex gap-2"><span className="text-[var(--gold)]">●</span> Audit: &gt; 40L assets.</li>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Market Events (Per 5L Stocks Held)</h3>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <div className="bg-green-50 p-2 rounded-xl border border-green-100/80 flex flex-col gap-0.5">
+                      <div className="text-[8px] font-black text-green-800 uppercase flex items-center gap-1">📈 Stock Rally</div>
+                      <span className="text-[9px] font-bold text-green-900">+2L Stocks <span className="text-[7px] font-normal opacity-75">(You Only)</span></span>
+                    </div>
+                    <div className="bg-red-50 p-2 rounded-xl border border-red-100/80 flex flex-col gap-0.5">
+                      <div className="text-[8px] font-black text-red-800 uppercase flex items-center gap-1">📉 Stock Crash</div>
+                      <span className="text-[9px] font-bold text-red-900">-2L Stocks <span className="text-[7px] font-normal opacity-75">(You Only)</span></span>
+                    </div>
+                    <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-100/80 flex flex-col gap-0.5">
+                      <div className="text-[8px] font-black text-emerald-800 uppercase flex items-center gap-1">🌟 Market Rally</div>
+                      <span className="text-[9px] font-bold text-emerald-900">+3L Stocks <span className="text-[7px] font-normal opacity-75">(ALL Players)</span></span>
+                    </div>
+                    <div className="bg-rose-50 p-2 rounded-xl border border-rose-100/80 flex flex-col gap-0.5">
+                      <div className="text-[8px] font-black text-rose-800 uppercase flex items-center gap-1">💥 Market Crash</div>
+                      <span className="text-[9px] font-bold text-rose-900">-3L Stocks <span className="text-[7px] font-normal opacity-75">(ALL Players)</span></span>
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Core Objectives</h3>
+                  <ul className="space-y-1 text-[10px] font-bold text-gray-600">
+                    <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>100L Net Worth:</strong> Reach 100L assets to win the game.</span></li>
+                    <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>House Deadline:</strong> Must buy by end of Year 3. Auto-bought at 20L on entering Year 4.</span></li>
+                    <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>Asset Limit:</strong> Max 40L in one asset type. Audit target if exceeded.</span></li>
                   </ul>
+                </section>
+
+                <section>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1.5">Costs & Actions</h3>
+                  <ul className="space-y-1 text-[10px] font-bold text-gray-600">
+                    <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>Mid-Year Rebalance:</strong> Costs a 3L fine outside of Year-End START.</span></li>
+                    <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>Tax Raid:</strong> Proposer pays 2L to enforce audit. Target player pays 5L.</span></li>
+                    <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>Hostile Takeover:</strong> Take up to 5L of one asset from another player (no splitting).</span></li>
+                    <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>Emergency:</strong> Costs 3L, 5L, or 10L paid in Cash.</span></li>
+                  </ul>
+                </section>
+
+                <section className="space-y-2 pt-1">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Special Mechanics</h3>
+
+                  <div className="bg-blue-50/70 p-2 rounded-xl border border-blue-100 flex flex-col gap-0.5">
+                    <span className="text-blue-800 font-black uppercase tracking-wider text-[9px] flex items-center gap-1">🌐 Free Trade Zone</span>
+                    <span className="text-[9px] leading-relaxed text-blue-700 font-medium">Propose trade worth ≥25L while standing on tile 9 or 14 to earn both players +5L Cash!</span>
+                  </div>
+
+                  <div className="bg-purple-50/70 p-2 rounded-xl border border-purple-100 flex flex-col gap-0.5">
+                    <span className="text-purple-800 font-black uppercase tracking-wider text-[9px] flex items-center gap-1">🤝 Valid Swaps</span>
+                    <span className="text-[9px] leading-relaxed text-purple-700 font-medium">Trades must swap different types of assets. Same-asset swaps (e.g. cash for cash) are blocked.</span>
+                  </div>
                 </section>
               </div>
             </div>
@@ -850,101 +336,105 @@ export default function GameRoomPage() {
           </div>
         </div>
 
-      {/* Modals */}
-      <TradeModal 
-        isOpen={showTrade} 
-        onClose={() => setShowTrade(false)} 
-        currentPlayer={currentPlayer!} 
-        otherPlayers={gameState.players.filter(p => p.id !== currentPlayer?.id)}
-        onPropose={(targetId, offer, request) => {
-          performAction("trade-offer", { toPlayerId: targetId, offer, request });
-          setShowTrade(false);
-        }}
-      />
-
-      <AuctionModal 
-        isOpen={showAuction && gameState.phase === "auction"} 
-        currentPlayer={isLocal ? (currentBiddingPlayer || currentPlayer!) : gameState.players.find(p => p.id === userId)!}
-        hasBid={isLocal ? !currentBiddingPlayer : !!gameState.auctionState?.bids.find(b => b.playerId === userId)}
-        onBid={(amount) => {
-          const bidderId = isLocal ? currentBiddingPlayer?.id : userId;
-          performAction("bid", { amount, bidderId });
-        }}
-        minBid={HOUSE_AUCTION_MIN}
-        marketPrice={HOUSE_MARKET_PRICE}
-        onClose={() => setShowAuction(false)}
-      />
-
-      <RebalanceModal 
-        isOpen={(gameState.phase === "year-end" || showRebalance) && isMyTurn}
-        player={currentPlayer!}
-        penalty={rebalancePenaltyOverride !== null ? rebalancePenaltyOverride : (gameState.phase !== "year-end" ? 3 : 0)}
-        onRebalance={(c, b, s) => {
-          handleRebalance(c, b, s);
-          setShowRebalance(false);
-          setRebalancePenaltyOverride(null);
-        }}
-        onClose={rebalancePenaltyOverride !== null ? undefined : () => setShowRebalance(false)}
-      />
-
-      {showLeadersDilemma && (
-        <LeadersDilemmaModal 
-          isOpen={true}
-          player={currentPlayer!}
-          onDeclare={() => performAction("declare")}
-          onAudit={(idx) => performAction("audit", { targetIdx: idx })}
-          otherPlayers={gameState.players.filter(p => p.id !== currentPlayer?.id)}
-          isCurrentTurn={isMyTurn}
-          needsToDeclare={netWorth(currentPlayer!) >= 70 && !currentPlayer?.wealthDeclared}
-        />
-      )}
-
-      {showTargetedAction && (
-        <TargetedActionModal 
-          isOpen={true}
-          type={showTargetedAction}
-          currentPlayer={currentPlayer!}
-          otherPlayers={gameState.players.map((p, i) => ({ player: p, originalIndex: i })).filter(x => x.player.id !== currentPlayer?.id)}
-          onConfirm={(payload) => {
-            if (showTargetedAction === "concentration-audit") {
-              performAction("concentration-audit", payload);
-            } else {
-              performAction("tile-action", payload);
-            }
-            setShowTargetedAction(null);
+        {/* Modals */}
+        <TradeModal
+          isOpen={turn.showTrade && !turn.showPassDevice && !turn.initialPreview}
+          onClose={() => turn.setShowTrade(false)}
+          currentPlayer={turn.currentPlayer!}
+          otherPlayers={turn.gameState.players.filter(p => p.id !== turn.currentPlayer?.id)}
+          onPropose={(targetId, offer, request) => {
+            turn.performAction("trade-offer", { toPlayerId: targetId, offer, request });
+            turn.setShowTrade(false);
           }}
-          onClose={() => setShowTargetedAction(null)}
         />
-      )}
 
-      {showChoiceModal && (
-        <ChoiceModal 
-          isOpen={true}
-          type={showChoiceModal}
-          playerCash={currentPlayer?.cash || 0}
-          onConfirm={(payload) => {
-            performAction("tile-action", payload);
-            setShowChoiceModal(null);
+        <AuctionModal
+          isOpen={turn.showAuction && turn.gameState.phase === "auction" && !turn.showPassDevice && !turn.initialPreview}
+          currentPlayer={isLocal ? (turn.currentBiddingPlayer || turn.currentPlayer!) : turn.gameState.players.find(p => p.id === userId)!}
+          hasBid={isLocal ? !turn.currentBiddingPlayer : !!turn.gameState.auctionState?.bids.find(b => b.playerId === userId)}
+          onBid={(amount) => {
+            const bidderId = isLocal ? turn.currentBiddingPlayer?.id : userId;
+            turn.performAction("bid", { amount, bidderId });
+            turn.setShowAuction(false);
           }}
-          onClose={() => setShowChoiceModal(null)}
+          minBid={HOUSE_AUCTION_MIN}
+          marketPrice={HOUSE_MARKET_PRICE}
+          onClose={() => turn.setShowAuction(false)}
         />
-      )}
 
-      {showPassDevice && (
-        <PassDeviceScreen 
-          nextPlayerName={(gameState?.phase === "auction" ? currentBiddingPlayer?.name : (gameState?.phase === "waiting-trade" ? gameState.players.find(p => p.id === gameState.pendingTrade?.toPlayerId)?.name : currentPlayer?.name)) || "Next Player"} 
-          onContinue={() => setShowPassDevice(false)} 
+        <RebalanceModal
+          isOpen={(turn.gameState.phase === "year-end" || turn.showRebalance) && turn.isMyTurn && !turn.showPassDevice && !turn.initialPreview}
+          player={turn.currentPlayer!}
+          penalty={turn.rebalancePenaltyOverride !== null ? turn.rebalancePenaltyOverride : (turn.gameState.phase !== "year-end" ? 3 : 0)}
+          onRebalance={(c, b, s) => {
+            turn.handleRebalance(c, b, s);
+            turn.setShowRebalance(false);
+            turn.setRebalancePenaltyOverride(null);
+          }}
+          onClose={turn.rebalancePenaltyOverride !== null ? undefined : () => turn.setShowRebalance(false)}
+          externalTimeLeft={turn.timeLeft}
+          skipReturnsDelay={turn.isSetupPhase}
         />
-      )}
 
-      <TradeResponseModal 
-        isOpen={gameState.phase === "waiting-trade"}
-        offer={gameState.pendingTrade!}
-        fromPlayer={gameState.players.find(p => p.id === gameState.pendingTrade?.fromPlayerId)!}
-        toPlayer={gameState.players.find(p => p.id === gameState.pendingTrade?.toPlayerId)!}
-        onResponse={(accept) => performAction("trade-response", { accept })}
-      />
+        {turn.showLeadersDilemma && (
+          <LeadersDilemmaModal
+            isOpen={true}
+            player={turn.currentPlayer!}
+            onDeclare={() => turn.performAction("declare")}
+            onAudit={(idx) => turn.performAction("audit", { targetIdx: idx })}
+            otherPlayers={turn.gameState.players.filter(p => p.id !== turn.currentPlayer?.id)}
+            isCurrentTurn={turn.isMyTurn}
+            needsToDeclare={netWorth(turn.currentPlayer!) >= 70 && !turn.currentPlayer?.wealthDeclared}
+          />
+        )}
+
+        {turn.showTargetedAction && (
+          <TargetedActionModal
+            isOpen={true}
+            type={turn.showTargetedAction}
+            currentPlayer={turn.currentPlayer!}
+            otherPlayers={turn.gameState.players.map((p, i) => ({ player: p, originalIndex: i })).filter(x => x.player.id !== turn.currentPlayer?.id)}
+            onConfirm={(payload) => {
+              if (turn.showTargetedAction === "audit") {
+                turn.performAction("audit", payload);
+              } else {
+                turn.performAction("tile-action", payload);
+              }
+              turn.setShowTargetedAction(null);
+            }}
+            onClose={() => turn.setShowTargetedAction(null)}
+          />
+        )}
+
+        {turn.showChoiceModal && (
+          <ChoiceModal
+            isOpen={!!turn.showChoiceModal && !turn.showPassDevice && !turn.initialPreview}
+            type={turn.showChoiceModal}
+            playerCash={turn.currentPlayer?.cash || 0}
+            emergencyAmount={turn.pendingEmergencyAmount ?? undefined}
+            onConfirm={(payload) => {
+              turn.performAction("tile-action", payload);
+              turn.setShowChoiceModal(null);
+            }}
+            onClose={() => turn.setShowChoiceModal(null)}
+          />
+        )}
+
+        {turn.showPassDevice && (
+          <PassDeviceScreen
+            nextPlayerName={(turn.gameState?.phase === "auction" ? turn.currentBiddingPlayer?.name : (turn.gameState?.phase === "waiting-trade" ? turn.gameState.players.find(p => p.id === turn.gameState!.pendingTrade?.toPlayerId)?.name : turn.currentPlayer?.name)) || "Next Player"}
+            onContinue={() => turn.setShowPassDevice(false)}
+          />
+        )}
+
+        <TradeResponseModal
+          isOpen={turn.gameState.phase === "waiting-trade"}
+          offer={turn.gameState!.pendingTrade!}
+          fromPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.fromPlayerId)!}
+          toPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.toPlayerId)!}
+          onResponse={(accept) => turn.performAction("trade-response", { accept })}
+        />
+      </div>
     </div>
-  </div>
   );
 }

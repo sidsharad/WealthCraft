@@ -73,6 +73,7 @@ export interface PlayerState {
   year: number;      // current year for this player
   turnsWithJobLoss: number;
   hasTraded: boolean;
+  privateMessage?: string;
 }
 
 export interface AuctionBid {

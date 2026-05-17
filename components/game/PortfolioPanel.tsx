@@ -1,6 +1,6 @@
 import React from "react";
 import { PlayerState } from "@/lib/db/schema";
-import { netWorth } from "@/lib/game-engine/validators";
+import { netWorth } from "@/lib/game-engine/actions";
 import { Home, User, Briefcase, TrendingUp, DollarSign } from "lucide-react";
 
 interface PortfolioPanelProps {
@@ -34,33 +34,30 @@ export default function PortfolioPanel({ player, isActive, color, isPrivate }: P
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <div className="bg-gray-50 p-2 rounded-lg text-center border border-gray-100">
-          <div className="flex justify-center text-green-600 mb-1"><DollarSign size={14} /></div>
-          <div className="text-[10px] text-gray-500 font-bold uppercase">Cash</div>
-          <div className="text-sm font-black text-[var(--navy)]">{isPrivate ? "?" : `${player.cash}L`}</div>
+      {!isPrivate && (
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="bg-gray-50 p-2 rounded-lg text-center border border-gray-100">
+            <div className="flex justify-center text-green-600 mb-1"><DollarSign size={14} /></div>
+            <div className="text-[10px] text-gray-500 font-bold uppercase">Cash</div>
+            <div className="text-sm font-black text-[var(--navy)]">{player.cash}L</div>
+          </div>
+          <div className="bg-gray-50 p-2 rounded-lg text-center border border-gray-100">
+            <div className="flex justify-center text-blue-600 mb-1"><Briefcase size={14} /></div>
+            <div className="text-[10px] text-gray-500 font-bold uppercase">Bonds</div>
+            <div className="text-sm font-black text-[var(--navy)]">{player.bonds}L</div>
+          </div>
+          <div className="bg-gray-50 p-2 rounded-lg text-center border border-gray-100">
+            <div className="flex justify-center text-purple-600 mb-1"><TrendingUp size={14} /></div>
+            <div className="text-[10px] text-gray-500 font-bold uppercase">Stocks</div>
+            <div className="text-sm font-black text-[var(--navy)]">{player.stocks}L</div>
+          </div>
         </div>
-        <div className="bg-gray-50 p-2 rounded-lg text-center border border-gray-100">
-          <div className="flex justify-center text-blue-600 mb-1"><Briefcase size={14} /></div>
-          <div className="text-[10px] text-gray-500 font-bold uppercase">Bonds</div>
-          <div className="text-sm font-black text-[var(--navy)]">{isPrivate ? "?" : `${player.bonds}L`}</div>
-        </div>
-        <div className="bg-gray-50 p-2 rounded-lg text-center border border-gray-100">
-          <div className="flex justify-center text-purple-600 mb-1"><TrendingUp size={14} /></div>
-          <div className="text-[10px] text-gray-500 font-bold uppercase">Stocks</div>
-          <div className="text-sm font-black text-[var(--navy)]">{isPrivate ? "?" : `${player.stocks}L`}</div>
-        </div>
-      </div>
+      )}
 
       <div className="flex items-center gap-3">
         <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${player.hasHouse ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
           <Home size={12} /> {player.hasHouse ? 'House Owned' : 'No House'}
         </div>
-        {player.wealthDeclared && (
-          <div className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight">
-            Declared
-          </div>
-        )}
         {player.jobLossActive && (
           <div className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight">
             Job Loss

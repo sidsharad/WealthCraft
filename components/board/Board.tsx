@@ -13,12 +13,13 @@ interface BoardProps {
   overlayMessage?: string | null;
   announcement?: string | null;
   privateMessage?: string | null;
+  disabled?: boolean;
 }
 
 const PLAYER_COLORS = ["#3B82F6", "#F97316", "#A855F7", "#EC4899"];
 const DIE_FACES = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
-export default function Board({ tiles, players, onTileClick, rolling, dice, overlayMessage, announcement, privateMessage }: BoardProps) {
+export default function Board({ tiles, players, onTileClick, rolling, dice, overlayMessage, announcement, privateMessage, disabled }: BoardProps) {
   const [displayDie, setDisplayDie] = React.useState<number>(dice || 1);
   const [showDice, setShowDice] = React.useState(false);
 
@@ -56,7 +57,7 @@ export default function Board({ tiles, players, onTileClick, rolling, dice, over
   return (
     <div className="relative w-full max-w-5xl mx-auto p-4">
       <div 
-        className="board-grid bg-white p-2 rounded-xl shadow-2xl border-4 border-[var(--gold)]"
+        className={`board-grid bg-white p-2 rounded-xl shadow-2xl border-4 border-[var(--gold)] transition-all duration-700 ${disabled ? 'grayscale opacity-60 pointer-events-none scale-[0.98]' : ''}`}
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(6, minmax(0, 1fr))",

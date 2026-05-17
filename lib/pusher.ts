@@ -1,41 +1,46 @@
-// lib/pusher.ts — server + client Pusher instances
+// lib/pusher.ts — Pusher transport layer (server + client)
+//
+// Exports a typed `pusherServer` that is safe to call whether or not Pusher
+// credentials are configured. When unconfigured, it falls back to a no-op
+// Broadcaster so online mode silently skips rather than crashing.
+
 import PusherClient from "pusher-js";
 
-function isRealPusherKey(val: string | undefined): boolean {
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+/** Minimal interface the rest of the app depends on. */
+export interface Broadcaster {
+  trigger(channel: string, event: string, data: object): Promise<unknown>;
+  authorizeChannel(socketId: string, channel: string, presenceData?: any): { auth: string };
+}
+
+// ─── Credential detection ─────────────────────────────────────────────────────
+
+function isReal(val: string | undefined): boolean {
   const v = (val ?? "").trim();
   return !!v && !v.includes("your-");
 }
 
 const hasPusherServer =
-  isRealPusherKey(process.env.PUSHER_APP_ID) &&
-  isRealPusherKey(process.env.PUSHER_KEY) &&
-  isRealPusherKey(process.env.PUSHER_SECRET);
+  isReal(process.env.PUSHER_APP_ID) &&
+  isReal(process.env.PUSHER_KEY) &&
+  isReal(process.env.PUSHER_SECRET);
 
 const hasPusherClient =
-  isRealPusherKey(process.env.NEXT_PUBLIC_PUSHER_KEY) &&
-  isRealPusherKey(process.env.NEXT_PUBLIC_PUSHER_CLUSTER);
+  isReal(process.env.NEXT_PUBLIC_PUSHER_KEY) &&
+  isReal(process.env.NEXT_PUBLIC_PUSHER_CLUSTER);
 
-// Server-side Pusher — lazy singleton, only created when credentials exist
-let _pusherServer: import("pusher") | null = null;
+// ─── Server-side singleton ────────────────────────────────────────────────────
 
-export function getPusherServer() {
-  if (!hasPusherServer) return null;
-  if (!_pusherServer) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const Pusher = require("pusher");
-    _pusherServer = new Pusher({
-      appId: process.env.PUSHER_APP_ID!.trim(),
-      key: process.env.PUSHER_KEY!.trim(),
-      secret: process.env.PUSHER_SECRET!.trim(),
-      cluster: process.env.PUSHER_CLUSTER!.trim(),
-      useTLS: true,
-    });
-  }
-  return _pusherServer;
-}
+const noOpBroadcaster: Broadcaster = {
+  trigger: async () => {
+    console.warn("[Pusher] Not configured — skipping trigger.");
+    return {};
+  },
+  authorizeChannel: () => ({ auth: "dummy" }),
+};
 
-// Server-side Pusher — singleton
-export const pusherServer = hasPusherServer
+export const pusherServer: Broadcaster = hasPusherServer
   ? (() => {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const Pusher = require("pusher");
@@ -45,26 +50,29 @@ export const pusherServer = hasPusherServer
         secret: process.env.PUSHER_SECRET!.trim(),
         cluster: process.env.PUSHER_CLUSTER!.trim(),
         useTLS: true,
-      });
+      }) as Broadcaster;
     })()
-  : {
-      trigger: async () => { console.warn("Pusher not configured. Skipping trigger."); return {}; },
-      authorizeChannel: () => ({ auth: "dummy" }),
-    } as any;
+  : noOpBroadcaster;
 
-// Client-side Pusher (singleton for browser)
+// ─── Client-side singleton ────────────────────────────────────────────────────
+
 let pusherClientInstance: PusherClient | null = null;
 
 export function getPusherClient(): PusherClient | null {
   if (!hasPusherClient) return null;
   if (!pusherClientInstance) {
-    pusherClientInstance = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY!.trim(), {
-      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!.trim(),
-      authEndpoint: "/api/pusher/auth",
-    });
+    pusherClientInstance = new PusherClient(
+      process.env.NEXT_PUBLIC_PUSHER_KEY!.trim(),
+      {
+        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!.trim(),
+        authEndpoint: "/api/pusher/auth",
+      }
+    );
   }
   return pusherClientInstance;
 }
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function getRoomChannel(roomCode: string): string {
   return `presence-room-${roomCode}`;
@@ -78,4 +86,3 @@ export const PUSHER_EVENTS = {
   PLAYER_JOINED: "player-joined",
   GAME_STARTED: "game-started",
 } as const;
-

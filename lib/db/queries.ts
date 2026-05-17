@@ -1,6 +1,6 @@
 import { db } from "./index";
 import { rooms, users, type GameState } from "./schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 
 export async function getRoomByCode(code: string) {
   const result = await db.select().from(rooms).where(eq(rooms.code, code));
@@ -29,26 +29,20 @@ export async function getUserByEmail(email: string) {
   return result[0] ?? null;
 }
 
-export async function recordGameResult(
-  winnerId: string,
-  loserIds: string[]
-) {
-  // Increment wins for winner
-  const winner = await getUserById(winnerId);
-  if (winner) {
+/**
+ * Records a game result: increments the winner's wins and all losers' losses
+ * in two bulk queries instead of N+1 read-modify-write round trips.
+ */
+export async function recordGameResult(winnerId: string, loserIds: string[]) {
+  await db
+    .update(users)
+    .set({ wins: sql`${users.wins} + 1` })
+    .where(eq(users.id, winnerId));
+
+  if (loserIds.length > 0) {
     await db
       .update(users)
-      .set({ wins: winner.wins + 1 })
-      .where(eq(users.id, winnerId));
-  }
-  // Increment losses for losers
-  for (const loserId of loserIds) {
-    const loser = await getUserById(loserId);
-    if (loser) {
-      await db
-        .update(users)
-        .set({ losses: loser.losses + 1 })
-        .where(eq(users.id, loserId));
-    }
+      .set({ losses: sql`${users.losses} + 1` })
+      .where(inArray(users.id, loserIds));
   }
 }

@@ -4,7 +4,7 @@ import { Sword, Search, Users, AlertCircle, ShieldAlert } from "lucide-react";
 
 interface TargetedActionModalProps {
   isOpen: boolean;
-  type: "tax-raid" | "hostile-takeover" | "concentration-audit";
+  type: "tax-raid" | "hostile-takeover" | "audit";
   currentPlayer: PlayerState;
   otherPlayers: { player: PlayerState; originalIndex: number }[];
   onConfirm: (payload: any) => void;
@@ -26,7 +26,7 @@ export default function TargetedActionModal({
   if (!isOpen) return null;
 
   const isHostile = type === "hostile-takeover";
-  const isAudit = type === "concentration-audit";
+  const isAudit = type === "audit";
 
   const handleConfirm = () => {
     if (selectedTarget === null) return;
@@ -159,10 +159,10 @@ export default function TargetedActionModal({
                 Confirm {isHostile ? "Takeover" : isAudit ? "Audit" : "Raid"}
               </button>
             </div>
-            {!isHostile && (
+            {!isAudit && (
               <button 
                 onClick={handleSkip}
-                className="btn-primary w-full py-4 mt-2"
+                className="btn-secondary w-full py-4 mt-2"
               >
                 Skip / No Action
               </button>

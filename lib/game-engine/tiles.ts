@@ -15,7 +15,8 @@ export type TileEffect =
   | "lottery"
   | "stock-crash"
   | "hostile-takeover"
-  | "tax-raid";
+  | "tax-raid"
+  | "free-trade-zone";
 
 export interface TileDef {
   id: number;       // 1-16
@@ -37,7 +38,7 @@ export const TILES: TileDef[] = [
     subtitle: "YEAR-END",
     type: "year-end",
     effect: "start",
-    description: "Collect bond & stock returns. Rebalance portfolio (1 min). Collect 5L income each turn.",
+    description: "Collect bond & stock returns. Rebalance portfolio (1 min). Collect 3L income each turn.",
     colorClass: "border-blue-500",
     bgClass: "bg-blue-50",
     headerBg: "bg-blue-600",
@@ -103,7 +104,7 @@ export const TILES: TileDef[] = [
     name: "INCOME FREEZE",
     type: "neutral",
     effect: "income-freeze",
-    description: "No 5L income this turn only.",
+    description: "No 3L income this turn only.",
     colorClass: "border-gray-400",
     bgClass: "bg-gray-50",
     headerBg: "bg-gray-500",
@@ -122,14 +123,14 @@ export const TILES: TileDef[] = [
   },
   {
     id: 9,
-    name: "MARKET RALLY",
-    type: "gain-all",
-    effect: "market-rally",
-    description: "+3L stocks per complete 5L held. ALL players.",
-    colorClass: "border-green-600",
-    bgClass: "bg-green-50",
-    headerBg: "bg-green-700",
-    icon: "🌟",
+    name: "FREE TRADE ZONE",
+    type: "neutral",
+    effect: "free-trade-zone",
+    description: "If you propose a trade worth ≥25L from here, both get +5L cash.",
+    colorClass: "border-blue-400",
+    bgClass: "bg-blue-50/50",
+    headerBg: "bg-blue-500",
+    icon: "🤝",
   },
   {
     id: 10,
@@ -169,7 +170,7 @@ export const TILES: TileDef[] = [
     name: "HOSTILE TAKEOVER",
     type: "loss-you",
     effect: "hostile-takeover",
-    description: "Spend cash to force another player to give equal value in stocks or bonds. They cannot refuse.",
+    description: "Take up to 5L of one asset from any player. Cannot split across two asset types.",
     colorClass: "border-red-500",
     bgClass: "bg-red-50",
     headerBg: "bg-red-600",
@@ -177,14 +178,14 @@ export const TILES: TileDef[] = [
   },
   {
     id: 14,
-    name: "MARKET CRASH",
-    type: "loss-all",
-    effect: "market-crash",
-    description: "-3L stocks per complete 5L held. ALL players.",
-    colorClass: "border-red-600",
-    bgClass: "bg-red-50",
-    headerBg: "bg-red-700",
-    icon: "📉",
+    name: "FREE TRADE ZONE",
+    type: "neutral",
+    effect: "free-trade-zone",
+    description: "If you propose a trade worth ≥25L from here, both get +5L cash.",
+    colorClass: "border-blue-400",
+    bgClass: "bg-blue-50/50",
+    headerBg: "bg-blue-500",
+    icon: "🤝",
   },
   {
     id: 15,
@@ -233,7 +234,7 @@ export function getTileByPosition(position: number): TileDef {
 
 // Constants from rulebook/PDF
 export const STARTING_CASH = 10;           // 10L
-export const INCOME_PER_TURN = 5;          // 5L
+export const INCOME_PER_TURN = 3;          // 3L
 export const WIN_CONDITION = 100;          // 100L
 export const BOND_RETURN_PER_5L = 1;       // +1L per 5L bonds
 export const STOCK_RETURN_PER_5L = 2;      // +2L per 5L stocks

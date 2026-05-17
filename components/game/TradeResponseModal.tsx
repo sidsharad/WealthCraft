@@ -13,6 +13,11 @@ interface TradeResponseModalProps {
 export default function TradeResponseModal({ isOpen, offer, fromPlayer, toPlayer, onResponse }: TradeResponseModalProps) {
   if (!isOpen) return null;
 
+  const canAfford = 
+    toPlayer.cash >= offer.request.cash && 
+    toPlayer.bonds >= offer.request.bonds && 
+    toPlayer.stocks >= offer.request.stocks;
+
   return (
     <div className="modal-overlay">
       <div className="modal-card max-w-xl w-full">
@@ -91,11 +96,21 @@ export default function TradeResponseModal({ isOpen, offer, fromPlayer, toPlayer
           </button>
           <button 
             onClick={() => onResponse(true)}
-            className="flex-1 py-4 rounded-2xl bg-green-500 hover:bg-green-600 text-white font-black uppercase tracking-widest text-sm shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2"
+            disabled={!canAfford}
+            className={`flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all flex items-center justify-center gap-2 ${
+              canAfford 
+                ? "bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-200" 
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
           >
             <Check size={18} /> Accept
           </button>
         </div>
+        {!canAfford && (
+          <p className="text-center text-red-500 text-xs font-bold mt-4">
+            You do not have enough assets to accept this trade.
+          </p>
+        )}
       </div>
     </div>
   );

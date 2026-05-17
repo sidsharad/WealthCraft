@@ -19,17 +19,28 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
 
   const target = otherPlayers.find(p => p.id === targetId);
 
+  const hasCashOverlap = offer.cash > 0 && request.cash > 0;
+  const hasBondsOverlap = offer.bonds > 0 && request.bonds > 0;
+  const hasStocksOverlap = offer.stocks > 0 && request.stocks > 0;
+  const hasOverlap = hasCashOverlap || hasBondsOverlap || hasStocksOverlap;
+
+  const isButtonDisabled = 
+    (offer.cash === 0 && offer.bonds === 0 && offer.stocks === 0 && request.cash === 0 && request.bonds === 0 && request.stocks === 0) ||
+    hasOverlap;
+
   const handlePropose = () => {
     if (!targetId) return;
     onPropose(targetId, offer, request);
   };
 
-  const updateOffer = (key: string, val: number) => {
-    const v = Math.max(0, Math.floor(val / 5) * 5);
+  const updateOffer = (key: keyof typeof offer, val: number) => {
+    const maxVal = (currentPlayer as any)[key] || 0;
+    const maxAllowed = Math.floor(maxVal / 5) * 5;
+    const v = Math.min(maxAllowed, Math.max(0, Math.floor(val / 5) * 5));
     setOffer({ ...offer, [key]: v });
   };
 
-  const updateRequest = (key: string, val: number) => {
+  const updateRequest = (key: keyof typeof request, val: number) => {
     const v = Math.max(0, Math.floor(val / 5) * 5);
     setRequest({ ...request, [key]: v });
   };
@@ -69,7 +80,7 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
                     type="number"
                     step={5}
                     value={(offer as any)[asset.key]}
-                    onChange={(e) => updateOffer(asset.key, Number(e.target.value))}
+                    onChange={(e) => updateOffer(asset.key as keyof typeof offer, Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold focus:ring-2 focus:ring-yellow-400 outline-none"
                   />
                 </div>
@@ -100,9 +111,9 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
 
             <div className="space-y-3">
               {[
-                { label: 'Cash', icon: <DollarSign size={14} />, key: 'cash', max: target?.cash || 0 },
-                { label: 'Bonds', icon: <Briefcase size={14} />, key: 'bonds', max: target?.bonds || 0 },
-                { label: 'Stocks', icon: <TrendingUp size={14} />, key: 'stocks', max: target?.stocks || 0 },
+                { label: 'Cash', icon: <DollarSign size={14} />, key: 'cash' },
+                { label: 'Bonds', icon: <Briefcase size={14} />, key: 'bonds' },
+                { label: 'Stocks', icon: <TrendingUp size={14} />, key: 'stocks' },
               ].map((asset) => (
                 <div key={asset.key}>
                   <div className="flex justify-between text-[11px] font-bold mb-1">
@@ -112,7 +123,7 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
                     type="number"
                     step={5}
                     value={(request as any)[asset.key]}
-                    onChange={(e) => updateRequest(asset.key, Number(e.target.value))}
+                    onChange={(e) => updateRequest(asset.key as keyof typeof request, Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold focus:ring-2 focus:ring-yellow-400 outline-none"
                   />
                 </div>
@@ -121,12 +132,21 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
           </div>
         </div>
 
+        {hasOverlap && (
+          <div className="bg-red-50 text-red-700 text-xs font-bold p-3 rounded-lg border border-red-100 flex flex-col gap-1 mt-6">
+            <span>⚠️ Invalid Trade Swap</span>
+            <span className="font-medium text-[11px] text-red-600">
+              Any trade can't happen with cash and cash, stock and stock, or bond and bond. Trades must happen in different types of assets.
+            </span>
+          </div>
+        )}
+
         <div className="mt-8 flex gap-3">
           <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
           <button 
             onClick={handlePropose}
             className="btn-primary flex-1"
-            disabled={offer.cash === 0 && offer.bonds === 0 && offer.stocks === 0 && request.cash === 0 && request.bonds === 0 && request.stocks === 0}
+            disabled={isButtonDisabled}
           >
             Send Offer
           </button>
