@@ -44,7 +44,7 @@ export default function RulesPage() {
             The Complete <span style={{ color: "var(--gold, #E2B240)" }}>Rulebook</span>
           </h1>
           <p className="text-white/60 text-lg max-w-xl mx-auto">
-            WealthCraft v5.0 | 2 - 4 Players | Ages 14+
+            WealthCraft | 2 - 4 Players | Ages 14+
           </p>
         </div>
 
@@ -204,6 +204,7 @@ export default function RulesPage() {
             <p className="text-white/60 text-sm leading-relaxed flex-1">
               Offer a trade once per turn to any active player. Deals can combine Cash, Bonds, and Stocks. 
               Both players must mutually agree. 
+              <br /><br />
               <strong className="text-white font-semibold">Free Trade Zone</strong>: If a trade is executed inside this zone and represents 25L+ in assets, both players receive a <strong className="text-white">5L incentive</strong>.
             </p>
           </div>
@@ -228,7 +229,8 @@ export default function RulesPage() {
               { name: "🎟️ Lottery", desc: "Option to pay 2L to roll: 1-2 = nothing, 3-4 = receive +2L cash, 5-6 = receive +5L cash." },
               { name: "🏠 House Auction", desc: "Sealed-bid auction. All players submit a secret bid (min 10L). Highest bid wins." },
               { name: "🕵️ Tax Raid", desc: "Targeted tax inspection. Pay 2L to bank to target any rival; they must pay 5L to the bank." },
-              { name: "⚔️ Hostile Takeover", desc: "Takeover action. Confiscate up to 5L of any asset type from any rival. Cannot split assets." }
+              { name: "⚔️ Hostile Takeover", desc: "Takeover action. Confiscate up to 5L of any asset type from any rival. Cannot split assets." },
+              { name: "🤝 Free Trade Zone", desc: "Special zone effect. Gives an additional 5L cash to both players if the executed trade transaction is worth 25L or more." }
             ].map((tile) => (
               <div key={tile.name} className="bg-black/20 p-4 rounded-xl border border-white/5">
                 <strong className="text-white text-base block mb-1">{tile.name}</strong>
