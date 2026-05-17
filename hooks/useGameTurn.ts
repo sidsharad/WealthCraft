@@ -138,6 +138,18 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     };
   }, [code, isLocal, setGameState]);
 
+  // Reset transient UI states when the turn advances to a different player
+  useEffect(() => {
+    if (!gameState) return;
+    setShowChoiceModal(null);
+    setShowAuction(false);
+    setShowTargetedAction(null);
+    setShowTrade(false);
+    setShowRebalance(false);
+    setPendingEmergencyAmount(null);
+    setRebalancePenaltyOverride(null);
+  }, [gameState?.currentPlayerIndex]);
+
   // Action Dispatcher
   const performAction = useCallback(async (action: string, payload?: any) => {
     const handleSideEffect = (fx: any, stateToSet: GameState) => {
@@ -229,6 +241,10 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       } else if (data.needsRebalance) {
         setRebalancePenaltyOverride(5 + (data.gameState.phase !== "year-end" ? 3 : 0));
         setShowRebalance(true);
+      } else {
+        if (action === "tile-action") {
+          setPendingEmergencyAmount(null);
+        }
       }
       return data;
     } catch (e: any) {

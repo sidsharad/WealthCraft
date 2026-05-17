@@ -216,4 +216,41 @@ describe('Parity between Pass & Play (dispatcher) and Online (API Route)', () =>
     expect(apiResult.sideEffect.type).toBe('show-modal');
     expect(apiResult.sideEffect.modal).toBe('lottery');
   });
+
+  it('Exhaustive Parity Test 5: End Turn clears emergency announcement and privateMessage', async () => {
+    const stateWithEmergencyResolved = { ...initialGameState };
+    stateWithEmergencyResolved.players[0].position = 7;
+    stateWithEmergencyResolved.players[0].cash = 7;
+    stateWithEmergencyResolved.phase = 'trade';
+    stateWithEmergencyResolved.announcement = '🚨 EMERGENCY!';
+    stateWithEmergencyResolved.privateMessage = '🚨 EMERGENCY!\n➖ Cash: 3L (Emergency Fee)';
+
+    // Local dispatcher: ending turn
+    const localResult = dispatch(stateWithEmergencyResolved, 'end-turn');
+    expect(localResult.state.currentPlayerIndex).toBe(1);
+    expect(localResult.state.announcement).toBeUndefined();
+    expect(localResult.state.privateMessage).toBeUndefined();
+
+    // Online API: ending turn
+    vi.mocked(getRoomById).mockResolvedValue({
+      id: 'room-1',
+      code: 'TEST',
+      hostId: mockUserId,
+      mode: 'online',
+      status: 'active',
+      playerIds: ['p1', 'p2'],
+      gameState: stateWithEmergencyResolved,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const request = createAPIRequest('end-turn');
+    const response = await POST(request, { params: Promise.resolve({ id: 'room-1' }) });
+    expect(response.status).toBe(200);
+
+    const apiResult = await response.json();
+    expect(apiResult.gameState.currentPlayerIndex).toBe(1);
+    expect(apiResult.gameState.announcement).toBeUndefined();
+    expect(apiResult.gameState.privateMessage).toBeUndefined();
+  });
 });
