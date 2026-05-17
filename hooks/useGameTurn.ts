@@ -140,6 +140,47 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
   // Action Dispatcher
   const performAction = useCallback(async (action: string, payload?: any) => {
+    const handleSideEffect = (fx: any, stateToSet: GameState) => {
+      if (fx.type === "show-modal") {
+        const m = fx.modal;
+        if (m === "ipo" || m === "lottery") setShowChoiceModal(m);
+        else if (m === "emergency") {
+          setPendingEmergencyAmount(fx.emergencyAmount);
+          setShowChoiceModal("emergency");
+        }
+        else if (m === "tax-raid") setShowTargetedAction("tax-raid");
+        else if (m === "hostile-takeover") setShowTargetedAction("hostile-takeover");
+        else if (m === "audit") setShowTargetedAction("audit");
+        return true;
+      }
+      if (fx.type === "start-lottery-roll") {
+        setDiceMode("lottery");
+        setShowChoiceModal(null);
+        setOverlayMessage("🎰 ROLL FOR YOUR LOTTERY PRIZE!");
+        setGameState(stateToSet);
+        return true;
+      }
+      if (fx.type === "show-auction") {
+        setShowAuction(true);
+        return false;
+      }
+      if (fx.type === "needs-rebalance") {
+        setRebalancePenaltyOverride(fx.penalty);
+        setShowRebalance(true);
+        setGameState(stateToSet);
+        return true;
+      }
+      if (fx.type === "error") {
+        alert(fx.message);
+        return true;
+      }
+      if (fx.type === "show-pass-device") {
+        setShowPassDevice(true);
+        return false;
+      }
+      return false;
+    };
+
     if (isLocal) {
       if (action === "start" && !gameState) return; // handled by URL params in local
 
@@ -149,38 +190,9 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         if (result.dice !== undefined) setLastDice(result.dice);
 
         if (result.sideEffect) {
-          const fx = result.sideEffect;
-          if (fx.type === "show-modal") {
-            const m = fx.modal;
-            if (m === "ipo" || m === "lottery") setShowChoiceModal(m);
-            else if (m === "emergency") {
-              setPendingEmergencyAmount(fx.emergencyAmount);
-              setShowChoiceModal("emergency");
-            }
-            else if (m === "tax-raid") setShowTargetedAction("tax-raid");
-            else if (m === "hostile-takeover") setShowTargetedAction("hostile-takeover");
-            else if (m === "audit") setShowTargetedAction("audit");
-            return;
+          if (handleSideEffect(result.sideEffect, result.state)) {
+            return result;
           }
-          if (fx.type === "start-lottery-roll") {
-            setDiceMode("lottery");
-            setShowChoiceModal(null);
-            setOverlayMessage("🎰 ROLL FOR YOUR LOTTERY PRIZE!");
-            setGameState(result.state);
-            return;
-          }
-          if (fx.type === "show-auction") setShowAuction(true);
-          if (fx.type === "needs-rebalance") {
-            setRebalancePenaltyOverride(fx.penalty);
-            setShowRebalance(true);
-            setGameState(result.state);
-            return;
-          }
-          if (fx.type === "error") {
-            alert(fx.message);
-            return;
-          }
-          if (fx.type === "show-pass-device") setShowPassDevice(true);
         }
 
         const finalState = applyWinCheck(result.state);
@@ -212,7 +224,9 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       setGameState(data.gameState);
       if (data.dice) setLastDice(data.dice);
       
-      if (data.needsRebalance) {
+      if (data.sideEffect) {
+        handleSideEffect(data.sideEffect, data.gameState);
+      } else if (data.needsRebalance) {
         setRebalancePenaltyOverride(5 + (data.gameState.phase !== "year-end" ? 3 : 0));
         setShowRebalance(true);
       }
@@ -342,19 +356,8 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       setShowChoiceModal("emergency");
       return;
     }
-    if (!payload && currentPlayer && !isLocal) {
-      const tile = TILES[currentPlayer.position];
-      if (["ipo", "lottery", "emergency"].includes(tile.effect)) {
-        setShowChoiceModal(tile.effect as any);
-        return;
-      }
-      if (["tax-raid", "hostile-takeover"].includes(tile.effect)) {
-        setShowTargetedAction(tile.effect as any);
-        return;
-      }
-    }
     await performAction("tile-action", payload);
-  }, [pendingEmergencyAmount, currentPlayer, isLocal, performAction]);
+  }, [pendingEmergencyAmount, performAction]);
 
   const handleRebalance = useCallback((newCash: number, newBonds: number, newStocks: number) => {
     const isMidYear = gameState?.phase !== "year-end";

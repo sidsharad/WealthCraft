@@ -4103,3 +4103,703 @@ Persisting failed: Another write batch or compaction is already active (Only a s
 Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
 Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
 Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\server\edge\chunks\node_modules_next_dist_074f_vw._.js'
+    at ignore-listed frames
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+⨯ Error: ENOENT: no such file or directory, open 'C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\server\edge\chunks\node_modules_next_dist_074f_vw._.js'
+    at ignore-listed frames
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:225:17:
+Failed to restore task data (corrupted database or bug): Data for batch of 61 tasks
+
+Caused by:
+    0: Looking up typed data for 61 tasks from database failed
+    1: Unable to open static sorted file referenced from 00000841.meta
+    2: Unable to open static sorted file 00000837.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000837.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:225:17:
+Failed to restore task data (corrupted database or bug): Data for batch of 3 tasks
+
+Caused by:
+    0: Looking up typed data for 3 tasks from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34848) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:225:17:
+Failed to restore task data (corrupted database or bug): Data for batch of 61 tasks
+
+Caused by:
+    0: Looking up typed data for 61 tasks from database failed
+    1: Unable to open static sorted file referenced from 00000841.meta
+    2: Unable to open static sorted file 00000837.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000837.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:225:17:
+Failed to restore task data (corrupted database or bug): Data for batch of 3 tasks
+
+Caused by:
+    0: Looking up typed data for 3 tasks from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:225:17:
+Failed to restore task data (corrupted database or bug): Data for batch of 61 tasks
+
+Caused by:
+    0: Looking up typed data for 61 tasks from database failed
+    1: Unable to open static sorted file referenced from 00000841.meta
+    2: Unable to open static sorted file 00000837.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000837.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34848) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:225:17:
+Failed to restore task data (corrupted database or bug): Data for batch of 61 tasks
+
+Caused by:
+    0: Looking up typed data for 61 tasks from database failed
+    1: Unable to open static sorted file referenced from 00000841.meta
+    2: Unable to open static sorted file 00000837.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000837.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93407)
+
+Caused by:
+    0: Looking up task storage for TaskId 93407 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34848) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93590)
+
+Caused by:
+    0: Looking up task storage for TaskId 93590 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93143)
+
+Caused by:
+    0: Looking up task storage for TaskId 93143 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93409)
+
+Caused by:
+    0: Looking up task storage for TaskId 93409 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34848) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93591)
+
+Caused by:
+    0: Looking up task storage for TaskId 93591 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93087)
+
+Caused by:
+    0: Looking up task storage for TaskId 93087 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93100)
+
+Caused by:
+    0: Looking up task storage for TaskId 93100 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93152)
+
+Caused by:
+    0: Looking up task storage for TaskId 93152 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93301)
+
+Caused by:
+    0: Looking up task storage for TaskId 93301 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93344)
+
+Caused by:
+    0: Looking up task storage for TaskId 93344 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34848) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93275)
+
+Caused by:
+    0: Looking up task storage for TaskId 93275 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93309)
+
+Caused by:
+    0: Looking up task storage for TaskId 93309 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93355)
+
+Caused by:
+    0: Looking up task storage for TaskId 93355 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (15452) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93293)
+
+Caused by:
+    0: Looking up task storage for TaskId 93293 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34848) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93300)
+
+Caused by:
+    0: Looking up task storage for TaskId 93300 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (15452) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93299)
+
+Caused by:
+    0: Looking up task storage for TaskId 93299 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93089)
+
+Caused by:
+    0: Looking up task storage for TaskId 93089 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93383)
+
+Caused by:
+    0: Looking up task storage for TaskId 93383 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93094)
+
+Caused by:
+    0: Looking up task storage for TaskId 93094 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93403)
+
+Caused by:
+    0: Looking up task storage for TaskId 93403 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 92518)
+
+Caused by:
+    0: Looking up task storage for TaskId 92518 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94313)
+
+Caused by:
+    0: Looking up task storage for TaskId 94313 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34848) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93599)
+
+Caused by:
+    0: Looking up task storage for TaskId 93599 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34848) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93600)
+
+Caused by:
+    0: Looking up task storage for TaskId 93600 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94316)
+
+Caused by:
+    0: Looking up task storage for TaskId 94316 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94332)
+
+Caused by:
+    0: Looking up task storage for TaskId 94332 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 92519)
+
+Caused by:
+    0: Looking up task storage for TaskId 92519 from database failed
+    1: Unable to open static sorted file referenced from 00000631.meta
+    2: Unable to open static sorted file 00000626.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000626.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94333)
+
+Caused by:
+    0: Looking up task storage for TaskId 94333 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94241)
+
+Caused by:
+    0: Looking up task storage for TaskId 94241 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94244)
+
+Caused by:
+    0: Looking up task storage for TaskId 94244 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93432)
+
+Caused by:
+    0: Looking up task storage for TaskId 93432 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93434)
+
+Caused by:
+    0: Looking up task storage for TaskId 93434 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94289)
+
+Caused by:
+    0: Looking up task storage for TaskId 94289 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94294)
+
+Caused by:
+    0: Looking up task storage for TaskId 94294 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93200)
+
+Caused by:
+    0: Looking up task storage for TaskId 93200 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93203)
+
+Caused by:
+    0: Looking up task storage for TaskId 93203 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 92383)
+
+Caused by:
+    0: Looking up task storage for TaskId 92383 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94259)
+
+Caused by:
+    0: Looking up task storage for TaskId 94259 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 92386)
+
+Caused by:
+    0: Looking up task storage for TaskId 92386 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93031)
+
+Caused by:
+    0: Looking up task storage for TaskId 93031 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93036)
+
+Caused by:
+    0: Looking up task storage for TaskId 93036 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94265)
+
+Caused by:
+    0: Looking up task storage for TaskId 94265 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93185)
+
+Caused by:
+    0: Looking up task storage for TaskId 93185 from database failed
+    1: Unable to open static sorted file referenced from 00000883.meta
+    2: Unable to open static sorted file 00000879.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000879.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (38952) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93189)
+
+Caused by:
+    0: Looking up task storage for TaskId 93189 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93168)
+
+Caused by:
+    0: Looking up task storage for TaskId 93168 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93171)
+
+Caused by:
+    0: Looking up task storage for TaskId 93171 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93581)
+
+Caused by:
+    0: Looking up task storage for TaskId 93581 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 93584)
+
+Caused by:
+    0: Looking up task storage for TaskId 93584 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94310)
+
+Caused by:
+    0: Looking up task storage for TaskId 94310 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94314)
+
+Caused by:
+    0: Looking up task storage for TaskId 94314 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94659)
+
+Caused by:
+    0: Looking up task storage for TaskId 94659 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94661)
+
+Caused by:
+    0: Looking up task storage for TaskId 94661 from database failed
+    1: Unable to open static sorted file referenced from 00000613.meta
+    2: Unable to open static sorted file 00000609.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000609.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94538)
+
+Caused by:
+    0: Looking up task storage for TaskId 94538 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94545)
+
+Caused by:
+    0: Looking up task storage for TaskId 94545 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94239)
+
+Caused by:
+    0: Looking up task storage for TaskId 94239 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 94245)
+
+Caused by:
+    0: Looking up task storage for TaskId 94245 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 92933)
+
+Caused by:
+    0: Looking up task storage for TaskId 92933 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 92938)
+
+Caused by:
+    0: Looking up task storage for TaskId 92938 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:197:17:
+Failed to restore task data (corrupted database or bug): Data for TaskId 92204)
+
+Caused by:
+    0: Looking up task storage for TaskId 92204 from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+
+thread 'tokio-runtime-worker' (34564) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:225:17:
+Failed to restore task data (corrupted database or bug): Data for batch of 2 tasks
+
+Caused by:
+    0: Looking up typed data for 2 tasks from database failed
+    1: Unable to open static sorted file referenced from 00000606.meta
+    2: Unable to open static sorted file 00000604.sst
+    3: Failed to open SST file C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\.next\dev\cache/turbopack\2275bd85\00000604.sst
+    4: The system cannot find the path specified. (os error 3)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)

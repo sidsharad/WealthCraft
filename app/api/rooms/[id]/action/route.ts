@@ -140,6 +140,7 @@ export async function POST(
   const response: Record<string, unknown> = { gameState: state };
   if (result.dice !== undefined) response.dice = result.dice;
   if (result.sideEffect?.type === "needs-rebalance") response.needsRebalance = true;
+  if (result.sideEffect) response.sideEffect = result.sideEffect;
 
   return NextResponse.json(response);
 }
