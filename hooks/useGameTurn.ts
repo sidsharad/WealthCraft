@@ -114,7 +114,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
   async function fetchRoom(showBlockingError: boolean = false) {
     try {
-      const res = await fetch(`/api/rooms?code=${code}`);
+      const res = await fetch(`/api/rooms?code=${code}`, { cache: "no-store" });
       const text = await res.text();
       const data = text ? JSON.parse(text) : null;
       if (!res.ok) throw new Error(data?.error || "Failed to fetch room details");
@@ -254,7 +254,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
     // Online Mode Dispatch
     try {
-      const roomRes = await fetch(`/api/rooms?code=${code}`);
+      const roomRes = await fetch(`/api/rooms?code=${code}`, { cache: "no-store" });
       const roomText = await roomRes.text();
       const roomData = roomText ? JSON.parse(roomText) : null;
       if (!roomRes.ok || !roomData) throw new Error(roomData?.error || "Failed to fetch room details");
