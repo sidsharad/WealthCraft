@@ -1,24 +1,40 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
+
+// Consistent deterministic pseudo-random generator to avoid hydration mismatches
+function getDeterministicValue(seed: number, min: number, max: number): number {
+  const x = Math.sin(seed) * 10000;
+  const rand = x - Math.floor(x);
+  return min + rand * (max - min);
+}
 
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "linear-gradient(135deg, #1A2744 0%, #0f172a 50%, #1A6B3C 100%)" }}>
       {/* Stars/particles effect */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 30 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-white opacity-10"
-            style={{
-              width: Math.random() * 4 + 2 + "px",
-              height: Math.random() * 4 + 2 + "px",
-              top: Math.random() * 100 + "%",
-              left: Math.random() * 100 + "%",
-              animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
-              animationDelay: Math.random() * 3 + "s",
-            }}
-          />
-        ))}
+      <div className="absolute inset-0 overflow-hidden" style={{ pointerEvents: "none" }}>
+        {Array.from({ length: 30 }).map((_, i) => {
+          const size = getDeterministicValue(i * 12.34, 2, 6);
+          const top = getDeterministicValue(i * 23.45, 0, 100);
+          const left = getDeterministicValue(i * 34.56, 0, 100);
+          const duration = getDeterministicValue(i * 45.67, 3, 7);
+          const delay = getDeterministicValue(i * 56.78, 0, 3);
+          return (
+            <div
+              key={i}
+              className="absolute rounded-full bg-white opacity-10"
+              style={{
+                width: `${size}px`,
+                height: `${size}px`,
+                top: `${top}%`,
+                left: `${left}%`,
+                animation: `float ${duration}s ease-in-out infinite`,
+                animationDelay: `${delay}s`,
+              }}
+            />
+          );
+        })}
       </div>
 
       {/* Nav */}
@@ -69,27 +85,31 @@ export default function HomePage() {
             { icon: "🤝", title: "Pass-and-Play", desc: "No sign-in needed for friends on one device. Includes AI bot players.", link: "/lobby?mode=local" },
             { icon: "📊", title: "The Complete Rulebook", desc: "Bonds, stocks, cash, audit, auctions, hostile takeovers and trade. Click here to read the entire rulebook", link: "/rules", download: false },
           ].map((f) => {
-            const CardContent = (
-              <div className={`bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-left border border-white/20 h-full transition-all ${f.link ? 'hover:bg-white/15 cursor-pointer' : ''}`}>
+            const cardClasses = `bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-left border border-white/20 h-full transition-all block no-underline hover:bg-white/15 cursor-pointer`;
+
+            if (f.link) {
+              return f.download ? (
+                <a key={f.title} href={f.link} download className={cardClasses}>
+                  <div className="text-3xl mb-3">{f.icon}</div>
+                  <h3 className="text-white font-bold text-lg mb-1">{f.title}</h3>
+                  <p className="text-white/60 text-sm leading-relaxed">{f.desc}</p>
+                </a>
+              ) : (
+                <Link key={f.title} href={f.link} className={cardClasses}>
+                  <div className="text-3xl mb-3">{f.icon}</div>
+                  <h3 className="text-white font-bold text-lg mb-1">{f.title}</h3>
+                  <p className="text-white/60 text-sm leading-relaxed">{f.desc}</p>
+                </Link>
+              );
+            }
+
+            return (
+              <div key={f.title} className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-left border border-white/20 h-full">
                 <div className="text-3xl mb-3">{f.icon}</div>
                 <h3 className="text-white font-bold text-lg mb-1">{f.title}</h3>
                 <p className="text-white/60 text-sm leading-relaxed">{f.desc}</p>
               </div>
             );
-
-            if (f.link) {
-              return f.download ? (
-                <a key={f.title} href={f.link} download className="block no-underline h-full">
-                  {CardContent}
-                </a>
-              ) : (
-                <Link key={f.title} href={f.link} className="block no-underline h-full">
-                  {CardContent}
-                </Link>
-              );
-            }
-
-            return <div key={f.title} className="h-full">{CardContent}</div>;
           })}
         </div>
       </main>

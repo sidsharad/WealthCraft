@@ -20,6 +20,7 @@ vi.mock('@/lib/pusher', () => ({
   pusherServer: {
     trigger: vi.fn().mockResolvedValue({}),
   },
+  safeTrigger: vi.fn().mockResolvedValue(true),
   getRoomChannel: vi.fn().mockReturnValue('test-channel'),
   PUSHER_EVENTS: {
     GAME_STATE_UPDATE: 'GAME_STATE_UPDATE',

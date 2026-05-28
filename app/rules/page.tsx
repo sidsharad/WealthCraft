@@ -1,23 +1,35 @@
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Coins, ShieldCheck, Scale, Home, Users, HelpCircle, AlertTriangle, RefreshCw } from "lucide-react";
 
+// Consistent deterministic pseudo-random generator to avoid hydration mismatches
+function getDeterministicValue(seed: number, min: number, max: number): number {
+  const x = Math.sin(seed) * 10000;
+  const rand = x - Math.floor(x);
+  return min + rand * (max - min);
+}
+
 export default function RulesPage() {
   return (
     <div className="min-h-screen flex flex-col relative" style={{ background: "linear-gradient(135deg, #1A2744 0%, #0f172a 50%, #1A6B3C 100%)" }}>
       {/* Background Star floating animation */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 25 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-white opacity-5"
-            style={{
-              width: Math.random() * 4 + 2 + "px",
-              height: Math.random() * 4 + 2 + "px",
-              top: Math.random() * 100 + "%",
-              left: Math.random() * 100 + "%",
-            }}
-          />
-        ))}
+      <div className="absolute inset-0 overflow-hidden" style={{ pointerEvents: "none" }}>
+        {Array.from({ length: 25 }).map((_, i) => {
+          const size = getDeterministicValue(i * 98.76, 2, 6);
+          const top = getDeterministicValue(i * 87.65, 0, 100);
+          const left = getDeterministicValue(i * 76.54, 0, 100);
+          return (
+            <div
+              key={i}
+              className="absolute rounded-full bg-white opacity-5"
+              style={{
+                width: `${size}px`,
+                height: `${size}px`,
+                top: `${top}%`,
+                left: `${left}%`,
+              }}
+            />
+          );
+        })}
       </div>
 
       {/* Nav */}
