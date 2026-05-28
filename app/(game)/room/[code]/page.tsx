@@ -31,6 +31,36 @@ export default function GameRoomPage() {
 
   const turn = useGameTurn({ code, isLocal, userId });
 
+  // ─── DIAGNOSTIC SYSTEM LOGGING ──────────────────────────────────────────────
+  useEffect(() => {
+    console.log("[DEBUG-WealthCraft]", {
+      userId,
+      isLocal,
+      currentPlayerIndex: turn.gameState?.currentPlayerIndex,
+      currentPlayerId: turn.currentPlayer?.id,
+      currentPlayerName: turn.currentPlayer?.name,
+      isMyTurn: turn.isMyTurn,
+      phase: turn.gameState?.phase,
+      currentBiddingPlayerId: turn.currentBiddingPlayer?.id,
+      showAuction: turn.showAuction,
+      eligibleBiddersCount: turn.eligibleBiddersCount,
+      bidsCount: turn.gameState?.auctionState?.bids?.length,
+      bids: turn.gameState?.auctionState?.bids,
+      players: turn.gameState?.players?.map(p => ({ id: p.id, name: p.name, hasHouse: p.hasHouse }))
+    });
+  }, [
+    userId,
+    isLocal,
+    turn.currentPlayer,
+    turn.isMyTurn,
+    turn.gameState?.phase,
+    turn.currentBiddingPlayer,
+    turn.showAuction,
+    turn.eligibleBiddersCount,
+    turn.gameState?.auctionState?.bids,
+    turn.gameState?.players
+  ]);
+
   // ─── UI LOGIC (TIPS) ────────────────────────────────────────────────────────
   const [activeTipIndex, setActiveTipIndex] = useState(0);
 

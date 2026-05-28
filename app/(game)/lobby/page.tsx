@@ -21,31 +21,43 @@ export default function LobbyPage() {
   async function handleCreate() {
     setLoading(true);
     setError("");
-    const res = await fetch("/api/rooms", {
-      method: "POST",
-      body: JSON.stringify({ action: "create", mode: gameMode }),
-      headers: { "Content-Type": "application/json" },
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) { setError(data.error); return; }
-    setCreatedCode(data.room.code);
-    router.push(`/room/${data.room.code}`);
+    try {
+      const res = await fetch("/api/rooms", {
+        method: "POST",
+        body: JSON.stringify({ action: "create", mode: gameMode }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+      setLoading(false);
+      if (!res.ok || !data) { setError(data?.error || "Failed to create room."); return; }
+      setCreatedCode(data.room.code);
+      router.push(`/room/${data.room.code}`);
+    } catch (e: any) {
+      setLoading(false);
+      setError(e.message || "Failed to parse response.");
+    }
   }
 
   async function handleJoin() {
     if (!code || code.length !== 6) { setError("Enter a valid 6-character room code."); return; }
     setLoading(true);
     setError("");
-    const res = await fetch("/api/rooms", {
-      method: "POST",
-      body: JSON.stringify({ action: "join", code: code.toUpperCase() }),
-      headers: { "Content-Type": "application/json" },
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) { setError(data.error); return; }
-    router.push(`/room/${data.room.code}`);
+    try {
+      const res = await fetch("/api/rooms", {
+        method: "POST",
+        body: JSON.stringify({ action: "join", code: code.toUpperCase() }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+      setLoading(false);
+      if (!res.ok || !data) { setError(data?.error || "Failed to join room."); return; }
+      router.push(`/room/${data.room.code}`);
+    } catch (e: any) {
+      setLoading(false);
+      setError(e.message || "Failed to parse response.");
+    }
   }
 
   function handleLocalStart() {
