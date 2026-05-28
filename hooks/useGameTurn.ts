@@ -4,8 +4,8 @@ import { GameState, PlayerState } from "@/lib/db/schema";
 import { TILES } from "@/lib/game-engine/tiles";
 import { dispatch, applyWinCheck, resolveTimeout } from "@/lib/game-engine/dispatcher";
 import { createInitialGameState } from "@/lib/game-engine/actions";
+import { getBotDecision } from "@/lib/game-engine/bot";
 import { getPusherClient, getRoomChannel, PUSHER_EVENTS } from "@/lib/pusher";
-// import { getBotDecision } from "@/lib/game-engine/bot"; // disabled for now
 
 export interface UseGameTurnProps {
   code: string;
@@ -45,6 +45,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   const [overlayMessage, setOverlayMessage] = useState<string | null>(null);
 
   const [isBotProcessing, setIsBotProcessing] = useState(false);
+  const [botDebug, setBotDebug] = useState<any | null>(null);
   const [initialPreview, setInitialPreview] = useState(true);
   const [isEndingTurn, setIsEndingTurn] = useState(false);
   const [portfolios, setPortfolios] = useState<Record<string, { cash: number, bonds: number, stocks: number }>>({});
@@ -91,8 +92,12 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
             ...playerNames.map((name: string, i: number) => ({
               id: `player_${i}`, name, avatar: "", isBot: false,
             })),
-            ...botNames.map((name: string, i: number) => ({
-              id: `bot_${i}`, name, avatar: "", isBot: true,
+            ...botNames.map((bot: any, i: number) => ({
+              id: `bot_${i}`,
+              name: typeof bot === "string" ? bot : bot.name,
+              avatar: "",
+              isBot: true,
+              botType: typeof bot === "string" ? "balanced" : bot.botType,
             })),
           ];
       
@@ -103,40 +108,53 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       }
       setLoading(false);
     } else {
-      fetchRoom();
+      fetchRoom(true); // show blocking error on initial fetch
     }
   }, [code, isLocal]);
 
-  async function fetchRoom() {
+  async function fetchRoom(showBlockingError: boolean = false) {
     try {
       const res = await fetch(`/api/rooms?code=${code}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+      if (!res.ok) throw new Error(data?.error || "Failed to fetch room details");
+      if (!data?.room) throw new Error("Room details not found");
       setGameState(data.room.gameState);
       setRoom(data.room);
       setLoading(false);
     } catch (e: any) {
-      setError(e.message);
+      console.warn("[fetchRoom Warning] Failed to poll room:", e.message);
+      if (showBlockingError) {
+        setError(e.message);
+      }
       setLoading(false);
     }
   }
 
-  // Pusher / Online Sync
+  // Pusher / Online Sync with Polling Fallback
   useEffect(() => {
     if (isLocal || !code) return;
 
     const pusher = getPusherClient();
-    if (!pusher) return; // Pusher not configured
+    if (pusher) {
+      const channel = pusher.subscribe(getRoomChannel(code));
+      channel.bind(PUSHER_EVENTS.GAME_STATE_UPDATE, (data: { gameState: GameState }) => setGameState(data.gameState));
+      channel.bind(PUSHER_EVENTS.GAME_STARTED, (data: { gameState: GameState }) => setGameState(data.gameState));
+      channel.bind(PUSHER_EVENTS.GAME_FINISHED, (data: { gameState: GameState }) => setGameState(data.gameState));
 
-    const channel = pusher.subscribe(getRoomChannel(code));
-    channel.bind(PUSHER_EVENTS.GAME_STATE_UPDATE, (data: { gameState: GameState }) => setGameState(data.gameState));
-    channel.bind(PUSHER_EVENTS.GAME_STARTED, (data: { gameState: GameState }) => setGameState(data.gameState));
-    channel.bind(PUSHER_EVENTS.GAME_FINISHED, (data: { gameState: GameState }) => setGameState(data.gameState));
-
-    return () => {
-      pusher.unsubscribe(getRoomChannel(code));
-    };
-  }, [code, isLocal, setGameState]);
+      return () => {
+        pusher.unsubscribe(getRoomChannel(code));
+      };
+    } else {
+      // Fallback: Poll server every 2 seconds when Pusher is not configured
+      const interval = setInterval(() => {
+        if (!gameState || gameState.phase !== "finished") {
+          fetchRoom(false); // do not show blocking error on background polls
+        }
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [code, isLocal, gameState?.phase, setGameState]);
 
   // Reset transient UI states when the turn advances to a different player
   useEffect(() => {
@@ -187,7 +205,18 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         return true;
       }
       if (fx.type === "show-pass-device") {
-        setShowPassDevice(true);
+        const nextBiddingPlayer = stateToSet?.players.find(p => !p.hasHouse && !stateToSet.auctionState?.bids.find(b => b.playerId === p.id));
+        const nextTradeResponder = stateToSet?.phase === "waiting-trade"
+          ? stateToSet?.players.find(p => p.id === stateToSet?.pendingTrade?.toPlayerId)
+          : undefined;
+        const nextActivePlayer = stateToSet?.players[stateToSet.currentPlayerIndex];
+        const nextIsBot = nextBiddingPlayer?.isBot || nextTradeResponder?.isBot || (stateToSet?.phase !== "auction" && stateToSet?.phase !== "waiting-trade" && nextActivePlayer?.isBot);
+
+        if (nextIsBot) {
+          setShowPassDevice(false);
+        } else {
+          setShowPassDevice(true);
+        }
         return false;
       }
       return false;
@@ -210,7 +239,12 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         const finalState = applyWinCheck(result.state);
         if (finalState.currentPlayerIndex !== (gameStateRef.current?.currentPlayerIndex ?? -1)) {
           setPendingEmergencyAmount(null);
-          setShowPassDevice(true);
+          const nextPlayer = finalState.players[finalState.currentPlayerIndex];
+          if (nextPlayer && !nextPlayer.isBot) {
+            setShowPassDevice(true);
+          } else {
+            setShowPassDevice(false);
+          }
         }
         setGameState(finalState);
         return result;
@@ -221,8 +255,9 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     // Online Mode Dispatch
     try {
       const roomRes = await fetch(`/api/rooms?code=${code}`);
-      const roomData = await roomRes.json();
-      if (!roomRes.ok) throw new Error(roomData.error);
+      const roomText = await roomRes.text();
+      const roomData = roomText ? JSON.parse(roomText) : null;
+      if (!roomRes.ok || !roomData) throw new Error(roomData?.error || "Failed to fetch room details");
       const roomId = roomData.room.id;
 
       const actionRes = await fetch(`/api/rooms/${roomId}/action`, {
@@ -230,8 +265,9 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         body: JSON.stringify({ action, payload }),
         headers: { "Content-Type": "application/json" },
       });
-      const data = await actionRes.json();
-      if (!actionRes.ok) throw new Error(data.error);
+      const actionText = await actionRes.text();
+      const data = actionText ? JSON.parse(actionText) : null;
+      if (!actionRes.ok || !data) throw new Error(data?.error || "Failed to perform action");
       
       setGameState(data.gameState);
       if (data.dice) setLastDice(data.dice);
@@ -413,12 +449,155 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     if (isEndingTurn) return;
     setIsEndingTurn(true);
     try {
-      await performAction("end-turn");
-      if (isLocal) setShowPassDevice(true);
+      const result = await performAction("end-turn");
+      if (isLocal) {
+        const nextState = result?.state || result?.gameState;
+        if (nextState) {
+          const nextPlayer = nextState.players[nextState.currentPlayerIndex];
+          if (nextPlayer && nextPlayer.isBot) {
+            setShowPassDevice(false);
+          } else {
+            setShowPassDevice(true);
+          }
+        } else {
+          setShowPassDevice(true);
+        }
+      }
     } finally {
       setIsEndingTurn(false);
     }
   }, [isEndingTurn, isLocal, performAction]);
+
+  // Decoupled Automated Bot Turn Loop
+  useEffect(() => {
+    if (!isLocal || !gameState || gameState.phase === "finished") {
+      return;
+    }
+
+    let activeBotIdx = -1;
+    if (gameState.phase === "auction") {
+      if (currentBiddingPlayer?.isBot) {
+        activeBotIdx = gameState.players.findIndex(p => p.id === currentBiddingPlayer.id);
+      }
+    } else if (gameState.phase === "waiting-trade") {
+      const responder = gameState.players.find(p => p.id === gameState.pendingTrade?.toPlayerId);
+      if (responder?.isBot) {
+        activeBotIdx = gameState.players.findIndex(p => p.id === responder.id);
+      }
+    } else {
+      const activePlayer = gameState.players[gameState.currentPlayerIndex];
+      if (activePlayer?.isBot) {
+        activeBotIdx = gameState.currentPlayerIndex;
+      }
+    }
+
+    if (activeBotIdx === -1) {
+      if (botDebug !== null) setBotDebug(null);
+      return;
+    }
+
+    // If an AI bot is active, immediately dismiss any pass-device screens to keep automation fluid
+    if (showPassDevice) {
+      setShowPassDevice(false);
+      return;
+    }
+
+    if (initialPreview || isBotProcessing) {
+      return;
+    }
+
+    let active = true;
+    const runBotAction = async () => {
+      setIsBotProcessing(true);
+
+      const decision = getBotDecision(gameState, activeBotIdx);
+      if (decision && decision.debug) {
+        setBotDebug(decision.debug);
+      }
+
+      await new Promise(r => setTimeout(r, 1500));
+      if (!active) {
+        return;
+      }
+
+      try {
+        if (decision.type === "roll") {
+          setRolling(true);
+          await new Promise(r => setTimeout(r, 800));
+          const dice = Math.floor(Math.random() * 6) + 1;
+          setLastDice(dice);
+          setRolling(false);
+          await new Promise(r => setTimeout(r, 1000));
+
+          if (diceMode === "lottery") {
+            await performAction("lottery-resolve", { dice });
+            setDiceMode("move");
+            setOverlayMessage(null);
+          } else {
+            const result = await performAction("roll", { dice });
+            if (result?.state?.phase !== "year-end" && result?.gameState?.phase !== "year-end") {
+              const pendingEmergency = result?.state?.pendingEmergencyAmount ?? null;
+              const payload: any = {};
+              if (pendingEmergency !== null) {
+                payload.amount = pendingEmergency;
+              }
+              await performAction("tile-action", payload);
+            }
+          }
+        } else if (decision.type === "tile-action") {
+          const payload = decision.payload || {};
+          if (pendingEmergencyAmount !== null) {
+            payload.amount = pendingEmergencyAmount;
+          }
+          await performAction("tile-action", payload);
+        } else if (decision.type === "house-auction-bid") {
+          const bidderId = gameState.players[activeBotIdx].id;
+          await performAction("bid", { amount: decision.payload?.amount, bidderId });
+        } else if (decision.type === "rebalance") {
+          const isSetup = gameState.year === 1 && gameState.phase === "year-end" && (gameState.turn ?? 0) < gameState.players.length;
+          const wasYearEnd = gameState.phase === "year-end";
+
+          const result = await performAction("rebalance", decision.payload);
+          if (wasYearEnd && !isSetup) {
+            const nextState = result?.state || result?.gameState;
+            const pendingEmergency = nextState?.pendingEmergencyAmount ?? null;
+            const payload: any = {};
+            if (pendingEmergency !== null) {
+              payload.amount = pendingEmergency;
+            }
+            await performAction("tile-action", payload);
+          }
+        } else if (decision.type === "audit") {
+          await performAction("audit", decision.payload);
+        } else if (decision.type === "trade-response") {
+          await performAction("trade-response", decision.payload);
+        } else if (decision.type === "end-turn") {
+          await performAction("end-turn");
+        }
+      } catch (err) {
+        console.error("Bot action error:", err);
+      } finally {
+        if (active) {
+          setIsBotProcessing(false);
+        }
+      }
+    };
+
+    runBotAction();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    isLocal,
+    gameState?.phase,
+    gameState?.currentPlayerIndex,
+    gameState?.pendingTrade?.toPlayerId,
+    currentBiddingPlayer?.id,
+    initialPreview,
+    showPassDevice,
+    isBotProcessing,
+  ]);
 
   return {
     gameState,
@@ -435,6 +614,8 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     isMyTurn,
     currentPlayer,
     currentBiddingPlayer,
+    botDebug,
+    isBotProcessing,
     eligibleBiddersCount,
     allPlayersHaveHouses,
     isSetupPhase,

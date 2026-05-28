@@ -1,0 +1,28 @@
+{
+  "users": [
+    {
+      "name": "Test Player",
+      "email": "test@example.com",
+      "passwordHash": "$2b$10$wZHD6wnu8tBwUc4jGYmTReS9XR.16Za4VN2XBCPwO/.EK1WDmHmwm",
+      "id": "625bcfb7-ffcc-4d7b-a9e7-53782e995752",
+      "createdAt": "2026-05-23T16:59:16.935Z",
+      "updatedAt": "2026-05-23T16:59:16.935Z",
+      "wins": 0,
+      "losses": 0
+    },
+    {
+      "name": "Test Player",
+      "email": "test@example.com",
+      "passwordHash": "$2b$10$vuMCNRdvdFBfqhwRnWX1ZOMOoCLkHrxBrVRpzHNk0ay7YX1cnZPsW",
+      "id": "3b89bad5-f200-4229-b63b-ab6067ab5e17",
+      "createdAt": "2026-05-23T17:02:27.957Z",
+      "updatedAt": "2026-05-23T17:02:27.957Z",
+      "wins": 0,
+      "losses": 0
+    }
+  ],
+  "rooms": [],
+  "accounts": [],
+  "sessions": [],
+  "verification_tokens": []
+}

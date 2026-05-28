@@ -62,6 +62,7 @@ export interface PlayerState {
   name: string;
   avatar: string;
   isBot: boolean;
+  botType?: "defensive" | "balanced" | "aggressive";
   cash: number;      // in Lakhs, integers only
   bonds: number;     // in Lakhs, integers only
   stocks: number;    // in Lakhs, integers only

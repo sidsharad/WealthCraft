@@ -12,6 +12,7 @@ export default function LobbyPage() {
   const [localPlayerCount, setLocalPlayerCount] = useState(2);
   const [localPlayers, setLocalPlayers] = useState(["Player 1", "Player 2", "", ""]);
   const [botCount, setBotCount] = useState(0);
+  const [botPersonalities, setBotPersonalities] = useState<("defensive" | "balanced" | "aggressive")[]>(["balanced", "balanced", "balanced", "balanced"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [createdCode, setCreatedCode] = useState("");
@@ -50,11 +51,20 @@ export default function LobbyPage() {
   function handleLocalStart() {
     const names = localPlayers.slice(0, localPlayerCount).filter(Boolean);
     if (names.length < 2) { setError("Add at least 2 players."); return; }
-    const bots = Array.from({ length: botCount }, (_, i) => `Bot ${i + 1}`);
+    
+    const bots = Array.from({ length: botCount }, (_, i) => {
+      const type = botPersonalities[i] || "balanced";
+      const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+      return {
+        name: `BOT (${typeLabel})`,
+        botType: type,
+      };
+    });
+
     const params = new URLSearchParams({
       mode: "local",
       players: JSON.stringify(names),   // human player names only
-      bots: JSON.stringify(bots),       // bot names only — room page merges them
+      bots: JSON.stringify(bots),       // bot objects
     });
     router.push(`/room/play-local?${params.toString()}`);
   }
@@ -182,10 +192,36 @@ export default function LobbyPage() {
               </div>
 
               {localPlayerCount < 4 && (
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-1 block">Add Bots: {botCount}</label>
-                  <input type="range" min={0} max={4 - localPlayerCount} value={botCount}
-                    onChange={(e) => setBotCount(Number(e.target.value))} className="w-full" />
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-1 block">Add Bots: {botCount}</label>
+                    <input type="range" min={0} max={4 - localPlayerCount} value={botCount}
+                      onChange={(e) => setBotCount(Number(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-400" />
+                  </div>
+
+                  {botCount > 0 && (
+                    <div className="space-y-2 border border-gray-200/50 bg-gray-50/50 p-3 rounded-lg">
+                      <label className="text-xs font-bold text-gray-600 uppercase tracking-wider block mb-1">Bot Strategy Config</label>
+                      {Array.from({ length: botCount }).map((_, i) => (
+                        <div key={i} className="flex items-center justify-between gap-3 bg-white p-2 rounded-md shadow-sm border border-gray-100">
+                          <span className="text-xs font-semibold text-gray-700">Bot {i + 1} Personality:</span>
+                          <select
+                             value={botPersonalities[i] || "balanced"}
+                             onChange={(e) => {
+                               const updated = [...botPersonalities];
+                               updated[i] = e.target.value as any;
+                               setBotPersonalities(updated);
+                             }}
+                             className="text-xs font-medium bg-gray-50 border border-gray-200 rounded p-1 text-gray-800 focus:outline-none focus:ring-1 focus:ring-yellow-400 cursor-pointer"
+                          >
+                            <option value="defensive">🛡️ Defensive</option>
+                            <option value="balanced">⚖️ Balanced</option>
+                            <option value="aggressive">⚡ Aggressive</option>
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
