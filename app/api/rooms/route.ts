@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { rooms, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { pusherServer, getRoomChannel, PUSHER_EVENTS } from "@/lib/pusher";
+import { getRoomChannel, PUSHER_EVENTS, safeTrigger } from "@/lib/pusher";
 
 // Generate a 6-character room code
 function generateCode(): string {
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       .returning();
 
     // Notify all players via Pusher
-    await pusherServer.trigger(getRoomChannel(code), PUSHER_EVENTS.PLAYER_JOINED, {
+    await safeTrigger(getRoomChannel(code), PUSHER_EVENTS.PLAYER_JOINED, {
       playerId: userId,
       playerName: session.user.name,
       playerIds: updatedPlayerIds,

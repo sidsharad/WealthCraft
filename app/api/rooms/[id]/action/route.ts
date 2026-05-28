@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getRoomById, updateGameState, recordGameResult } from "@/lib/db/queries";
-import { pusherServer, getRoomChannel, PUSHER_EVENTS } from "@/lib/pusher";
+import { getRoomChannel, PUSHER_EVENTS, safeTrigger } from "@/lib/pusher";
 import { db } from "@/lib/db";
 import { rooms, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -66,7 +66,7 @@ export async function POST(
     gameState = createInitialGameState(allPlayers);
     await db.update(rooms).set({ status: "active", gameState, updatedAt: new Date() }).where(eq(rooms.id, roomId));
 
-    await pusherServer.trigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STARTED, { gameState });
+    await safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STARTED, { gameState });
     return NextResponse.json({ gameState });
   }
 
@@ -98,7 +98,7 @@ export async function POST(
 
         await updateGameState(roomId, state);
         await db.update(rooms).set({ status: "finished" }).where(eq(rooms.id, roomId));
-        await pusherServer.trigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_FINISHED, { gameState: state, leaderboard });
+        await safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_FINISHED, { gameState: state, leaderboard });
         return NextResponse.json({ gameState: state, leaderboard });
       }
     }
@@ -106,7 +106,7 @@ export async function POST(
     // Normal end-turn — delegate to dispatcher
     const result = dispatch(gameState, "end-turn", payload);
     await updateGameState(roomId, result.state);
-    await pusherServer.trigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STATE_UPDATE, { gameState: result.state });
+    await safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STATE_UPDATE, { gameState: result.state });
     return NextResponse.json({ gameState: result.state });
   }
 
@@ -134,7 +134,7 @@ export async function POST(
     pusherPayload.trade = state.pendingTrade;
   }
 
-  await pusherServer.trigger(getRoomChannel(room.code), pusherEvent, pusherPayload);
+  await safeTrigger(getRoomChannel(room.code), pusherEvent, pusherPayload);
 
   // Build response — include extra fields consumers may need
   const response: Record<string, unknown> = { gameState: state };

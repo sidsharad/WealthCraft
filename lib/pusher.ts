@@ -78,6 +78,17 @@ export function getRoomChannel(roomCode: string): string {
   return `presence-room-${roomCode}`;
 }
 
+export async function safeTrigger(channel: string, event: string, data: any): Promise<boolean> {
+  try {
+    if (!pusherServer) return false;
+    await pusherServer.trigger(channel, event, data);
+    return true;
+  } catch (err) {
+    console.error(`[Pusher safeTrigger Error] Failed to broadcast event ${event} on channel ${channel}:`, err);
+    return false;
+  }
+}
+
 export const PUSHER_EVENTS = {
   GAME_STATE_UPDATE: "game-state-update",
   TRADE_OFFER: "trade-offer",
