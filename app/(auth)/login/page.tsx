@@ -29,7 +29,13 @@ export default function LoginPage() {
   }
 
   async function handleGoogle() {
-    await signIn("google", { callbackUrl: "/lobby" });
+    console.log("[DEBUG-WealthCraft] Initiating Google Sign-In...");
+    try {
+      const result = await signIn("google", { callbackUrl: "/lobby" });
+      console.log("[DEBUG-WealthCraft] Google Sign-In request dispatched:", result);
+    } catch (err) {
+      console.error("[DEBUG-WealthCraft] Google Sign-In error caught:", err);
+    }
   }
 
   return (
