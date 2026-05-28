@@ -1,6 +1,8 @@
+"use client";
+
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 // Consistent deterministic pseudo-random generator to avoid hydration mismatches
 function getDeterministicValue(seed: number, min: number, max: number): number {
@@ -10,6 +12,8 @@ function getDeterministicValue(seed: number, min: number, max: number): number {
 }
 
 export default function HomePage() {
+  const router = useRouter();
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "linear-gradient(135deg, #1A2744 0%, #0f172a 50%, #1A6B3C 100%)" }}>
       {/* Stars/particles effect */}
@@ -44,12 +48,12 @@ export default function HomePage() {
           <span className="text-white font-black text-xl tracking-tight">WealthCraft</span>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/login" className="text-white/80 hover:text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-all">
+          <a href="/login" className="text-white/80 hover:text-white font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-all">
             Login
-          </Link>
-          <Link href="/register" className="btn-primary text-sm">
+          </a>
+          <a href="/register" className="btn-primary text-sm">
             Play Now
-          </Link>
+          </a>
         </div>
       </nav>
 
@@ -70,12 +74,12 @@ export default function HomePage() {
         </p>
 
         <div className="flex flex-wrap gap-4 justify-center mb-14">
-          <Link href="/register" className="btn-primary text-base px-8 py-3">
+          <a href="/register" className="btn-primary text-base px-8 py-3">
             🚀 Start Playing Free
-          </Link>
-          <Link href="/lobby" className="btn-secondary text-base px-8 py-3">
+          </a>
+          <a href="/lobby" className="btn-secondary text-base px-8 py-3">
             Join a Room
-          </Link>
+          </a>
         </div>
 
         {/* Feature cards */}
@@ -87,6 +91,12 @@ export default function HomePage() {
           ].map((f) => {
             const cardClasses = `bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-left border border-white/20 h-full transition-all block no-underline hover:bg-white/15 cursor-pointer`;
 
+            const handleClick = (e: React.MouseEvent) => {
+              if (f.download) return;
+              e.preventDefault();
+              router.push(f.link);
+            };
+
             if (f.link) {
               return f.download ? (
                 <a key={f.title} href={f.link} download className={cardClasses}>
@@ -95,11 +105,11 @@ export default function HomePage() {
                   <p className="text-white/60 text-sm leading-relaxed">{f.desc}</p>
                 </a>
               ) : (
-                <Link key={f.title} href={f.link} className={cardClasses}>
+                <a key={f.title} href={f.link} onClick={handleClick} className={cardClasses}>
                   <div className="text-3xl mb-3">{f.icon}</div>
                   <h3 className="text-white font-bold text-lg mb-1">{f.title}</h3>
                   <p className="text-white/60 text-sm leading-relaxed">{f.desc}</p>
-                </Link>
+                </a>
               );
             }
 
