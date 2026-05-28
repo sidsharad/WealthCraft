@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -7,6 +7,15 @@ const PLAYER_COLORS = ["#3B82F6", "#F97316", "#A855F7", "#EC4899"];
 
 export default function LobbyPage() {
   const [mode, setMode] = useState<"create" | "join" | "local" | null>(null);
+  
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const m = params.get("mode");
+    if (m === "local" || m === "create" || m === "join") {
+      setMode(m as any);
+    }
+  }, []);
+
   const [code, setCode] = useState("");
   const [gameMode, setGameMode] = useState<"online" | "local">("online");
   const [localPlayerCount, setLocalPlayerCount] = useState(2);

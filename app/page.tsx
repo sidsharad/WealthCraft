@@ -65,8 +65,8 @@ export default function HomePage() {
         {/* Feature cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl w-full">
           {[
-            { icon: "🌐", title: "Online Multiplayer", desc: "Play with 2–4 friends with a 6-char room code. Real-time updates via live sync." },
-            { icon: "🤝", title: "Pass-and-Play", desc: "No sign-in needed for friends on one device. Includes AI bot players." },
+            { icon: "🌐", title: "Online Multiplayer", desc: "Play with 2–4 friends with a 6-char room code. Real-time updates via live sync.", link: "/lobby" },
+            { icon: "🤝", title: "Pass-and-Play", desc: "No sign-in needed for friends on one device. Includes AI bot players.", link: "/lobby?mode=local" },
             { icon: "📊", title: "The Complete Rulebook", desc: "Bonds, stocks, cash, audit, auctions, hostile takeovers and trade. Click here to read the entire rulebook", link: "/rules", download: false },
           ].map((f) => {
             const CardContent = (
