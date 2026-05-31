@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { GameState } from '@/lib/db/schema';
 import { getLeaderboard } from '@/lib/game-engine/actions';
 
@@ -8,8 +8,14 @@ interface GameOverScreenProps {
 }
 
 export function GameOverScreen({ gameState, onExit }: GameOverScreenProps) {
+  const [show, setShow] = useState(false);
   const leaderboard = useMemo(() => getLeaderboard(gameState), [gameState]);
   const winner = leaderboard[0];
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShow(true), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (winner) {
@@ -23,7 +29,7 @@ export function GameOverScreen({ gameState, onExit }: GameOverScreenProps) {
     }
   }, [winner, gameState.phase, gameState.turn, gameState.year]);
 
-  if (!winner) return null;
+  if (!winner || !show) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-700">
