@@ -17,6 +17,7 @@ import TargetedActionModal from "@/components/game/TargetedActionModal";
 import ChoiceModal from "@/components/game/ChoiceModal";
 import PassDeviceScreen from "@/components/game/PassDeviceScreen";
 import TradeResponseModal from "@/components/game/TradeResponseModal";
+import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { LogOut, MessageSquare, ShieldAlert } from "lucide-react";
 
 const PLAYER_COLORS = ["#3B82F6", "#F97316", "#A855F7", "#EC4899"];
@@ -182,7 +183,7 @@ export default function GameRoomPage() {
       if (!turn.gameState || hasLoggedFreezeRef.current) return;
 
       // 1. Check waiting screen rendering duration
-      const isShowingWaitingScreen = !turn.isMyTurn && turn.gameState.phase !== "year-end" && turn.gameState.phase !== "waiting-trade";
+      const isShowingWaitingScreen = !turn.isMyTurn && turn.gameState.phase !== "year-end" && turn.gameState.phase !== "waiting-trade" && turn.gameState.phase !== "finished";
       if (isShowingWaitingScreen) {
         if (waitingScreenSinceRef.current === null) {
           waitingScreenSinceRef.current = Date.now();
@@ -358,6 +359,10 @@ export default function GameRoomPage() {
       )}
     </div>
   </div>;
+
+  if (turn.gameState?.phase === "finished") {
+    return <GameOverScreen gameState={turn.gameState} onExit={() => router.push("/lobby")} />;
+  }
 
   return (
     <div className="h-screen flex flex-col md:flex-row bg-[var(--cream)] overflow-hidden">

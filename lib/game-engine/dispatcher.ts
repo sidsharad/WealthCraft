@@ -380,6 +380,16 @@ export function applyWinCheck(state: GameState): GameState {
   const win = checkWinCondition(state);
   if (win.triggered && !state.endgame) {
     const msg = "🚨 FINAL ROUND! A player has reached 100L. Everyone gets one last turn!";
+    
+    console.log(JSON.stringify({
+      event: "ENDGAME_STATE",
+      endgame: true,
+      phase: state.phase,
+      currentPlayerIndex: state.currentPlayerIndex,
+      turn: state.turn,
+      year: state.year
+    }, null, 2));
+
     return addLog({ ...state, endgame: true, announcement: msg }, msg);
   }
   return state;

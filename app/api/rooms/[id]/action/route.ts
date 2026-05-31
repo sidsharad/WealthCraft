@@ -342,10 +342,14 @@ export async function POST(
       if (gameState.endgame) {
         const nextIdx = (currentPlayerIdx + 1) % gameState.players.length;
         if (nextIdx === 0) {
+          console.log(JSON.stringify({ event: "GAME_FINISHED_TRIGGER" }));
+
           // Everyone has gone — end game
           let state: GameState = { ...gameState, phase: "finished" };
           const leaderboard = getLeaderboard(state);
           const winner = leaderboard[0];
+
+          console.log(JSON.stringify({ event: "WINNER_COMPUTED", winnerId: winner?.id }));
 
           // Persist results for human players
           if (winner && !winner.isBot) {
@@ -381,6 +385,8 @@ export async function POST(
 
           await updateGameState(roomId, state);
           await db.update(rooms).set({ status: "finished" }).where(eq(rooms.id, roomId));
+          console.log(JSON.stringify({ event: "GAME_FINISHED_COMMIT" }));
+          
           safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_FINISHED, { timestamp: Date.now() }).catch(err =>
             console.error(JSON.stringify({
               timestamp: new Date().toISOString(),
