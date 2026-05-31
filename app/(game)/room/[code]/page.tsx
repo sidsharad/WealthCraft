@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { TILES, HOUSE_MARKET_PRICE, HOUSE_AUCTION_MIN } from "@/lib/game-engine/tiles";
@@ -29,12 +29,29 @@ export default function GameRoomPage() {
   const isLocal = code === "play-local";
   const userId = (session?.user as { id?: string })?.id;
 
-  const turn = useGameTurn({ code, isLocal, userId });
+  const [stableUserId, setStableUserId] = useState<string | undefined>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("wc_user_id") || undefined;
+    }
+    return undefined;
+  });
+  const [showTelemetry, setShowTelemetry] = useState(false);
+
+  useEffect(() => {
+    if (userId) {
+      localStorage.setItem("wc_user_id", userId);
+      if (userId !== stableUserId) {
+        setStableUserId(userId);
+      }
+    }
+  }, [userId, stableUserId]);
+
+  const turn = useGameTurn({ code, isLocal, userId: stableUserId });
 
   // ─── DIAGNOSTIC SYSTEM LOGGING ──────────────────────────────────────────────
   useEffect(() => {
     console.log("[DEBUG-WealthCraft]", {
-      userId,
+      userId: stableUserId,
       isLocal,
       currentPlayerIndex: turn.gameState?.currentPlayerIndex,
       currentPlayerId: turn.currentPlayer?.id,
@@ -49,7 +66,7 @@ export default function GameRoomPage() {
       players: turn.gameState?.players?.map(p => ({ id: p.id, name: p.name, hasHouse: p.hasHouse }))
     });
   }, [
-    userId,
+    stableUserId,
     isLocal,
     turn.currentPlayer,
     turn.isMyTurn,
@@ -60,6 +77,169 @@ export default function GameRoomPage() {
     turn.gameState?.auctionState?.bids,
     turn.gameState?.players
   ]);
+
+  // ─── WAITING SCREEN TRIGGERED OBSERVER ─────────────────────────────────────────
+  useEffect(() => {
+    if (!turn.gameState) {
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        event: "WAITING_SCREEN_TRIGGERED",
+        screenType: "LOBBY_WAITING",
+        uiCondition: {
+          gameStateExists: false,
+          roomStatus: turn.room?.status || "waiting",
+          playerCount: turn.room?.playerIds?.length || 0,
+          expressionEvaluatedToTrue: "!gameState"
+        },
+        stateValues: {
+          roomId: turn.room?.id || null,
+          stableUserId: stableUserId,
+          hostId: turn.room?.hostId || null,
+          playerIds: turn.room?.playerIds || []
+        }
+      }, null, 2));
+      return;
+    }
+
+    const isParentWaiting = !turn.isMyTurn && turn.gameState.phase !== "year-end" && turn.gameState.phase !== "finished";
+    const userHasBidInAuction = turn.gameState.phase === "auction" && !!turn.gameState.auctionState?.bids.find(b => b.playerId === stableUserId);
+    const isTradeWaiting = turn.gameState.phase === "waiting-trade";
+
+    if (isParentWaiting || userHasBidInAuction || isTradeWaiting) {
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        event: "WAITING_SCREEN_TRIGGERED",
+        screenType: isParentWaiting ? "PARENT_TURN_WAITING" : (userHasBidInAuction ? "AUCTION_SEALED_BID_WAITING" : "TRADE_RESPONSE_WAITING"),
+        uiCondition: {
+          isMyTurn: turn.isMyTurn,
+          phase: turn.gameState.phase,
+          isParentWaitingEvaluated: isParentWaiting,
+          userHasBidInAuctionEvaluated: userHasBidInAuction,
+          isTradeWaitingEvaluated: isTradeWaiting,
+          expressionEvaluatedToTrue: isParentWaiting
+            ? `!isMyTurn && phase !== "year-end" && phase !== "finished"`
+            : (userHasBidInAuction ? `phase === "auction" && hasBid` : `phase === "waiting-trade"`)
+        },
+        stateValues: {
+          roomId: turn.room?.id || null,
+          stableUserId: stableUserId,
+          currentPlayerIndex: turn.gameState.currentPlayerIndex,
+          currentPlayerId: turn.currentPlayer?.id || null,
+          currentPlayerName: turn.currentPlayer?.name || null,
+          currentBiddingPlayerId: turn.currentBiddingPlayer?.id || null,
+          pendingTrade: turn.gameState.pendingTrade || null,
+          auctionBids: turn.gameState.auctionState?.bids || null,
+          playersCount: turn.gameState.players.length,
+          players: turn.gameState.players.map(p => ({ id: p.id, name: p.name, hasHouse: p.hasHouse }))
+        }
+      }, null, 2));
+    }
+  }, [
+    stableUserId,
+    turn.room,
+    turn.gameState,
+    turn.isMyTurn,
+    turn.currentPlayer,
+    turn.currentBiddingPlayer,
+  ]);
+
+  // ─── WAITING TRADE DIAGNOSTICS OBSERVER ───────────────────────────────────────
+  useEffect(() => {
+    if (turn.gameState?.phase === "waiting-trade") {
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        event: "WAITING_TRADE_DIAGNOSTICS",
+        phase: turn.gameState.phase,
+        isMyTurn: turn.isMyTurn,
+        currentPlayerId: turn.currentPlayer?.id || null,
+        stableUserId: stableUserId,
+        pendingTradeToPlayerId: turn.gameState.pendingTrade?.toPlayerId || null,
+        modalWillOpenForThisClient: turn.gameState.phase === "waiting-trade" && stableUserId === turn.gameState.pendingTrade?.toPlayerId
+      }, null, 2));
+    }
+  }, [turn.gameState?.phase, turn.isMyTurn, turn.currentPlayer?.id, stableUserId, turn.gameState?.pendingTrade]);
+
+  // ─── FREEZE SNAPSHOT SYSTEM ───────────────────────────────────────────────────
+  const waitingScreenSinceRef = useRef<number | null>(null);
+  const hasLoggedFreezeRef = useRef<boolean>(false);
+  const lastStateVersionRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!turn.gameState || turn.gameState.phase === "finished") {
+      waitingScreenSinceRef.current = null;
+      return;
+    }
+
+    // Determine current state version identifier to detect when state actually changes
+    const stateVersion = `${turn.gameState.phase}_${turn.gameState.turn}_${turn.gameState.currentPlayerIndex}`;
+    if (stateVersion !== lastStateVersionRef.current) {
+      lastStateVersionRef.current = stateVersion;
+      hasLoggedFreezeRef.current = false;
+      waitingScreenSinceRef.current = null;
+    }
+
+    const interval = setInterval(async () => {
+      if (!turn.gameState || hasLoggedFreezeRef.current) return;
+
+      // 1. Check waiting screen rendering duration
+      const isShowingWaitingScreen = !turn.isMyTurn && turn.gameState.phase !== "year-end" && turn.gameState.phase !== "waiting-trade";
+      if (isShowingWaitingScreen) {
+        if (waitingScreenSinceRef.current === null) {
+          waitingScreenSinceRef.current = Date.now();
+        }
+      } else {
+        waitingScreenSinceRef.current = null;
+      }
+
+      const waitingScreenDuration = waitingScreenSinceRef.current ? (Date.now() - waitingScreenSinceRef.current) : 0;
+      const updateAge = Date.now() - turn.lastRoomUpdateTimestamp;
+
+      const isWaitScreenFreeze = waitingScreenDuration > 10000;
+      const isStaleUpdateFreeze = updateAge > 10000 && turn.gameState.phase !== "finished";
+
+      if (isWaitScreenFreeze || isStaleUpdateFreeze) {
+        hasLoggedFreezeRef.current = true;
+        
+        let lockState = null;
+        try {
+          const res = await fetch(`/api/debug/room/${code}`);
+          const debugData = await res.json();
+          lockState = debugData.roomLock || null;
+        } catch (e) {
+          console.error("[FreezeSnapshot] Failed to load dynamic database locks info:", e);
+        }
+
+        console.warn(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          event: "FREEZE_SNAPSHOT",
+          phase: turn.gameState.phase,
+          year: turn.gameState.year,
+          turn: turn.gameState.turn,
+          currentPlayerIndex: turn.gameState.currentPlayerIndex,
+          currentPlayerId: turn.currentPlayer?.id || null,
+          stableUserId: stableUserId,
+          isMyTurn: turn.isMyTurn,
+          lockState,
+          lastAction: (turn.gameState as any).lastAction || null,
+          connectionStatus: turn.connectionStatus,
+          pusherState: turn.connectionStatus,
+          logLength: turn.gameState.log?.length || 0,
+          gameStateSize: turn.serializedGameStateSizeBytes,
+          browserState: {
+            watchdogRefreshes: turn.watchdogRefreshes,
+            watchdogStale: turn.watchdogStale,
+            pusherReconnectsCount: turn.pusherReconnectsCount,
+            failedActionsCount: turn.failedActionsCount,
+            isLocal: isLocal,
+            waitingScreenDurationMs: waitingScreenDuration,
+            updateAgeMs: updateAge
+          }
+        }, null, 2));
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [turn.gameState, turn.isMyTurn, turn.lastRoomUpdateTimestamp, turn.connectionStatus, stableUserId, code, isLocal]);
 
   // ─── UI LOGIC (TIPS) ────────────────────────────────────────────────────────
   const [activeTipIndex, setActiveTipIndex] = useState(0);
@@ -94,13 +274,45 @@ export default function GameRoomPage() {
     return () => clearInterval(interval);
   }, [TIPS.length]);
 
+  // ─── DEVELOPER DEBUG PANEL POLLING ───────────────────────────────────────────
+  const [isDebugMode, setIsDebugMode] = useState(false);
+  const [dbDebugData, setDbDebugData] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("debug") === "true" || process.env.NODE_ENV === "development") {
+        setIsDebugMode(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isDebugMode || !turn.gameState) return;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/debug/room/${code}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDbDebugData(data);
+        }
+      } catch (e) {
+        // ignore polling errors
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [code, turn.gameState, isDebugMode]);
+
   // ─── RENDERING ───────────────────────────────────────────────────────────────
 
   if (turn.loading) return <div className="min-h-screen flex items-center justify-center bg-[var(--cream)]">
     <div className="animate-spin text-4xl">💰</div>
   </div>;
 
-  if (turn.error) return <div className="min-h-screen flex items-center justify-center bg-red-50 p-6">
+  // Render full screen error ONLY if gameState is not loaded yet (lobby initialization phase)
+  if (turn.error && !turn.gameState) return <div className="min-h-screen flex items-center justify-center bg-red-50 p-6">
     <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-sm">
       <div className="text-red-500 text-5xl mb-4">⚠️</div>
       <h2 className="text-xl font-bold text-gray-800 mb-2">Error</h2>
@@ -137,7 +349,7 @@ export default function GameRoomPage() {
         </div>
       )}
 
-      {(isLocal || userId === turn.room?.hostId) ? (
+      {(isLocal || stableUserId === turn.room?.hostId) ? (
         <button onClick={() => turn.performAction("start")} className="btn-primary w-full py-4 text-lg">Start Game</button>
       ) : (
         <div className="bg-blue-50 text-blue-700 p-4 rounded-2xl text-sm font-bold animate-pulse border border-blue-100">
@@ -161,6 +373,22 @@ export default function GameRoomPage() {
           </button>
         </div>
 
+        {/* Connection Status Pill */}
+        {!isLocal && (
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-colors ${
+            turn.connectionStatus === "connected"
+              ? "bg-green-50 text-green-700 border-green-100"
+              : turn.connectionStatus === "connecting"
+              ? "bg-amber-50 text-amber-700 border-amber-100 animate-pulse"
+              : "bg-red-50 text-red-700 border-red-100 animate-pulse"
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              turn.connectionStatus === "connected" ? "bg-green-500" : turn.connectionStatus === "connecting" ? "bg-amber-500 animate-ping" : "bg-red-500"
+            }`} />
+            {turn.connectionStatus === "connected" ? "Online Sync Active" : turn.connectionStatus === "connecting" ? "Reconnecting..." : "Offline (Polling Fallback)"}
+          </div>
+        )}
+
         <div className="space-y-3">
           {turn.gameState.players.map((p, i) => (
             <PortfolioPanel
@@ -168,17 +396,112 @@ export default function GameRoomPage() {
               player={p}
               isActive={turn.gameState!.currentPlayerIndex === i}
               color={PLAYER_COLORS[i % PLAYER_COLORS.length]}
-              isPrivate={isLocal ? turn.gameState!.currentPlayerIndex !== i : p.id !== userId}
+              isPrivate={isLocal ? turn.gameState!.currentPlayerIndex !== i : p.id !== stableUserId}
             />
           ))}
           <div className="pt-2">
             <GameLog log={turn.gameState.log} />
           </div>
+
+          {/* Diagnostics Telemetry Panel */}
+          {!isLocal && (
+            <div className="border border-gray-200 bg-white/70 backdrop-blur-md rounded-2xl p-3 shadow-md">
+              <button
+                onClick={() => setShowTelemetry(!showTelemetry)}
+                className="w-full flex items-center justify-between text-xs font-bold text-[var(--navy)] outline-none"
+              >
+                <span className="flex items-center gap-1.5">⚡ Diagnostics Telemetry</span>
+                <span>{showTelemetry ? "▲" : "▼"}</span>
+              </button>
+              
+              {showTelemetry && (
+                <div className="mt-3 pt-3 border-t border-gray-100 space-y-2 text-[10px] text-gray-500 font-bold leading-relaxed">
+                  <div className="flex justify-between">
+                    <span>Pusher Connection:</span>
+                    <span className="text-[var(--navy)] uppercase">{turn.connectionStatus}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Pusher Reconnects:</span>
+                    <span className="text-[var(--navy)]">{turn.pusherReconnectsCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Watchdog Refreshes:</span>
+                    <span className="text-[var(--navy)]">{turn.watchdogRefreshes}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Failed API Actions:</span>
+                    <span className="text-[var(--navy)]">{turn.failedActionsCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Last Action Duration:</span>
+                    <span className="text-[var(--navy)]">{turn.recentActionDurationMs ? `${turn.recentActionDurationMs}ms` : "N/A"}</span>
+                  </div>
+                  
+                  <div className="pt-2 border-t border-gray-100">
+                    <div className="text-[9px] uppercase tracking-wider text-gray-400 mb-1.5 font-black">Live Player Heartbeats</div>
+                    <div className="space-y-1.5">
+                      {turn.gameState.players.map((p) => {
+                        const tel = turn.playerTelemetry[p.id] || { lastSeen: new Date().toISOString(), connectionAge: 0, reconnectCount: 0, isOnline: true };
+                        return (
+                          <div key={p.id} className="flex items-center justify-between p-1 bg-gray-50 rounded border border-gray-100">
+                            <span className="truncate max-w-[100px]">{p.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className={`w-1.5 h-1.5 rounded-full ${tel.isOnline ? 'bg-green-500' : 'bg-red-500 animate-ping'}`} />
+                              <span>{tel.connectionAge}s</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Game Area */}
       <div className="flex-1 flex flex-col items-center justify-start p-2 md:p-4 overflow-y-auto pt-4 relative">
+        {/* Dynamic Network Alert Banner */}
+        {turn.error && (
+          <div className="w-full max-w-3xl bg-red-100 border-2 border-red-300 text-red-800 px-4 py-3 rounded-2xl mb-4 flex items-center justify-between shadow-md animate-bounce-subtle z-50">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">⚠️</span>
+              <div className="text-xs font-bold leading-snug">
+                <span className="font-extrabold">Network Alert:</span> {turn.error}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => turn.setError("")}
+                className="bg-red-200 hover:bg-red-300 text-red-900 font-extrabold px-3 py-1.5 rounded-xl text-[10px] transition-colors"
+              >
+                Dismiss
+              </button>
+              <button
+                onClick={() => {
+                  turn.setError("");
+                  window.location.reload();
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-1.5 rounded-xl text-[10px] transition-colors shadow"
+              >
+                Refresh Board
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Watchdog Stale Warning Banner */}
+        {turn.watchdogStale && (
+          <div className="w-full max-w-3xl bg-amber-50 border-2 border-amber-300 text-amber-800 px-4 py-3 rounded-2xl mb-4 flex items-center justify-start gap-3 shadow-md animate-pulse z-50">
+            <span className="text-xl animate-spin">⏳</span>
+            <div className="text-xs font-bold">
+              <span className="font-extrabold">Auto Sync Alert:</span> Connection appears stale. Re-syncing room state from authoritative server...
+            </div>
+          </div>
+        )}
+
         {/* Top Section: Board and Rules Sidebar */}
         <div className={`flex flex-col lg:flex-row items-center lg:items-start justify-center gap-4 w-full transition-all duration-1000 ${turn.isInitialSetup ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}>
           {/* Left Side: Board and Notifications */}
@@ -264,10 +587,35 @@ export default function GameRoomPage() {
                           )}
                         </>
                       )}
-                      {!turn.isMyTurn && turn.gameState.phase !== "year-end" && (
-                        <div className="bg-gray-100 text-gray-500 px-6 py-2 rounded-xl text-xs font-bold animate-pulse">
-                          Waiting for {turn.currentPlayer?.name}...
-                        </div>
+                      {!turn.isMyTurn && turn.gameState.phase !== "year-end" && turn.gameState.phase !== "waiting-trade" && (
+                        <>
+                          {(() => {
+                            console.log(JSON.stringify({
+                              timestamp: new Date().toISOString(),
+                              event: "WAITING_SCREEN_RENDERED",
+                              phase: turn.gameState.phase,
+                              isMyTurn: turn.isMyTurn,
+                              currentPlayerId: turn.currentPlayer?.id || null,
+                              stableUserId: stableUserId,
+                              pendingTradeToPlayerId: turn.gameState.pendingTrade?.toPlayerId ?? null,
+                              currentPlayerIndex: turn.gameState.currentPlayerIndex,
+                              playerCount: turn.gameState.players.length
+                            }, null, 2));
+                            return null;
+                          })()}
+                          <div className={`px-6 py-2 rounded-xl text-xs font-bold animate-pulse ${
+                            (turn.connectionStatus === "connecting" || turn.connectionStatus === "unavailable")
+                              ? "bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-2"
+                              : "bg-gray-100 text-gray-500"
+                          }`}>
+                            {(turn.connectionStatus === "connecting" || turn.connectionStatus === "unavailable") && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                            )}
+                            {(turn.connectionStatus === "connecting" || turn.connectionStatus === "unavailable")
+                              ? "Reconnecting..."
+                              : `Waiting for ${turn.currentPlayer?.name}...`}
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
@@ -380,10 +728,10 @@ export default function GameRoomPage() {
 
         <AuctionModal
           isOpen={turn.showAuction && turn.gameState.phase === "auction" && !turn.showPassDevice && !turn.initialPreview}
-          currentPlayer={isLocal ? (turn.currentBiddingPlayer || turn.currentPlayer!) : turn.gameState.players.find(p => p.id === userId)!}
-          hasBid={isLocal ? !turn.currentBiddingPlayer : !!turn.gameState.auctionState?.bids.find(b => b.playerId === userId)}
+          currentPlayer={isLocal ? (turn.currentBiddingPlayer || turn.currentPlayer!) : turn.gameState.players.find(p => p.id === stableUserId)!}
+          hasBid={isLocal ? !turn.currentBiddingPlayer : !!turn.gameState.auctionState?.bids.find(b => b.playerId === stableUserId)}
           onBid={(amount) => {
-            const bidderId = isLocal ? turn.currentBiddingPlayer?.id : userId;
+            const bidderId = isLocal ? turn.currentBiddingPlayer?.id : stableUserId;
             turn.performAction("bid", { amount, bidderId });
             turn.setShowAuction(false);
           }}
@@ -403,7 +751,7 @@ export default function GameRoomPage() {
           }}
           onClose={turn.rebalancePenaltyOverride !== null ? undefined : () => turn.setShowRebalance(false)}
           externalTimeLeft={turn.timeLeft}
-          skipReturnsDelay={turn.isSetupPhase}
+          skipReturnsDelay={turn.gameState.phase !== "year-end"}
         />
 
         {turn.showLeadersDilemma && (
@@ -458,12 +806,59 @@ export default function GameRoomPage() {
         )}
 
         <TradeResponseModal
-          isOpen={turn.gameState.phase === "waiting-trade"}
+          isOpen={
+            turn.gameState.phase === "waiting-trade" &&
+            (isLocal || turn.gameState.pendingTrade?.toPlayerId === userId)
+          }
           offer={turn.gameState!.pendingTrade!}
           fromPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.fromPlayerId)!}
           toPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.toPlayerId)!}
           onResponse={(accept) => turn.performAction("trade-response", { accept })}
         />
+
+        {isDebugMode && (
+          <div className="fixed bottom-4 right-4 z-[9999] max-w-sm bg-slate-900/95 backdrop-blur text-slate-200 p-4 rounded-2xl border border-slate-700 shadow-2xl text-[9px] font-mono leading-normal flex flex-col gap-2">
+            <div className="flex items-center justify-between border-b border-slate-700 pb-1.5 mb-1">
+              <span className="font-extrabold uppercase text-amber-400 tracking-wider text-[10px]">🛠️ Debug Cockpit</span>
+              <span className="bg-slate-800 px-1.5 py-0.5 rounded text-[8px] border border-slate-600">{process.env.NODE_ENV === "development" ? "Dev Mode" : "Query Debug"}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              <div>Room Code: <span className="text-white font-bold">{code}</span></div>
+              <div>Connection: <span className={turn.connectionStatus === "connected" ? "text-green-400 font-bold" : "text-amber-400 font-bold"}>{turn.connectionStatus}</span></div>
+              
+              <div>Phase: <span className="text-blue-300">{turn.gameState?.phase}</span></div>
+              <div>Pusher State: <span className="text-blue-300">{turn.connectionStatus}</span></div>
+              
+              <div>Year: <span className="text-white font-bold">{turn.gameState?.year}</span></div>
+              <div>Turn: <span className="text-white font-bold">{turn.gameState?.turn}</span></div>
+              
+              <div>Player Idx: <span className="text-white font-bold">{turn.gameState?.currentPlayerIndex}</span></div>
+              <div>Is My Turn?: <span className={turn.isMyTurn ? "text-green-400 font-bold" : "text-red-400"}>{String(turn.isMyTurn)}</span></div>
+              
+              <div>Active Player: <span className="text-purple-300 truncate max-w-[80px] inline-block align-bottom">{turn.currentPlayer?.name}</span></div>
+              <div>stableUserId: <span className="text-purple-300 truncate max-w-[80px] inline-block align-bottom">{stableUserId}</span></div>
+              
+              <div>Active ID: <span className="text-purple-300 truncate max-w-[80px] inline-block align-bottom">{turn.currentPlayer?.id}</span></div>
+              <div>Logs Length: <span className="text-white font-bold">{turn.gameState?.log?.length || 0}</span></div>
+              
+              <div>State Size: <span className="text-white font-bold">{(turn.serializedGameStateSizeBytes / 1024).toFixed(2)} KB</span></div>
+              <div>Last Update: <span className="text-white font-bold">{turn.lastRoomUpdateTimestamp ? new Date(turn.lastRoomUpdateTimestamp).toLocaleTimeString() : "-"}</span></div>
+            </div>
+
+            {/* Authoritative Database and Lock state */}
+            {dbDebugData && (
+              <div className="border-t border-slate-800 pt-2 mt-1 flex flex-col gap-1.5">
+                <div className="font-extrabold uppercase text-amber-500 text-[8px] tracking-widest">Auth Server State (Polled)</div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300">
+                  <div>Lock Owner: <span className="text-emerald-300 truncate max-w-[80px] inline-block align-bottom">{dbDebugData.roomLock.holder || "None"}</span></div>
+                  <div>Lock Age: <span className="text-emerald-300">{dbDebugData.roomLock.lockAgeSeconds}s</span></div>
+                  <div>Db Phase: <span className="text-emerald-300">{dbDebugData.phase}</span></div>
+                  <div>Db Size: <span className="text-emerald-300">{(dbDebugData.serializedGameStateSizeBytes / 1024).toFixed(2)} KB</span></div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

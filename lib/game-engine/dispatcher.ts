@@ -146,7 +146,19 @@ export function dispatch(
             const emergencyAmount = rand < 0.5 ? 3 : rand < 0.8 ? 5 : 10;
             return { state, sideEffect: { type: "show-modal", modal: "emergency", emergencyAmount } };
           }
-          if (player.cash < amount) return { state, sideEffect: { type: "needs-rebalance", penalty: 3 } };
+          
+          if (player.cash < amount) {
+            // If they can't afford it, check if they can physically rebalance
+            const canRebalance = (player.bonds + player.stocks) >= 5;
+            if (canRebalance) {
+              return { state, sideEffect: { type: "needs-rebalance", penalty: 3 } };
+            } else {
+              // They can't even afford to rebalance. Take whatever cash they have and move on.
+              s = applyEmergency(s, playerIdx, player.cash);
+              break;
+            }
+          }
+          
           s = applyEmergency(s, playerIdx, amount);
           break;
         }

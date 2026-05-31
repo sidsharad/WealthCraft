@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { rooms, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getRoomChannel, PUSHER_EVENTS, safeTrigger } from "@/lib/pusher";
+import { auditDatabaseRoomState } from "@/lib/db/queries";
 
 // Generate a 6-character room code
 function generateCode(): string {
@@ -72,11 +73,13 @@ export async function POST(req: NextRequest) {
       .returning();
 
     // Notify all players via Pusher
-    await safeTrigger(getRoomChannel(code), PUSHER_EVENTS.PLAYER_JOINED, {
+    safeTrigger(getRoomChannel(code), PUSHER_EVENTS.PLAYER_JOINED, {
       playerId: userId,
       playerName: session.user.name,
       playerIds: updatedPlayerIds,
-    });
+    }).catch(err =>
+      console.error("[Pusher] Broadcast failed:", err)
+    );
 
     return NextResponse.json({ room: updated });
   }
@@ -86,14 +89,12 @@ export async function POST(req: NextRequest) {
 
 // GET /api/rooms?code=XXXXXX — get room details
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const code = req.nextUrl.searchParams.get("code");
   if (!code) return NextResponse.json({ error: "Code required" }, { status: 400 });
 
   const [room] = await db.select().from(rooms).where(eq(rooms.code, code.toUpperCase()));
   if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+  auditDatabaseRoomState(room);
 
   // Fetch player details
   const playerIds = room.playerIds as string[];
@@ -105,5 +106,12 @@ export async function GET(req: NextRequest) {
     })
   );
 
-  return NextResponse.json({ room, players: playerDetails });
+  const response = NextResponse.json({ room, players: playerDetails });
+  
+  // Ensure strict no-caching headers
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
+
+  return response;
 }

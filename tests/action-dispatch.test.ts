@@ -254,4 +254,130 @@ describe('Parity between Pass & Play (dispatcher) and Online (API Route)', () =>
     expect(apiResult.gameState.announcement).toBeUndefined();
     expect(apiResult.gameState.privateMessage).toBeUndefined();
   });
+
+  it('Trade Integration: Proposing and Accepting a Trade Swap', async () => {
+    // Player 1 (p1) has position on trade phase
+    const stateWithTrade = { ...initialGameState };
+    stateWithTrade.phase = 'trade';
+    stateWithTrade.players[0].cash = 10;
+    stateWithTrade.players[0].bonds = 10;
+    stateWithTrade.players[1].cash = 10;
+    stateWithTrade.players[1].stocks = 10;
+
+    // 1. Propose Trade Offer (swap 5L Bonds for 5L Stocks)
+    const offerPayload = {
+      toPlayerId: 'p2',
+      offer: { cash: 0, bonds: 5, stocks: 0 },
+      request: { cash: 0, bonds: 0, stocks: 5 }
+    };
+
+    const offerResult = dispatch(stateWithTrade, 'trade-offer', offerPayload);
+    expect(offerResult.state.phase).toBe('waiting-trade');
+    expect(offerResult.state.pendingTrade).toBeDefined();
+    expect(offerResult.state.pendingTrade?.toPlayerId).toBe('p2');
+
+    // 2. Accept Trade Response (from receiver p2)
+    const acceptResult = dispatch(offerResult.state, 'trade-response', { accept: true });
+    expect(acceptResult.state.phase).toBe('trade');
+    expect(acceptResult.state.pendingTrade).toBeUndefined();
+    expect(acceptResult.state.players[0].hasTraded).toBe(true);
+
+    // Verify balances
+    // Player 1 offered 5L bonds, received 5L stocks
+    expect(acceptResult.state.players[0].bonds).toBe(5);
+    expect(acceptResult.state.players[0].stocks).toBe(5);
+    // Player 2 received 5L bonds, gave 5L stocks
+    expect(acceptResult.state.players[1].bonds).toBe(5);
+    expect(acceptResult.state.players[1].stocks).toBe(5);
+  });
+
+  it('Trade Integration: Proposing and Rejecting a Trade Swap', async () => {
+    const stateWithTrade = { ...initialGameState };
+    stateWithTrade.phase = 'trade';
+    stateWithTrade.players[0].bonds = 10;
+    stateWithTrade.players[1].stocks = 10;
+
+    const offerPayload = {
+      toPlayerId: 'p2',
+      offer: { cash: 0, bonds: 5, stocks: 0 },
+      request: { cash: 0, bonds: 0, stocks: 5 }
+    };
+
+    const offerResult = dispatch(stateWithTrade, 'trade-offer', offerPayload);
+    expect(offerResult.state.phase).toBe('waiting-trade');
+
+    // Reject Trade Response
+    const rejectResult = dispatch(offerResult.state, 'trade-response', { accept: false });
+    expect(rejectResult.state.phase).toBe('trade');
+    expect(rejectResult.state.pendingTrade).toBeUndefined();
+    
+    // Verify balances remain unchanged
+    expect(rejectResult.state.players[0].bonds).toBe(10);
+    expect(rejectResult.state.players[1].stocks).toBe(10);
+  });
+
+  it('Trade Integration: Proposing Same Asset Trade blocks action', async () => {
+    const stateWithTrade = { ...initialGameState };
+    stateWithTrade.phase = 'trade';
+
+    const invalidPayload = {
+      toPlayerId: 'p2',
+      offer: { cash: 5, bonds: 0, stocks: 0 },
+      request: { cash: 3, bonds: 0, stocks: 0 }
+    };
+
+    const result = dispatch(stateWithTrade, 'trade-offer', invalidPayload);
+    expect(result.sideEffect?.type).toBe('error');
+    expect(result.sideEffect?.message).toContain('You cannot trade same asset types');
+    expect(result.state.phase).toBe('trade');
+  });
+
+  it('Trade Integration: Ending turn immediately after trade completion', async () => {
+    const stateWithTrade = { ...initialGameState };
+    stateWithTrade.phase = 'trade';
+    stateWithTrade.turn = 2;
+    stateWithTrade.players[0].cash = 10;
+    stateWithTrade.players[1].stocks = 10;
+
+    // Execute complete successful trade
+    const offerResult = dispatch(stateWithTrade, 'trade-offer', {
+      toPlayerId: 'p2',
+      offer: { cash: 5, bonds: 0, stocks: 0 },
+      request: { cash: 0, bonds: 0, stocks: 5 }
+    });
+    const afterTradeState = dispatch(offerResult.state, 'trade-response', { accept: true });
+
+    // End turn
+    const turnEndedResult = dispatch(afterTradeState.state, 'end-turn');
+    expect(turnEndedResult.state.currentPlayerIndex).toBe(1);
+    expect(turnEndedResult.state.phase).toBe('roll');
+  });
+
+  it('Trade Integration: Multiple trades in the same game', async () => {
+    let state = { ...initialGameState };
+    state.phase = 'trade';
+    state.players[0].cash = 20;
+    state.players[1].stocks = 20;
+
+    // Trade 1
+    let offer = dispatch(state, 'trade-offer', {
+      toPlayerId: 'p2',
+      offer: { cash: 5, bonds: 0, stocks: 0 },
+      request: { cash: 0, bonds: 0, stocks: 5 }
+    });
+    state = dispatch(offer.state, 'trade-response', { accept: true }).state;
+    expect(state.players[0].cash).toBe(15);
+    expect(state.players[1].stocks).toBe(15);
+
+    // Trade 2 in the same turn/phase
+    offer = dispatch(state, 'trade-offer', {
+      toPlayerId: 'p2',
+      offer: { cash: 5, bonds: 0, stocks: 0 },
+      request: { cash: 0, bonds: 0, stocks: 5 }
+    });
+    state = dispatch(offer.state, 'trade-response', { accept: true }).state;
+    expect(state.players[0].cash).toBe(10);
+    expect(state.players[1].stocks).toBe(10);
+  });
 });
+

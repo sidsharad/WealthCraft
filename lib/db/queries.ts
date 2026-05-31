@@ -2,14 +2,80 @@ import { db } from "./index";
 import { rooms, users, type GameState } from "./schema";
 import { eq, inArray, sql } from "drizzle-orm";
 
+export function auditDatabaseRoomState(room: any) {
+  if (!room || !room.gameState) return;
+  const state = room.gameState as GameState;
+  const errors: string[] = [];
+
+  // 1. currentPlayerIndex within bounds
+  if (
+    typeof state.currentPlayerIndex !== "number" ||
+    state.currentPlayerIndex < 0 ||
+    state.currentPlayerIndex >= (state.players?.length || 0)
+  ) {
+    errors.push("currentPlayerIndex out of bounds or invalid type");
+  }
+
+  // 2. currentPlayer exists
+  const currentPlayer = state.players ? state.players[state.currentPlayerIndex] : null;
+  if (!currentPlayer) {
+    errors.push("currentPlayer is undefined or null at currentPlayerIndex");
+  }
+
+  // 3. phase is valid
+  const validPhases = ["roll", "action", "trade", "year-end", "auction", "finished", "waiting-trade"];
+  if (!state.phase || !validPhases.includes(state.phase)) {
+    errors.push(`Invalid game phase value: ${state.phase}`);
+  }
+
+  // 4. pendingTrade consistency & present in non-trade phase
+  if (state.pendingTrade && state.phase !== "waiting-trade") {
+    errors.push("pendingTrade is present but phase is not waiting-trade");
+  }
+
+  // 5. auctionState consistency & present in non-auction phase
+  if (state.auctionState && state.auctionState.open && state.phase !== "auction") {
+    errors.push("auctionState is active (open: true) but phase is not auction");
+  }
+
+  if (errors.length > 0) {
+    console.error(
+      JSON.stringify(
+        {
+          timestamp: new Date().toISOString(),
+          event: "INVALID_ROOM_STATE",
+          roomId: room.id,
+          errors: errors,
+          persistedState: {
+            phase: state.phase,
+            currentPlayerIndex: state.currentPlayerIndex,
+            currentPlayerId: currentPlayer?.id || null,
+            year: state.year,
+            turn: state.turn,
+            pendingTrade: state.pendingTrade || null,
+            auctionState: state.auctionState || null
+          },
+          fullRoomSnapshot: room
+        },
+        null,
+        2
+      )
+    );
+  }
+}
+
 export async function getRoomByCode(code: string) {
   const result = await db.select().from(rooms).where(eq(rooms.code, code));
-  return result[0] ?? null;
+  const room = result[0] ?? null;
+  if (room) auditDatabaseRoomState(room);
+  return room;
 }
 
 export async function getRoomById(id: string) {
   const result = await db.select().from(rooms).where(eq(rooms.id, id));
-  return result[0] ?? null;
+  const room = result[0] ?? null;
+  if (room) auditDatabaseRoomState(room);
+  return room;
 }
 
 export async function updateGameState(roomId: string, gameState: GameState) {
