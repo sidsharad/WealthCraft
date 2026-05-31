@@ -220,18 +220,45 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     gameStateRef.current = s as GameState | null;
 
     if (s) {
+      const hash = hashGameState(s);
       console.log(JSON.stringify({
         event: "STATE_HASH",
         turn: s.turn,
         year: s.year,
-        hash: hashGameState(s)
+        hash
+      }, null, 2));
+
+      const currentPlayer = s.players[s.currentPlayerIndex];
+      const isEligibleToBidTelemetry = s.players.find(p => p.id === stableUserId)?.hasHouse === false;
+      const hasSubmittedBidTelemetry = !!s.auctionState?.bids.find(b => b.playerId === stableUserId);
+      const isTradeResponderTelemetry = s.pendingTrade?.toPlayerId === stableUserId;
+
+      const isMyTurnTelemetry = !!(isLocal || (
+        s.phase === "auction"
+          ? (isEligibleToBidTelemetry && !hasSubmittedBidTelemetry)
+          : (s.phase === "waiting-trade"
+              ? (currentPlayer?.id === stableUserId || isTradeResponderTelemetry)
+              : (currentPlayer?.id === stableUserId))
+      ));
+
+      console.log(JSON.stringify({
+        event: "TURN_OWNER_STATE",
+        source,
+        turn: s.turn,
+        year: s.year,
+        phase: s.phase,
+        currentPlayerIndex: s.currentPlayerIndex,
+        currentPlayerId: currentPlayer?.id,
+        localUserId: stableUserId,
+        isMyTurn: isMyTurnTelemetry,
+        stateHash: hash
       }, null, 2));
     }
     
     if (incomingUpdatedAt > 0) {
       lastRoomUpdatedAtRef.current = incomingUpdatedAt;
     }
-  }, []);
+  }, [isLocal, stableUserId]);
 
   const [room, setRoom] = useState<any>(null);
   const [loading, setLoading] = useState(true);

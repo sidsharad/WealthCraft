@@ -676,7 +676,14 @@ export function resolveTrade(
 
 export function checkWinCondition(state: GameState): { triggered: boolean; triggeringPlayerId?: string } {
   for (const player of state.players) {
-    if (netWorth(player) >= WIN_CONDITION) {
+    const nw = netWorth(player);
+    if (nw >= WIN_CONDITION) {
+      console.log(JSON.stringify({
+        event: "WIN_CONDITION_CHECK",
+        playerId: player.id,
+        netWorth: nw,
+        triggered: true
+      }));
       return { triggered: true, triggeringPlayerId: player.id };
     }
   }
@@ -724,6 +731,15 @@ export function advanceTurn(state: GameState): GameState {
       const winner = leaderboard[0];
       const msg = `🏆 WINNER: ${winner.name} won the game with ${winner.total}L Wealth!`;
       s = addLog(s, msg);
+      
+      console.log(JSON.stringify({
+        event: "GAME_FINISHED",
+        winnerId: winner.id,
+        winnerName: winner.name,
+        turn: s.turn,
+        year: s.year
+      }));
+
       return { ...s, announcement: msg };
     } else if (state.endgame) {
       // If we were in endgame but now no one is > 100L (e.g. market crash)
