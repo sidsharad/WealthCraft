@@ -148,12 +148,20 @@ export function dispatch(
           }
           
           if (player.cash < amount) {
-            // If they can't afford it, check if they can physically rebalance
-            const canRebalance = (player.bonds + player.stocks) >= 5;
+            // If they can't afford it, check if they can physically rebalance in legal 5L blocks
+            const canRebalance = player.bonds >= 5 || player.stocks >= 5;
             if (canRebalance) {
               return { state, sideEffect: { type: "needs-rebalance", penalty: 3 } };
             } else {
               // They can't even afford to rebalance. Take whatever cash they have and move on.
+              console.log(JSON.stringify({
+                event: "EMERGENCY_PARTIAL_PAYMENT",
+                playerId: player.id,
+                emergencyAmount: amount,
+                cashAvailable: player.cash,
+                amountPaid: player.cash,
+                remainingUnpaid: amount - player.cash
+              }));
               s = applyEmergency(s, playerIdx, player.cash);
               break;
             }

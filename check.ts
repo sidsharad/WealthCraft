@@ -1,0 +1,1 @@
+import { db } from './lib/db'; import { rooms } from './lib/db/schema'; import { desc } from 'drizzle-orm'; async function run() { const r = await db.select().from(rooms).orderBy(desc(rooms.createdAt)).limit(1); console.log(JSON.stringify(r[0].gameState, null, 2)); process.exit(0); } run();  
