@@ -11,9 +11,17 @@ interface TradeModalProps {
 }
 
 export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayers, onPropose }: TradeModalProps) {
-  const [targetId, setTargetId] = useState(otherPlayers[0]?.id || "");
+  const [targetId, setTargetId] = useState("");
   const [offer, setOffer] = useState({ cash: 0, bonds: 0, stocks: 0 });
   const [request, setRequest] = useState({ cash: 0, bonds: 0, stocks: 0 });
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setTargetId(otherPlayers[0]?.id || "");
+      setOffer({ cash: 0, bonds: 0, stocks: 0 });
+      setRequest({ cash: 0, bonds: 0, stocks: 0 });
+    }
+  }, [isOpen, otherPlayers]);
 
   if (!isOpen) return null;
 

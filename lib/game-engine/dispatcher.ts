@@ -270,6 +270,24 @@ export function dispatch(
         };
       }
 
+      if (payload?.toPlayerId === player.id) {
+        return {
+          state,
+          sideEffect: {
+            type: "error",
+            message: "Invalid Trade: You cannot trade with yourself."
+          }
+        };
+      }
+
+      console.log(JSON.stringify({
+        event: "TRADE_CREATED",
+        fromPlayerId: player.id,
+        toPlayerId: payload?.toPlayerId as string,
+        proposerName: player.name,
+        receiverName: state.players.find(p => p.id === payload?.toPlayerId)?.name
+      }));
+
       const s: GameState = {
         ...state,
         phase: "waiting-trade",

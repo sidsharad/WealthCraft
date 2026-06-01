@@ -144,6 +144,19 @@ export default function GameRoomPage() {
     turn.currentBiddingPlayer,
   ]);
 
+  // ─── TRADE MODAL EVALUATION OBSERVER ──────────────────────────────────────────
+  useEffect(() => {
+    if (turn.gameState?.phase === "waiting-trade" && turn.gameState.pendingTrade) {
+      console.log(JSON.stringify({
+        event: "TRADE_MODAL_EVALUATION",
+        stableUserId: stableUserId,
+        fromPlayerId: turn.gameState.pendingTrade.fromPlayerId,
+        toPlayerId: turn.gameState.pendingTrade.toPlayerId,
+        shouldOpenModal: isLocal || turn.gameState.pendingTrade.toPlayerId === stableUserId
+      }));
+    }
+  }, [turn.gameState?.phase, turn.gameState?.pendingTrade, stableUserId, isLocal]);
+
   // ─── WAITING TRADE DIAGNOSTICS OBSERVER ───────────────────────────────────────
   useEffect(() => {
     if (turn.gameState?.phase === "waiting-trade") {
