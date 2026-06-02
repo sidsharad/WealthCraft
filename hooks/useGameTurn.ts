@@ -1040,7 +1040,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   }, [showChoiceModal, showAuction, showTargetedAction, pendingEmergencyAmount, isLocal, currentBiddingPlayer, stableUserId]);
 
   useEffect(() => {
-    if (!gameState || gameState.endgame || gameState.phase === "finished") return;
+    if (!gameState || gameState.endgameCandidate || gameState.phase === "finished") return;
 
     // Reset timer to null if phase or player index changes (gives each phase/turn a fresh 30s)
     const phaseChanged = lastPhaseRef.current !== gameState.phase;

@@ -113,5 +113,8 @@ export interface GameState {
   announcement?: string;
   privateMessage?: string;
   winTriggeredByPlayerId?: string;
-  endgame?: boolean;  // true when win condition hit, everyone finishes turn
+  endgameCandidate?: boolean;
+  endgameTriggeredByPlayerId?: string;
+  endgameTriggeredPlayerIndex?: number;
+  endgameTriggeredTurn?: number;
 }

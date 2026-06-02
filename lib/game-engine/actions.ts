@@ -695,7 +695,9 @@ export function getLeaderboard(state: GameState): Array<PlayerState & { rank: nu
     .map((p) => ({ ...p, rank: 0, total: netWorth(p) }))
     .sort((a, b) => {
       if (b.total !== a.total) return b.total - a.total;
-      return b.stocks - a.stocks; // Tiebreaker: Most Stocks wins
+      if (b.stocks !== a.stocks) return b.stocks - a.stocks;
+      if (b.bonds !== a.bonds) return b.bonds - a.bonds;
+      return b.cash - a.cash;
     })
     .map((p, i) => ({ ...p, rank: i + 1 }));
 }
@@ -703,13 +705,80 @@ export function getLeaderboard(state: GameState): Array<PlayerState & { rank: nu
 // ─── TURN MANAGEMENT ─────────────────────────────────────────────────────────
 
 export function advanceTurn(state: GameState): GameState {
-  const nextIdx = (state.currentPlayerIndex + 1) % state.players.length;
-  const nextTurn = state.turn + 1;
-  let s: GameState = {
-    ...state,
+  let s: GameState = { ...state };
+
+  // Step 1 - Check Endgame Candidate Trigger
+  const win = checkWinCondition(s);
+  if (win.triggered && !s.endgameCandidate) {
+    s.endgameCandidate = true;
+    s.endgameTriggeredByPlayerId = win.triggeringPlayerId;
+    s.endgameTriggeredPlayerIndex = s.currentPlayerIndex;
+    s.endgameTriggeredTurn = s.turn;
+    
+    const triggerPlayer = s.players.find(p => p.id === win.triggeringPlayerId);
+    console.log(JSON.stringify({
+      event: "ENDGAME_TRIGGERED",
+      playerId: win.triggeringPlayerId,
+      playerIndex: s.currentPlayerIndex,
+      netWorth: triggerPlayer ? netWorth(triggerPlayer) : 0,
+      turn: s.turn,
+      year: s.year
+    }));
+  }
+
+  // Step 3 - End-of-Round Validation
+  const isEndOfRound = s.currentPlayerIndex === s.players.length - 1;
+  
+  if (isEndOfRound && s.endgameCandidate) {
+    const playersAbove100L = s.players.filter(p => netWorth(p) >= WIN_CONDITION).length;
+    
+    console.log(JSON.stringify({
+      event: "ENDGAME_ROUND_COMPLETE",
+      playersAbove100L
+    }));
+    
+    if (playersAbove100L === 0) {
+      s.endgameCandidate = false;
+      s.endgameTriggeredByPlayerId = undefined;
+      s.endgameTriggeredPlayerIndex = undefined;
+      s.endgameTriggeredTurn = undefined;
+      console.log(JSON.stringify({ event: "ENDGAME_CANCELLED" }));
+      s = addLog(s, `📉 Market conditions dropped all players below 100L. The game continues!`);
+    } else {
+      // Game Ends
+      s.phase = "finished";
+      const leaderboard = getLeaderboard(s);
+      const winner = leaderboard[0];
+      const msg = `🏆 WINNER: ${winner.name} won the game with ${winner.total}L Wealth!`;
+      s = addLog(s, msg);
+      
+      console.log(JSON.stringify({
+        event: "WINNER_RANKING",
+        playerId: winner.id,
+        netWorth: winner.total,
+        stocks: winner.stocks,
+        bonds: winner.bonds,
+        cash: winner.cash,
+        rank: 1
+      }));
+      
+      console.log(JSON.stringify({
+        event: "GAME_FINISHED_TRIGGER"
+      }));
+
+      return { ...s, announcement: msg };
+    }
+  }
+
+  // Advance Turn Normally
+  const nextIdx = (s.currentPlayerIndex + 1) % s.players.length;
+  const nextTurn = s.turn + 1;
+  
+  s = {
+    ...s,
     currentPlayerIndex: nextIdx,
     turn: nextTurn,
-    phase: nextTurn < state.players.length ? "year-end" : "roll",
+    phase: nextTurn < s.players.length ? "year-end" : "roll",
     announcement: undefined,
     privateMessage: undefined,
   };
@@ -720,35 +789,6 @@ export function advanceTurn(state: GameState): GameState {
     privateMessage: undefined,
     hasTraded: i === nextIdx ? false : p.hasTraded
   }));
-
-  // If a round is completed
-  if (nextIdx === 0) {
-    const win = checkWinCondition(state);
-    if (win.triggered) {
-      s = { ...s, endgame: true, phase: "finished" };
-      // Find the actual winner
-      const leaderboard = getLeaderboard(s);
-      const winner = leaderboard[0];
-      const msg = `🏆 WINNER: ${winner.name} won the game with ${winner.total}L Wealth!`;
-      s = addLog(s, msg);
-      
-      console.log(JSON.stringify({
-        event: "GAME_FINISHED",
-        winnerId: winner.id,
-        winnerName: winner.name,
-        turn: s.turn,
-        year: s.year
-      }));
-
-      return { ...s, announcement: msg };
-    } else if (state.endgame) {
-      // If we were in endgame but now no one is > 100L (e.g. market crash)
-      s = { ...s, endgame: false };
-      s = addLog(s, `📉 Market conditions have changed. The game continues!`);
-    }
-  }
-
-
 
   return addLog(s, `--- Turn ${s.turn}: ${s.players[nextIdx].name}'s turn ---`);
 }

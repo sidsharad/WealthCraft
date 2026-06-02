@@ -401,23 +401,8 @@ export function resolveTimeout(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Apply win-condition check and return updated state with endgame flag if triggered. */
+/** Apply win-condition check is now handled exclusively inside advanceTurn to follow Endgame Candidate rules. */
 export function applyWinCheck(state: GameState): GameState {
-  const win = checkWinCondition(state);
-  if (win.triggered && !state.endgame) {
-    const msg = "🚨 FINAL ROUND! A player has reached 100L. Everyone gets one last turn!";
-    
-    console.log(JSON.stringify({
-      event: "ENDGAME_STATE",
-      endgame: true,
-      phase: state.phase,
-      currentPlayerIndex: state.currentPlayerIndex,
-      turn: state.turn,
-      year: state.year
-    }, null, 2));
-
-    return addLog({ ...state, endgame: true, announcement: msg }, msg);
-  }
   return state;
 }
 

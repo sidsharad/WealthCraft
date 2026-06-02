@@ -339,90 +339,6 @@ export async function POST(
 
     // ─── END-TURN (special — needs endgame finalization with DB writes) ────────
     if (action === "end-turn") {
-      if (gameState.endgame) {
-        const nextIdx = (currentPlayerIdx + 1) % gameState.players.length;
-        if (nextIdx === 0) {
-          console.log(JSON.stringify({ event: "GAME_FINISHED_TRIGGER" }));
-
-          // Everyone has gone — end game
-          let state: GameState = { ...gameState, phase: "finished" };
-          const leaderboard = getLeaderboard(state);
-          const winner = leaderboard[0];
-
-          console.log(JSON.stringify({ event: "WINNER_COMPUTED", winnerId: winner?.id }));
-
-          // Persist results for human players
-          if (winner && !winner.isBot) {
-            const loserIds = leaderboard.slice(1).filter((p) => !p.isBot).map((p) => p.id);
-            await recordGameResult(winner.id, loserIds);
-          }
-
-          state = appendActionId(state, actionId);
-
-          const validation = validateGameState(state, room);
-          if (!validation.valid) {
-            console.warn(JSON.stringify({
-              timestamp: new Date().toISOString(),
-              event: "INVALID_GAME_STATE",
-              roomId,
-              lastAction: { action, payload, actionId },
-              errors: validation.errors,
-              previousState: {
-                phase: gameState.phase,
-                currentPlayerIndex: gameState.currentPlayerIndex,
-                turn: gameState.turn,
-                year: gameState.year
-              },
-              nextState: {
-                phase: state.phase,
-                currentPlayerIndex: state.currentPlayerIndex,
-                turn: state.turn,
-                year: state.year
-              },
-              fullRoomSnapshot: room
-            }, null, 2));
-          }
-
-          await updateGameState(roomId, state);
-          await db.update(rooms).set({ status: "finished" }).where(eq(rooms.id, roomId));
-          console.log(JSON.stringify({ event: "GAME_FINISHED_COMMIT" }));
-          
-          safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_FINISHED, { timestamp: Date.now() }).catch(err =>
-            console.error(JSON.stringify({
-              timestamp: new Date().toISOString(),
-              event: "PUSHER_TRIGGER_FAILURE",
-              roomId,
-              playerId: userId,
-              action: "end-turn",
-              error: err?.message || err
-            }))
-          );
-          phaseAfter = state.phase;
-          turnAfter = state.turn;
-          console.log(JSON.stringify({
-            timestamp: new Date().toISOString(),
-            event: "ACTION_TRACE",
-            actionId: actionId || null,
-            actionType: action,
-            playerId: userId,
-            roomId: roomId,
-            phaseBefore,
-            phaseAfter,
-            turnBefore,
-            turnAfter,
-            durationMs: Date.now() - startTime
-          }, null, 2));
-          console.log(JSON.stringify({
-            event: "STATE_HASH",
-            turn: state.turn,
-            year: state.year,
-            hash: hashGameState(state)
-          }, null, 2));
-          return NextResponse.json({ gameState: state, leaderboard });
-        }
-      }
-
-      // Normal end-turn — delegate to dispatcher
       const result = dispatch(gameState, "end-turn", payload);
       let nextState = result.state;
       nextState = appendActionId(nextState, actionId);
@@ -452,16 +368,45 @@ export async function POST(
       }
 
       await updateGameState(roomId, nextState);
-      safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STATE_UPDATE, { timestamp: Date.now() }).catch(err =>
-        console.error(JSON.stringify({
-          timestamp: new Date().toISOString(),
-          event: "PUSHER_TRIGGER_FAILURE",
-          roomId,
-          playerId: userId,
-          action: "end-turn",
-          error: err?.message || err
-        }))
-      );
+
+      if (nextState.phase === "finished" && gameState.phase !== "finished") {
+        const leaderboard = getLeaderboard(nextState);
+        const winner = leaderboard[0];
+
+        console.log(JSON.stringify({ event: "WINNER_COMPUTED", winnerId: winner?.id }));
+
+        // Persist results for human players
+        if (winner && !winner.isBot) {
+          const loserIds = leaderboard.slice(1).filter((p) => !p.isBot).map((p) => p.id);
+          await recordGameResult(winner.id, loserIds);
+        }
+
+        await db.update(rooms).set({ status: "finished" }).where(eq(rooms.id, roomId));
+        console.log(JSON.stringify({ event: "GAME_FINISHED_COMMIT" }));
+        
+        safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_FINISHED, { timestamp: Date.now() }).catch(err =>
+          console.error(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            event: "PUSHER_TRIGGER_FAILURE",
+            roomId,
+            playerId: userId,
+            action: "end-turn",
+            error: err?.message || err
+          }))
+        );
+      } else {
+        safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STATE_UPDATE, { timestamp: Date.now() }).catch(err =>
+          console.error(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            event: "PUSHER_TRIGGER_FAILURE",
+            roomId,
+            playerId: userId,
+            action: "end-turn",
+            error: err?.message || err
+          }))
+        );
+      }
+
       phaseAfter = nextState.phase;
       turnAfter = nextState.turn;
       console.log(JSON.stringify({
@@ -483,7 +428,12 @@ export async function POST(
         year: nextState.year,
         hash: hashGameState(nextState)
       }, null, 2));
-      return NextResponse.json({ gameState: nextState });
+      
+      const responseData: any = { gameState: nextState };
+      if (nextState.phase === "finished") {
+        responseData.leaderboard = getLeaderboard(nextState);
+      }
+      return NextResponse.json(responseData);
     }
 
     // ─── ALL OTHER ACTIONS — delegate to dispatcher ───────────────────────────
