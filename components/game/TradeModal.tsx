@@ -17,11 +17,24 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
 
   React.useEffect(() => {
     if (isOpen) {
-      setTargetId(otherPlayers[0]?.id || "");
-      setOffer({ cash: 0, bonds: 0, stocks: 0 });
-      setRequest({ cash: 0, bonds: 0, stocks: 0 });
+      const initialTargetId = otherPlayers[0]?.id || "";
+      const initialOffer = { cash: 0, bonds: 0, stocks: 0 };
+      const initialRequest = { cash: 0, bonds: 0, stocks: 0 };
+      
+      setTargetId(initialTargetId);
+      setOffer(initialOffer);
+      setRequest(initialRequest);
+      
+      console.log(JSON.stringify({
+        event: "TRADE_FORM_RESET",
+        targetId: initialTargetId,
+        offer: initialOffer,
+        request: initialRequest,
+        reason: "Modal Opened"
+      }));
     }
-  }, [isOpen, otherPlayers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -46,11 +59,13 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
     const maxAllowed = Math.floor(maxVal / 5) * 5;
     const v = Math.min(maxAllowed, Math.max(0, Math.floor(val / 5) * 5));
     setOffer({ ...offer, [key]: v });
+    console.log(JSON.stringify({ event: "TRADE_INPUT_CHANGE", field: `offer.${key}`, value: v }));
   };
 
   const updateRequest = (key: keyof typeof request, val: number) => {
     const v = Math.max(0, Math.floor(val / 5) * 5);
     setRequest({ ...request, [key]: v });
+    console.log(JSON.stringify({ event: "TRADE_INPUT_CHANGE", field: `request.${key}`, value: v }));
   };
 
   return (
