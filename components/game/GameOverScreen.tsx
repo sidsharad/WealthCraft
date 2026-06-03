@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { GameState } from '@/lib/db/schema';
 import { getLeaderboard } from '@/lib/game-engine/actions';
+import { Trophy, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface GameOverScreenProps {
   gameState: GameState;
@@ -9,6 +10,8 @@ interface GameOverScreenProps {
 
 export function GameOverScreen({ gameState, onExit }: GameOverScreenProps) {
   const [show, setShow] = useState(false);
+  const [showRankings, setShowRankings] = useState(false);
+  
   const leaderboard = useMemo(() => getLeaderboard(gameState), [gameState]);
   const winner = leaderboard[0];
 
@@ -32,81 +35,74 @@ export function GameOverScreen({ gameState, onExit }: GameOverScreenProps) {
   if (!winner || !show) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-700">
-      <div className="max-w-2xl w-full bg-slate-900 border border-amber-500/30 rounded-3xl p-8 shadow-2xl relative overflow-hidden flex flex-col items-center">
-        {/* Glow effect */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/20 blur-[100px] rounded-full pointer-events-none" />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4">
+      <div className="modal-card w-full shadow-2xl flex flex-col items-center p-6 border-2 border-amber-400 pointer-events-auto">
+        <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mb-3 border border-amber-200">
+          <Trophy size={32} className="text-amber-500 animate-bounce" />
+        </div>
         
-        <h2 className="text-sm font-black uppercase tracking-[0.3em] text-amber-500 mb-2 relative z-10">
+        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 mb-1">
           Game Complete
         </h2>
         
-        <div className="text-6xl mb-6 relative z-10 animate-bounce">🏆</div>
-        
-        <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-600 mb-2 relative z-10 text-center">
+        <h1 className="text-3xl font-black text-[var(--navy)] text-center mb-4">
           {winner.name} Wins!
         </h1>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-lg mb-8 relative z-10">
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Cash</span>
-            <span className="font-black text-2xl text-emerald-400">{winner.cash}L</span>
-          </div>
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Bonds</span>
-            <span className="font-black text-2xl text-blue-400">{winner.bonds}L</span>
-          </div>
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Stocks</span>
-            <span className="font-black text-2xl text-indigo-400">{winner.stocks}L</span>
-          </div>
-          <div className="bg-amber-500/20 border border-amber-500/50 rounded-2xl p-4 flex flex-col items-center justify-center scale-105 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-            <span className="text-xs font-bold text-amber-200/80 uppercase tracking-widest mb-1">Net Worth</span>
-            <span className="font-black text-2xl text-amber-400">{winner.total}L</span>
-          </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-xl w-full p-3 mb-4 text-center">
+          <span className="text-xs font-bold text-amber-700 uppercase tracking-widest block mb-1">Net Worth</span>
+          <span className="font-black text-3xl text-amber-600">{winner.total}L</span>
         </div>
-        
-        <div className="w-full max-w-md relative z-10">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Final Leaderboard</h3>
-          <div className="flex flex-col gap-3">
-            {leaderboard.map((player, idx) => (
-              <div 
-                key={player.id}
-                className={`flex items-center justify-between p-4 rounded-2xl transition-all duration-500 ${
-                  idx === 0 
-                    ? 'bg-amber-500/20 border border-amber-500/50 scale-[1.02]' 
-                    : 'bg-slate-800/50 border border-slate-700/50'
-                }`}
-                style={{ animationDelay: `${idx * 150}ms`, animationFillMode: 'both' }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-inner ${
-                    idx === 0 ? 'bg-amber-500 text-amber-950 shadow-amber-400/50' : 'bg-slate-700 text-slate-300'
-                  }`}>
-                    #{idx + 1}
-                  </div>
-                  <span className={`font-bold text-lg ${idx === 0 ? 'text-amber-100' : 'text-slate-200'}`}>
-                    {player.name}
-                  </span>
-                </div>
-                <div className="text-right flex flex-col">
-                  <span className={`font-black text-xl tracking-tight ${idx === 0 ? 'text-amber-400' : 'text-slate-300'}`}>
-                    {player.total}L
-                  </span>
-                </div>
-              </div>
-            ))}
+
+        <div className="grid grid-cols-3 gap-2 w-full mb-6">
+          <div className="bg-gray-50 border border-gray-100 rounded-lg p-2 text-center">
+            <span className="text-[9px] font-bold text-gray-500 uppercase block mb-0.5">Cash</span>
+            <span className="font-black text-sm text-emerald-600">{winner.cash}L</span>
+          </div>
+          <div className="bg-gray-50 border border-gray-100 rounded-lg p-2 text-center">
+            <span className="text-[9px] font-bold text-gray-500 uppercase block mb-0.5">Bonds</span>
+            <span className="font-black text-sm text-blue-600">{winner.bonds}L</span>
+          </div>
+          <div className="bg-gray-50 border border-gray-100 rounded-lg p-2 text-center">
+            <span className="text-[9px] font-bold text-gray-500 uppercase block mb-0.5">Stocks</span>
+            <span className="font-black text-sm text-indigo-600">{winner.stocks}L</span>
           </div>
         </div>
 
-        {onExit && (
+        <div className="w-full space-y-2">
           <button 
-            onClick={onExit}
-            className="mt-10 relative z-10 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-amber-950 font-black px-8 py-3 rounded-full uppercase tracking-wider transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+            onClick={() => setShowRankings(!showRankings)}
+            className="w-full flex items-center justify-center gap-2 py-2 text-sm font-bold text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            Return to Dashboard
+            {showRankings ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            View Final Rankings
           </button>
-        )}
+
+          {showRankings && (
+            <div className="w-full flex flex-col gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 mb-2 animate-slide-in">
+              {leaderboard.map((player, idx) => (
+                <div key={player.id} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-black ${idx === 0 ? 'text-amber-500' : 'text-gray-400'}`}>
+                      #{idx + 1}
+                    </span>
+                    <span className="font-bold text-[var(--navy)]">{player.name}</span>
+                  </div>
+                  <span className="font-black text-[var(--navy)]">{player.total}L</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {onExit && (
+            <button 
+              onClick={onExit}
+              className="btn-primary w-full py-3 text-sm font-black uppercase tracking-widest mt-2"
+            >
+              Return to Dashboard
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
