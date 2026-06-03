@@ -32,7 +32,7 @@ export function GameOverScreen({ gameState, onExit }: GameOverScreenProps) {
   if (!winner || !show) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-700">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-700">
       <div className="max-w-2xl w-full bg-slate-900 border border-amber-500/30 rounded-3xl p-8 shadow-2xl relative overflow-hidden flex flex-col items-center">
         {/* Glow effect */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/20 blur-[100px] rounded-full pointer-events-none" />
@@ -47,9 +47,24 @@ export function GameOverScreen({ gameState, onExit }: GameOverScreenProps) {
           {winner.name} Wins!
         </h1>
         
-        <p className="text-xl text-amber-100/80 font-medium mb-10 relative z-10">
-          Final Wealth: <span className="text-amber-400 font-bold">{winner.total}L</span>
-        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-lg mb-8 relative z-10">
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Cash</span>
+            <span className="font-black text-2xl text-emerald-400">{winner.cash}L</span>
+          </div>
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Bonds</span>
+            <span className="font-black text-2xl text-blue-400">{winner.bonds}L</span>
+          </div>
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex flex-col items-center justify-center">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Stocks</span>
+            <span className="font-black text-2xl text-indigo-400">{winner.stocks}L</span>
+          </div>
+          <div className="bg-amber-500/20 border border-amber-500/50 rounded-2xl p-4 flex flex-col items-center justify-center scale-105 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+            <span className="text-xs font-bold text-amber-200/80 uppercase tracking-widest mb-1">Net Worth</span>
+            <span className="font-black text-2xl text-amber-400">{winner.total}L</span>
+          </div>
+        </div>
         
         <div className="w-full max-w-md relative z-10">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Final Leaderboard</h3>

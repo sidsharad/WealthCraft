@@ -373,12 +373,12 @@ export default function GameRoomPage() {
     </div>
   </div>;
 
-  if (turn.gameState?.phase === "finished") {
-    return <GameOverScreen gameState={turn.gameState} onExit={() => router.push("/lobby")} />;
-  }
-
   return (
-    <div className="h-screen flex flex-col md:flex-row bg-[var(--cream)] overflow-hidden">
+    <div className="h-screen flex flex-col md:flex-row bg-[var(--cream)] overflow-hidden relative">
+      {turn.gameState?.phase === "finished" && (
+        <GameOverScreen gameState={turn.gameState} onExit={() => router.push("/lobby")} />
+      )}
+
       {/* Sidebar: Players & Stats */}
       <div className="w-full md:w-80 bg-white/50 backdrop-blur-md border-r border-gray-200 p-3 flex flex-col gap-3 overflow-y-auto">
         <div className="flex items-center justify-between mb-1">
