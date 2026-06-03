@@ -248,6 +248,15 @@ export function dispatch(
       return { state: { ...result.state, phase: "action" } };
     }
 
+    case "acknowledge-endgame-trigger": {
+      return { state: { ...state, endgameTriggerAcknowledged: true } };
+    }
+
+    case "acknowledge-endgame-cancellation": {
+      return { state: { ...state, endgameCancelledAcknowledged: true } };
+    }
+
+
     case "trade-offer": {
       const offer = payload?.offer as any;
       const request = payload?.request as any;

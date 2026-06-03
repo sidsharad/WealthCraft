@@ -714,6 +714,7 @@ export function advanceTurn(state: GameState): GameState {
     s.endgameTriggeredByPlayerId = win.triggeringPlayerId;
     s.endgameTriggeredPlayerIndex = s.currentPlayerIndex;
     s.endgameTriggeredTurn = s.turn;
+    s.endgameTriggerAcknowledged = false;
     
     const triggerPlayer = s.players.find(p => p.id === win.triggeringPlayerId);
     console.log(JSON.stringify({
@@ -742,6 +743,8 @@ export function advanceTurn(state: GameState): GameState {
       s.endgameTriggeredByPlayerId = undefined;
       s.endgameTriggeredPlayerIndex = undefined;
       s.endgameTriggeredTurn = undefined;
+      s.endgameTriggerAcknowledged = undefined;
+      s.endgameCancelledAcknowledged = false;
       console.log(JSON.stringify({ event: "ENDGAME_CANCELLED" }));
       s = addLog(s, `📉 Market conditions dropped all players below 100L. The game continues!`);
     } else {

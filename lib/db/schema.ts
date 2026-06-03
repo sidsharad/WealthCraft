@@ -112,9 +112,12 @@ export interface GameState {
   pendingTrade?: TradeOffer;
   announcement?: string;
   privateMessage?: string;
-  winTriggeredByPlayerId?: string;
+  
+  // Endgame Rules
   endgameCandidate?: boolean;
   endgameTriggeredByPlayerId?: string;
   endgameTriggeredPlayerIndex?: number;
   endgameTriggeredTurn?: number;
+  endgameTriggerAcknowledged?: boolean;
+  endgameCancelledAcknowledged?: boolean;
 }

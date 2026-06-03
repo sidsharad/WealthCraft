@@ -18,6 +18,7 @@ import ChoiceModal from "@/components/game/ChoiceModal";
 import PassDeviceScreen from "@/components/game/PassDeviceScreen";
 import TradeResponseModal from "@/components/game/TradeResponseModal";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
+import EndgameNotifyModal from "@/components/game/EndgameNotifyModal";
 import { LogOut, MessageSquare, ShieldAlert } from "lucide-react";
 
 const PLAYER_COLORS = ["#3B82F6", "#F97316", "#A855F7", "#EC4899"];
@@ -832,6 +833,19 @@ export default function GameRoomPage() {
           fromPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.fromPlayerId)!}
           toPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.toPlayerId)!}
           onResponse={(accept) => turn.performAction("trade-response", { accept })}
+        />
+
+        <EndgameNotifyModal
+          isOpen={turn.gameState.endgameCandidate === true && turn.gameState.endgameTriggerAcknowledged === false}
+          type="trigger"
+          triggerPlayer={turn.gameState.players.find(p => p.id === turn.gameState!.endgameTriggeredByPlayerId)}
+          onContinue={() => turn.performAction("acknowledge-endgame-trigger")}
+        />
+
+        <EndgameNotifyModal
+          isOpen={turn.gameState.endgameCandidate === false && turn.gameState.endgameCancelledAcknowledged === false}
+          type="cancelled"
+          onContinue={() => turn.performAction("acknowledge-endgame-cancellation")}
         />
 
         {isDebugMode && (
