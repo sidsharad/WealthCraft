@@ -48,9 +48,11 @@ describe('Analytics API GET endpoint', () => {
     const response = await GET();
     const data = await response.json();
     
+    expect(data.gamesCreated).toBe(0);
     expect(data.gamesStarted).toBe(0);
     expect(data.gamesCompleted).toBe(0);
     expect(data.gamesAbandoned).toBe(0);
+    expect(data.startRate).toBe(0);
     expect(data.completionRate).toBe(0);
     expect(data.averageTurns).toBe(0);
     expect(data.averageYears).toBe(0);
@@ -95,26 +97,32 @@ describe('Analytics API GET endpoint', () => {
     let callCount = 0;
     vi.mocked(db.from).mockImplementation(() => {
       const currentCall = callCount++;
-      if (currentCall === 2) {
-        // Third query is for gameResults, no where clause
+      if (currentCall === 1) {
+        // gameResults
         return mockGameResults as any;
       }
       return {
-        where: vi.fn().mockImplementation(() => {
-          if (currentCall === 0) return Promise.resolve(mockStartedRooms); // startedRooms
-          if (currentCall === 1) return Promise.resolve(mockAbandonedRooms); // abandonedRooms
-          return Promise.resolve([]);
-        })
+        // allRooms
+        then: (cb: any) => cb([
+          { playerIds: ['p1', 'p2'], gameState: { turn: 2 } }, // Started
+          { playerIds: ['p1', 'p3'], gameState: { turn: 5 } }, // Started
+          { playerIds: ['p1', 'p2', 'p3'], gameState: { log: [{}] } }, // Started
+          { playerIds: ['p1', 'p2'], gameState: { turn: 1, log: [] } }, // Created but not started
+          { status: "lobby" }, // Created but not started
+          { status: "lobby", updatedAt: new Date(Date.now() - 48 * 60 * 60 * 1000) } // Abandoned
+        ])
       } as any;
     });
 
     const response = await GET();
     const data = await response.json();
 
-    expect(data.gamesStarted).toBe(4);
+    expect(data.gamesCreated).toBe(6);
+    expect(data.gamesStarted).toBe(3);
     expect(data.gamesAbandoned).toBe(1);
     expect(data.gamesCompleted).toBe(3);
-    expect(data.completionRate).toBe(75); // 3/4 * 100
+    expect(data.startRate).toBe(50); // 3/6 * 100
+    expect(data.completionRate).toBe(100); // 3/3 * 100
     
     expect(data.averageTurns).toBe(50); // (50 + 60 + 40) / 3
     expect(data.averageYears).toBe(5); // (5 + 6 + 4) / 3

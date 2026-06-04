@@ -18,9 +18,11 @@ interface PlayerStats {
 }
 
 interface AnalyticsData {
+  gamesCreated: number;
   gamesStarted: number;
   gamesCompleted: number;
   gamesAbandoned: number;
+  startRate: number;
   completionRate: number;
   averageTurns: number;
   averageYears: number;
@@ -63,7 +65,15 @@ export default function AnalyticsDashboard() {
     <div className="container mx-auto py-10 space-y-8">
       <h1 className="text-4xl font-bold tracking-tight">WealthCraft Analytics</h1>
 
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-8">
+        <div className="rounded-xl border bg-card text-card-foreground shadow">
+          <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+            <h3 className="tracking-tight text-sm font-medium">Games Created</h3>
+          </div>
+          <div className="p-6 pt-0">
+            <div className="text-2xl font-bold">{data.gamesCreated}</div>
+          </div>
+        </div>
         <div className="rounded-xl border bg-card text-card-foreground shadow">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
             <h3 className="tracking-tight text-sm font-medium">Games Started</h3>
@@ -86,6 +96,14 @@ export default function AnalyticsDashboard() {
           </div>
           <div className="p-6 pt-0">
             <div className="text-2xl font-bold">{data.gamesAbandoned}</div>
+          </div>
+        </div>
+        <div className="rounded-xl border bg-card text-card-foreground shadow">
+          <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+            <h3 className="tracking-tight text-sm font-medium">Start Rate</h3>
+          </div>
+          <div className="p-6 pt-0">
+            <div className="text-2xl font-bold">{data.startRate}%</div>
           </div>
         </div>
         <div className="rounded-xl border bg-card text-card-foreground shadow">

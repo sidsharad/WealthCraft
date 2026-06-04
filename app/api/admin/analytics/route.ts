@@ -9,31 +9,30 @@ export async function GET() {
   console.log(JSON.stringify({ event: "ANALYTICS_API_REQUEST" }));
 
   try {
-    // Games Started: rooms where status != 'lobby'
-    const startedRooms = await db.select().from(rooms).where(ne(rooms.status, "lobby"));
-    const gamesStarted = startedRooms.length;
+    const allRooms = await db.select().from(rooms);
+    const gamesCreated = allRooms.length;
 
-    // Games Abandoned: status != 'finished' AND updatedAt older than 24 hours
+    const gamesStarted = allRooms.filter((room: any) => {
+      const players = Array.isArray(room.playerIds) ? room.playerIds : [];
+      if (players.length < 2) return false;
+      const state = room.gameState as any;
+      if (!state) return false;
+      if (state.turn > 1) return true;
+      if (state.log && Array.isArray(state.log) && state.log.length > 0) return true;
+      return false;
+    }).length;
+
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const abandonedRooms = await db
-      .select()
-      .from(rooms)
-      .where(
-        and(
-          ne(rooms.status, "finished"),
-          lt(rooms.updatedAt, oneDayAgo)
-        )
-      );
-    const gamesAbandoned = abandonedRooms.length;
+    const gamesAbandoned = allRooms.filter((room: any) => 
+      room.status !== "finished" && new Date(room.updatedAt).getTime() < oneDayAgo.getTime()
+    ).length;
 
     // Fetch all game results for aggregation
     const results = await db.select().from(gameResults);
     const gamesCompleted = results.length;
 
-    let completionRate = 0;
-    if (gamesStarted > 0) {
-      completionRate = Number(((gamesCompleted / gamesStarted) * 100).toFixed(2));
-    }
+    const startRate = gamesCreated > 0 ? Number(((gamesStarted / gamesCreated) * 100).toFixed(2)) : 0;
+    const completionRate = gamesStarted > 0 ? Number(((gamesCompleted / gamesStarted) * 100).toFixed(2)) : 0;
 
     let totalTurns = 0;
     let totalYears = 0;
@@ -99,9 +98,11 @@ export async function GET() {
     });
 
     return NextResponse.json({
+      gamesCreated,
       gamesStarted,
       gamesCompleted,
       gamesAbandoned,
+      startRate,
       completionRate,
       averageTurns,
       averageYears,
