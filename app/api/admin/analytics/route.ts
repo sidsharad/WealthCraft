@@ -9,6 +9,7 @@ export async function GET() {
   console.log(JSON.stringify({ event: "ANALYTICS_API_REQUEST" }));
 
   try {
+    console.log("ANALYTICS_STEP", "rooms query");
     const allRooms = await db.select().from(rooms);
     const gamesCreated = allRooms.length;
 
@@ -27,10 +28,12 @@ export async function GET() {
       room.status !== "finished" && new Date(room.updatedAt).getTime() < oneDayAgo.getTime()
     ).length;
 
+    console.log("ANALYTICS_STEP", "game results query");
     // Fetch all game results for aggregation
     const results = await db.select().from(gameResults);
     const gamesCompleted = results.length;
 
+    console.log("ANALYTICS_STEP", "aggregation");
     const startRate = gamesCreated > 0 ? Number(((gamesStarted / gamesCreated) * 100).toFixed(2)) : 0;
     const completionRate = gamesStarted > 0 ? Number(((gamesCompleted / gamesStarted) * 100).toFixed(2)) : 0;
 
@@ -110,7 +113,13 @@ export async function GET() {
       playerStats
     });
   } catch (error: any) {
-    console.error("[AnalyticsAPI] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("ANALYTICS_ROUTE_ERROR", error);
+    return NextResponse.json(
+      {
+        error: String(error),
+        stack: error instanceof Error ? error.stack : null
+      },
+      { status: 500 }
+    );
   }
 }
