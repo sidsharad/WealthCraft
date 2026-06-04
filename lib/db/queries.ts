@@ -1,5 +1,5 @@
 import { db } from "./index";
-import { rooms, users, type GameState } from "./schema";
+import { rooms, users, gameResults, type GameState } from "./schema";
 import { eq, inArray, sql } from "drizzle-orm";
 
 export function auditDatabaseRoomState(room: any) {
@@ -62,6 +62,35 @@ export function auditDatabaseRoomState(room: any) {
       )
     );
   }
+}
+
+export async function insertAnalyticsGameResult(
+  roomId: string,
+  roomCode: string,
+  winnerId: string,
+  winnerName: string,
+  winnerNetWorth: number,
+  playerIds: string[],
+  playerNames: string[],
+  playerCount: number,
+  turnCount: number,
+  yearCount: number,
+  startedAt: Date | null,
+) {
+  await db.insert(gameResults).values({
+    roomId,
+    roomCode,
+    winnerId,
+    winnerName,
+    winnerNetWorth,
+    playerIds,
+    playerNames,
+    playerCount,
+    turnCount,
+    yearCount,
+    startedAt,
+    completedAt: new Date(),
+  });
 }
 
 export async function getRoomByCode(code: string) {

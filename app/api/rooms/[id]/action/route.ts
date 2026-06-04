@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getRoomById, updateGameState, recordGameResult } from "@/lib/db/queries";
+import { getRoomById, updateGameState, recordGameResult, insertAnalyticsGameResult } from "@/lib/db/queries";
 import { getRoomChannel, PUSHER_EVENTS, safeTrigger } from "@/lib/pusher";
 import { db } from "@/lib/db";
 import { rooms, users } from "@/lib/db/schema";
@@ -379,6 +379,32 @@ export async function POST(
         if (winner && !winner.isBot) {
           const loserIds = leaderboard.slice(1).filter((p) => !p.isBot).map((p) => p.id);
           await recordGameResult(winner.id, loserIds);
+        }
+
+        // Record Analytics Game Result
+        if (winner) {
+          const winnerNetWorth = winner.cash + winner.stocks + winner.bonds + (winner.hasHouse ? 50 : 0);
+          await insertAnalyticsGameResult(
+            roomId,
+            room.code,
+            winner.id,
+            winner.name,
+            winnerNetWorth,
+            nextState.players.map(p => p.id),
+            nextState.players.map(p => p.name),
+            nextState.players.length,
+            nextState.turn,
+            nextState.year,
+            room.createdAt // Use room's createdAt as startedAt
+          );
+          
+          console.log(JSON.stringify({
+            event: "GAME_RESULT_RECORDED",
+            roomCode: room.code,
+            winnerName: winner.name,
+            turns: nextState.turn,
+            years: nextState.year
+          }));
         }
 
         await db.update(rooms).set({ status: "finished" }).where(eq(rooms.id, roomId));

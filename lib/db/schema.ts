@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, jsonb, timestamp, uuid, index } from "drizzle-orm/pg-core";
 
 // ─── USERS ───────────────────────────────────────────────────────────────────
 export const users = pgTable("users", {
@@ -121,3 +121,23 @@ export interface GameState {
   endgameTriggerAcknowledged?: boolean;
   endgameCancelledAcknowledged?: boolean;
 }
+
+// ─── GAME RESULTS (Analytics) ─────────────────────────────────────────────────
+export const gameResults = pgTable("game_results", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  roomId: uuid("room_id").notNull(),
+  roomCode: text("room_code").notNull(),
+  winnerId: text("winner_id").notNull(),
+  winnerName: text("winner_name").notNull(),
+  winnerNetWorth: integer("winner_net_worth").notNull(),
+  playerIds: jsonb("player_ids").$type<string[]>().notNull(),
+  playerNames: jsonb("player_names").$type<string[]>().notNull(),
+  playerCount: integer("player_count").notNull(),
+  turnCount: integer("turn_count").notNull(),
+  yearCount: integer("year_count").notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at").defaultNow().notNull(),
+}, (table) => ({
+  winnerIdx: index("idx_game_results_winner").on(table.winnerId),
+  completedIdx: index("idx_game_results_completed").on(table.completedAt),
+}));
