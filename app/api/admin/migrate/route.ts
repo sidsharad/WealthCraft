@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (session.user?.email !== "siddharth1359@gmail.com") {
+    console.error("ADMIN_ACCESS_DENIED", { email: session.user?.email, path: "/api/admin/migrate" });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS "game_results" (

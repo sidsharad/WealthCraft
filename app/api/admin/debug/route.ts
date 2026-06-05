@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (session.user?.email !== "siddharth1359@gmail.com") {
+    console.error("ADMIN_ACCESS_DENIED", { email: session.user?.email, path: "/api/admin/debug" });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const q1 = await db.execute(sql`SELECT COUNT(*) FROM rooms;`);
     const q2 = await db.execute(sql`SELECT status, COUNT(*) FROM rooms GROUP BY status;`);

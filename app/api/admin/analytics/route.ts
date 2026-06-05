@@ -2,10 +2,20 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rooms, gameResults } from "@/lib/db/schema";
 import { eq, ne, and, lt } from "drizzle-orm";
+import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (session.user?.email !== "siddharth1359@gmail.com") {
+    console.error("ADMIN_ACCESS_DENIED", { email: session.user?.email, path: "/api/admin/analytics" });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   console.log(JSON.stringify({ event: "ANALYTICS_API_REQUEST" }));
 
   try {
