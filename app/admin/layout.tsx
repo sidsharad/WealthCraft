@@ -24,5 +24,19 @@ export default async function AdminLayout({
     );
   }
 
-  return <>{children}</>;
+  return (
+    <div className="min-h-screen bg-background">
+      <nav className="border-b bg-card">
+        <div className="container mx-auto px-4 h-14 flex items-center space-x-6">
+          <a href="/admin/analytics" className="text-sm font-medium hover:text-primary transition-colors">
+            Analytics
+          </a>
+          <a href="/admin/users" className="text-sm font-medium hover:text-primary transition-colors">
+            Users
+          </a>
+        </div>
+      </nav>
+      {children}
+    </div>
+  );
 }
