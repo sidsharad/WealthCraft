@@ -48,15 +48,14 @@ export default function ChoiceModal({
       <Modal>
         <Header icon={<Zap size={32} className="text-purple-500" />} title="IPO Investment" />
         <p className="text-gray-500 text-sm mt-2 text-center mb-6">
-          Invest up to 2L cash to receive double in stocks.
+          Invest up to 5L cash to receive double in stocks.
         </p>
         <div className="space-y-3">
-          <button disabled={playerCash < 2} onClick={() => onConfirm({ amount: 2 })} className="btn-primary w-full py-4 text-sm font-black uppercase tracking-widest disabled:opacity-30">
-            Invest 2L
-          </button>
-          <button disabled={playerCash < 1} onClick={() => onConfirm({ amount: 1 })} className="btn-primary w-full py-4 text-sm font-black uppercase tracking-widest disabled:opacity-30">
-            Invest 1L
-          </button>
+          {[5, 4, 3, 2, 1].map((amt) => (
+            <button key={amt} disabled={playerCash < amt} onClick={() => onConfirm({ amount: amt })} className="btn-primary w-full py-4 text-sm font-black uppercase tracking-widest disabled:opacity-30">
+              Invest {amt}L
+            </button>
+          ))}
           <button onClick={() => onConfirm({ amount: 0 })} className="btn-secondary w-full py-4 text-sm font-black uppercase tracking-widest">
             Skip
           </button>

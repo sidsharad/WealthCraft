@@ -68,17 +68,17 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
       let reason = "";
 
       if (botType === "defensive") {
-        investAmount = bot.cash >= 12 ? 2 : bot.cash === 11 ? 1 : 0;
+        investAmount = Math.max(0, Math.min(5, bot.cash - 10));
         reason = investAmount > 0
           ? `Invested ${investAmount}L in IPO while keeping the strict 10L cash buffer.`
           : "Declined IPO to prioritize defensive cash reserves (10L buffer required).";
       } else if (botType === "balanced") {
-        investAmount = bot.cash >= 7 ? 2 : bot.cash === 6 ? 1 : 0;
+        investAmount = Math.max(0, Math.min(5, bot.cash - 5));
         reason = investAmount > 0
           ? `Invested ${investAmount}L in IPO while maintaining the 5L cash buffer.`
           : "Declined IPO to maintain moderate 5L cash buffer.";
       } else {
-        investAmount = bot.cash >= 5 ? 2 : bot.cash === 4 ? 1 : 0;
+        investAmount = Math.max(0, Math.min(5, bot.cash - 3));
         reason = investAmount > 0
           ? `Invested ${investAmount}L in IPO aggressively for high-return stock growth.`
           : "Declined IPO because cash reserves are below the 3L floor.";
