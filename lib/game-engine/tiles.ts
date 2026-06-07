@@ -93,7 +93,7 @@ export const TILES: TileDef[] = [
     name: "IPO",
     type: "gain-you",
     effect: "ipo",
-    description: "Invest up to 2L cash → receive 2× in stocks. You only.",
+    description: "Invest up to 5L cash → receive 2× in stocks. You only.",
     colorClass: "border-green-500",
     bgClass: "bg-green-50",
     headerBg: "bg-green-600",
