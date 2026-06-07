@@ -203,7 +203,7 @@ export default function RulesPage() {
             </div>
             <p className="text-white/60 text-sm leading-relaxed flex-1">
               Players are vulnerable to audits if they hold <strong className="text-white">more than 40L</strong> in any single asset type. 
-              Initiate an optional audit on a rival's turn. If they exceed 40L, all excess is confiscated. 
+              Initiate an optional audit on a rival's turn. If they exceed 40L, all excess is transferred to the auditing player. 
               If they are under the limit, you pay a <strong className="text-white">5L false-alarm fee</strong>.
             </p>
           </div>
