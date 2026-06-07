@@ -235,7 +235,7 @@ export default function RulesPage() {
               { name: "🎁 Bonus Tile", desc: "Reward. Collect 2L cash immediately from the bank." },
               { name: "🚀 Stock Rally", desc: "Your stocks boom. Receive +2L stocks per 5L stocks held (only you)." },
               { name: "💥 Stock Crash", desc: "Your stocks drop. Deduct -2L stocks per 5L stocks held (only you)." },
-              { name: "📊 IPO", desc: "Early investment opportunity. Invest up to 2L cash, receive 2x that amount in stocks." },
+              { name: "📊 IPO", desc: "Early investment opportunity. Invest up to 5L cash, receive 2x that amount in stocks." },
               { name: "❄️ Income Freeze", desc: "Temporary block. You do not collect the 5L income during Step 2 of this turn." },
               { name: "🚨 Emergency", desc: "Unforeseen expenses. Draw a fee randomly and pay 3L, 5L, or 10L cash to the bank." },
               { name: "🎟️ Lottery", desc: "Option to pay 2L to roll: 1-2 = nothing, 3-4 = receive +2L cash, 5-6 = receive +5L cash." },
