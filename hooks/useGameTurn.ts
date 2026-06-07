@@ -1138,6 +1138,13 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     if (hasChanged) setPortfolios(newPortfolios);
   }, [gameState?.players, gameState?.currentPlayerIndex, isLocal, stableUserId]);
 
+  // Reset Pass Device screen on turn change in online mode
+  useEffect(() => {
+    if (!isLocal) {
+      setShowPassDevice(false);
+    }
+  }, [gameState?.currentPlayerIndex, isLocal]);
+
   // Handlers
   const handleTileAction = useCallback(async (payload?: any) => {
     if (!payload && pendingEmergencyAmount !== null) {

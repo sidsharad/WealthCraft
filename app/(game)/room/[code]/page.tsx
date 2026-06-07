@@ -827,7 +827,7 @@ export default function GameRoomPage() {
         <TradeResponseModal
           isOpen={
             turn.gameState.phase === "waiting-trade" &&
-            (isLocal || turn.gameState.pendingTrade?.toPlayerId === userId)
+            (isLocal || turn.gameState.pendingTrade?.toPlayerId === stableUserId)
           }
           offer={turn.gameState!.pendingTrade!}
           fromPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.fromPlayerId)!}

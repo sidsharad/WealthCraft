@@ -790,7 +790,7 @@ export function advanceTurn(state: GameState): GameState {
   s.players = s.players.map((p, i) => ({
     ...p,
     privateMessage: undefined,
-    hasTraded: i === nextIdx ? false : p.hasTraded
+    hasTraded: nextIdx === 0 ? false : p.hasTraded
   }));
 
   return addLog(s, `--- Turn ${s.turn}: ${s.players[nextIdx].name}'s turn ---`);
