@@ -727,10 +727,13 @@ export function advanceTurn(state: GameState): GameState {
     }));
   }
 
-  // Step 3 - End-of-Round Validation
-  const isEndOfRound = s.currentPlayerIndex === s.players.length - 1;
-  
-  if (isEndOfRound && s.endgameCandidate) {
+  // Advance Turn Normally
+  const nextIdx = (s.currentPlayerIndex + 1) % s.players.length;
+  const nextTurn = s.turn + 1;
+
+  // Step 3 - Endgame Resolution (Seat Bias Fix)
+  // When play returns to the triggering player, the game ends BEFORE they take another turn.
+  if (s.endgameCandidate && nextIdx === s.endgameTriggeredPlayerIndex) {
     const playersAbove100L = s.players.filter(p => netWorth(p) >= WIN_CONDITION).length;
     
     console.log(JSON.stringify({
@@ -747,6 +750,7 @@ export function advanceTurn(state: GameState): GameState {
       s.endgameCancelledAcknowledged = false;
       console.log(JSON.stringify({ event: "ENDGAME_CANCELLED" }));
       s = addLog(s, `📉 Market conditions dropped all players below 100L. The game continues!`);
+      // Do not return here; let the turn advance normally since the endgame was cancelled.
     } else {
       // Game Ends
       s.phase = "finished";
@@ -773,9 +777,6 @@ export function advanceTurn(state: GameState): GameState {
     }
   }
 
-  // Advance Turn Normally
-  const nextIdx = (s.currentPlayerIndex + 1) % s.players.length;
-  const nextTurn = s.turn + 1;
   
   s = {
     ...s,
