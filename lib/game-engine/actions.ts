@@ -542,32 +542,48 @@ export function processConcentrationAudit(
   const overBonds = target.bonds > ASSET_CONCENTRATION_LIMIT;
   const overStocks = target.stocks > ASSET_CONCENTRATION_LIMIT;
 
-  if (overCash || overBonds || overStocks) {
-    // Successful Audit
-    let s = state;
-    let confiscatedMsg = "";
-    const updates: Partial<PlayerState> = {};
+    if (overCash || overBonds || overStocks) {
+      // Successful Audit
+      let s = state;
+      let confiscatedMsg = "";
+      const targetUpdates: Partial<PlayerState> = {};
+      const auditorUpdates: Partial<PlayerState> = {};
+      let auditorCashGain = 0;
+      let auditorBondsGain = 0;
+      let auditorStocksGain = 0;
 
-    if (overCash) {
-      const excess = target.cash - ASSET_CONCENTRATION_LIMIT;
-      updates.cash = ASSET_CONCENTRATION_LIMIT;
-      confiscatedMsg += `Cash (${excess}L) `;
-    }
-    if (overBonds) {
-      const excess = target.bonds - ASSET_CONCENTRATION_LIMIT;
-      updates.bonds = ASSET_CONCENTRATION_LIMIT;
-      confiscatedMsg += `Bonds (${excess}L) `;
-    }
-    if (overStocks) {
-      const excess = target.stocks - ASSET_CONCENTRATION_LIMIT;
-      updates.stocks = ASSET_CONCENTRATION_LIMIT;
-      confiscatedMsg += `Stocks (${excess}L) `;
-    }
+      if (overCash) {
+        const excess = target.cash - ASSET_CONCENTRATION_LIMIT;
+        targetUpdates.cash = ASSET_CONCENTRATION_LIMIT;
+        auditorCashGain += excess;
+        confiscatedMsg += `Cash (${excess}L) `;
+      }
+      if (overBonds) {
+        const excess = target.bonds - ASSET_CONCENTRATION_LIMIT;
+        targetUpdates.bonds = ASSET_CONCENTRATION_LIMIT;
+        auditorBondsGain += excess;
+        confiscatedMsg += `Bonds (${excess}L) `;
+      }
+      if (overStocks) {
+        const excess = target.stocks - ASSET_CONCENTRATION_LIMIT;
+        targetUpdates.stocks = ASSET_CONCENTRATION_LIMIT;
+        auditorStocksGain += excess;
+        confiscatedMsg += `Stocks (${excess}L) `;
+      }
 
-    s = updatePlayer(s, targetIdx, updates);
-    const msg = `Audit Successful — Excess wealth confiscated by bank.`;
-    s = addLog(s, `Successful Audit by ${auditor.name} on ${target.name}: Confiscated ${confiscatedMsg.trim()}.`);
-    return { state: { ...s, announcement: msg }, valid: true };
+      s = updatePlayer(s, targetIdx, targetUpdates);
+      
+      if (auditorCashGain > 0 || auditorBondsGain > 0 || auditorStocksGain > 0) {
+          s = updatePlayer(s, auditorIdx, {
+              cash: auditor.cash + auditorCashGain,
+              bonds: auditor.bonds + auditorBondsGain,
+              stocks: auditor.stocks + auditorStocksGain
+          });
+      }
+
+      const msg = `Audit Successful — Excess wealth transferred to auditor.`;
+      s = addLog(s, `Successful Audit by ${auditor.name} on ${target.name}: Transferred ${confiscatedMsg.trim()} to auditor.`);
+      return { state: { ...s, announcement: msg }, valid: true };
   } else {
     // Failed Audit
     const needsRebalance = auditor.cash < FALSE_AUDIT_PENALTY;
