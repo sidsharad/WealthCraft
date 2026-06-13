@@ -560,12 +560,13 @@ export default function GameRoomPage() {
             currentPlayer={turn.currentPlayer!}
             otherPlayers={turn.gameState.players.map((p, i) => ({ player: p, originalIndex: i })).filter(x => x.player.id !== turn.currentPlayer?.id)}
             onConfirm={(payload) => {
-              if (turn.showTargetedAction === "audit") {
+              const currentAction = turn.showTargetedAction;
+              turn.setShowTargetedAction(null);
+              if (currentAction === "audit") {
                 turn.performAction("audit", payload);
               } else {
                 turn.performAction("tile-action", payload);
               }
-              turn.setShowTargetedAction(null);
             }}
             onClose={() => turn.setShowTargetedAction(null)}
           />
@@ -578,12 +579,13 @@ export default function GameRoomPage() {
             playerCash={turn.currentPlayer?.cash || 0}
             emergencyAmount={turn.pendingEmergencyAmount ?? undefined}
             onConfirm={(payload) => {
-              if (turn.showChoiceModal === "emergency-decision") {
+              const currentModal = turn.showChoiceModal;
+              turn.setShowChoiceModal(null);
+              if (currentModal === "emergency-decision") {
                 turn.performAction("emergency-decision", payload);
               } else {
                 turn.performAction("tile-action", payload);
               }
-              turn.setShowChoiceModal(null);
             }}
             onClose={() => turn.setShowChoiceModal(null)}
           />

@@ -53,6 +53,7 @@ describe("Emergency Rebalance Flow Verification", () => {
     expect(result.sideEffect).toBeUndefined(); // no second rebalance triggered
     expect(result.state.players[0].cash).toBe(0);
     expect(result.state.emergencyState).toBeUndefined();
+    expect(result.state.phase).toBe("trade");
   });
 
   it("Case B: One legal rebalance possible. Triggers needs-rebalance.", () => {
@@ -75,6 +76,7 @@ describe("Emergency Rebalance Flow Verification", () => {
     expect(result.state.players[0].cash).toBe(0);
     expect(result.state.players[0].bonds).toBe(0);
     expect(result.state.emergencyState).toBeUndefined();
+    expect(result.state.phase).toBe("trade");
   });
 
   it("Test A & B: Emergency -> Rebalance -> 3L Penalty -> Cash sufficient -> One-time deduction & no loops", () => {
@@ -99,6 +101,9 @@ describe("Emergency Rebalance Flow Verification", () => {
     
     // Verify no secondary modal/rebalance loop triggered
     expect(result.sideEffect).toBeUndefined();
+
+    // Verify phase transitioned correctly so Tile Action doesn't reappear
+    expect(result.state.phase).toBe("trade");
   });
 });
 

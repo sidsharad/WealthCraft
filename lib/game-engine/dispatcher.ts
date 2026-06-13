@@ -302,6 +302,9 @@ export function dispatch(
          
          // Fully clear emergency state to prevent infinite loops
          s.emergencyState = undefined;
+         
+         // The emergency tile is fully resolved, advance to trade
+         return { state: { ...s, phase: "trade" } };
       }
 
       const isInitialSetup = s.year === 1 && s.phase === "year-end" && s.turn < s.players.length;
