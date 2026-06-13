@@ -1,9 +1,9 @@
 import React from "react";
-import { HelpCircle, DollarSign, Zap, Ticket } from "lucide-react";
+import { HelpCircle, DollarSign, Zap, Ticket, AlertTriangle } from "lucide-react";
 
 interface ChoiceModalProps {
   isOpen: boolean;
-  type: "lottery" | "ipo" | "emergency";
+  type: "lottery" | "ipo" | "emergency" | "emergency-decision";
   onConfirm: (payload: any) => void;
   onClose: () => void;
   playerCash: number;
@@ -22,6 +22,31 @@ export default function ChoiceModal({
   if (!isOpen) return null;
 
   // ─── Content definitions ────────────────────────────────────────────────────
+
+  if (type === "emergency-decision") {
+    return (
+      <Modal>
+        <Header icon={<AlertTriangle size={32} className="text-red-500" />} title="Insufficient Cash!" />
+        <p className="text-gray-500 text-sm mt-2 text-center mb-6">
+          You do not have sufficient cash to pay this emergency. You may initiate one trade with another player to raise cash, or proceed directly to portfolio rebalancing.
+        </p>
+        <div className="space-y-3">
+          <button
+            onClick={() => onConfirm({ decision: "trade" })}
+            className="btn-primary w-full py-4 text-sm font-black uppercase tracking-widest transition-colors"
+          >
+            Initiate Trade
+          </button>
+          <button
+            onClick={() => onConfirm({ decision: "rebalance" })}
+            className="bg-red-600 hover:bg-red-700 text-white font-black w-full py-4 text-sm uppercase tracking-widest rounded-2xl transition-colors"
+          >
+            Rebalance Portfolio
+          </button>
+        </div>
+      </Modal>
+    );
+  }
 
   if (type === "lottery") {
     return (

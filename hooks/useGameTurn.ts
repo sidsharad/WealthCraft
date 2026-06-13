@@ -273,7 +273,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   const [showRebalance, setShowRebalance] = useState(false);
   const [showLeadersDilemma, setShowLeadersDilemma] = useState(false);
   const [showTargetedAction, setShowTargetedAction] = useState<"tax-raid" | "hostile-takeover" | "audit" | null>(null);
-  const [showChoiceModal, setShowChoiceModal] = useState<"lottery" | "ipo" | "emergency" | null>(null);
+  const [showChoiceModal, setShowChoiceModal] = useState<"lottery" | "ipo" | "emergency" | "emergency-decision" | null>(null);
   const [showPassDevice, setShowPassDevice] = useState(false);
 
   const [pendingEmergencyAmount, setPendingEmergencyAmount] = useState<number | null>(null);
@@ -799,6 +799,16 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     setRebalancePenaltyOverride(null);
   }, [gameState?.currentPlayerIndex]);
 
+  // Handle auto-rebalance for emergency trades if trade is rejected or fails to cover
+  useEffect(() => {
+    if (gameState?.emergencyState?.status === "rebalance-required" && gameState.emergencyState.playerId === stableUserId) {
+      if (!showRebalance) {
+         setRebalancePenaltyOverride(3);
+         setShowRebalance(true);
+      }
+    }
+  }, [gameState?.emergencyState?.status, gameState?.emergencyState?.playerId, stableUserId, showRebalance]);
+
   // Action Dispatcher
   const performAction = useCallback(async (action: string, payload?: any) => {
     const handleSideEffect = (fx: any, stateToSet: GameState) => {
@@ -809,9 +819,18 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
           setPendingEmergencyAmount(fx.emergencyAmount);
           setShowChoiceModal("emergency");
         }
+        else if (m === "emergency-decision") {
+          setShowChoiceModal("emergency-decision");
+        }
         else if (m === "tax-raid") setShowTargetedAction("tax-raid");
         else if (m === "hostile-takeover") setShowTargetedAction("hostile-takeover");
         else if (m === "audit") setShowTargetedAction("audit");
+        return true;
+      }
+      if (fx.type === "show-trade") {
+        setShowTrade(true);
+        setShowChoiceModal(null);
+        setGameState(stateToSet);
         return true;
       }
       if (fx.type === "start-lottery-roll") {

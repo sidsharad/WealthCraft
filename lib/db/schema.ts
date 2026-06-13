@@ -101,6 +101,25 @@ export interface LogEntry {
   timestamp: number;
 }
 
+export interface EmergencyState {
+  eventId: string;
+  playerId: string;
+  amount: number;
+
+  tradeAttempted: boolean;
+
+  status:
+    | "awaiting-decision"
+    | "awaiting-trade-response"
+    | "rebalance-required"
+    | "resolved";
+
+  resolution?:
+    | "Paid From Cash"
+    | "Paid After Trade"
+    | "Mandatory Rebalance";
+}
+
 export interface GameState {
   turn: number;
   year: number;
@@ -112,6 +131,7 @@ export interface GameState {
   pendingTrade?: TradeOffer;
   announcement?: string;
   privateMessage?: string;
+  emergencyState?: EmergencyState;
   
   // Endgame Rules
   endgameCandidate?: boolean;

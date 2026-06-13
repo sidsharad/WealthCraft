@@ -148,23 +148,21 @@ export function dispatch(
           }
           
           if (player.cash < amount) {
-            // If they can't afford it, check if they can physically rebalance in legal 5L blocks
-            const canRebalance = player.bonds >= 5 || player.stocks >= 5;
-            if (canRebalance) {
-              return { state, sideEffect: { type: "needs-rebalance", penalty: 3 } };
-            } else {
-              // They can't even afford to rebalance. Take whatever cash they have and move on.
-              console.log(JSON.stringify({
-                event: "EMERGENCY_PARTIAL_PAYMENT",
+            // If they can't afford it, give them one trade attempt before forcing a rebalance
+            const eventId = `EMC_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            
+            s = {
+              ...s,
+              emergencyState: {
+                eventId,
                 playerId: player.id,
-                emergencyAmount: amount,
-                cashAvailable: player.cash,
-                amountPaid: player.cash,
-                remainingUnpaid: amount - player.cash
-              }));
-              s = applyEmergency(s, playerIdx, player.cash);
-              break;
-            }
+                amount,
+                tradeAttempted: false,
+                status: "awaiting-decision"
+              }
+            };
+            
+            return { state: s, sideEffect: { type: "show-modal", modal: "emergency-decision" } as any };
           }
           
           s = applyEmergency(s, playerIdx, amount);
@@ -244,12 +242,21 @@ export function dispatch(
       const result = applyYearEndRebalance(state, playerIdx, newCash, newBonds, newStocks, penalty);
       if (!result.valid) return { state, sideEffect: { type: "error", message: result.error! } };
       
-      const isInitialSetup = state.year === 1 && state.phase === "year-end" && state.turn < state.players.length;
+      let s = result.state;
+      if (s.emergencyState && s.emergencyState.playerId === player.id) {
+         s.emergencyState = {
+           ...s.emergencyState!,
+           status: "resolved",
+           resolution: "Mandatory Rebalance"
+         };
+      }
+
+      const isInitialSetup = s.year === 1 && s.phase === "year-end" && s.turn < s.players.length;
       if (isInitialSetup) {
-        return { state: advanceTurn(result.state) };
+        return { state: advanceTurn(s) };
       }
       
-      return { state: { ...result.state, phase: "action" } };
+      return { state: { ...s, phase: "action" } };
     }
 
     case "acknowledge-endgame-trigger": {
@@ -260,8 +267,39 @@ export function dispatch(
       return { state: { ...state, endgameCancelledAcknowledged: true } };
     }
 
+    case "emergency-decision": {
+      const decision = payload?.decision; // "trade" or "rebalance"
+      if (!state.emergencyState || state.emergencyState.playerId !== player.id) return { state };
+      
+      if (decision === "rebalance") {
+        let s = { ...state };
+        s.emergencyState = {
+          ...s.emergencyState!,
+          status: "rebalance-required",
+          resolution: "Mandatory Rebalance"
+        };
+        // Rebalance penalty is fixed at 3 for forced emergency rebalance
+        return { state: s, sideEffect: { type: "needs-rebalance", penalty: 3 } };
+      } else if (decision === "trade") {
+        // Just unlock the trade modal and mark attempted
+        let s = { ...state };
+        s.emergencyState = {
+          ...s.emergencyState!,
+          tradeAttempted: true,
+          status: "awaiting-trade-response"
+        };
+        return { state: s, sideEffect: { type: "show-trade" } as any };
+      }
+      return { state };
+    }
 
     case "trade-offer": {
+      if (state.emergencyState && state.emergencyState.playerId === player.id) {
+        if (state.emergencyState.status !== "awaiting-trade-response") {
+          return { state, sideEffect: { type: "error", message: "Trade already attempted or not allowed for this emergency." } };
+        }
+      }
+
       const offer = payload?.offer as any;
       const request = payload?.request as any;
 
@@ -314,8 +352,39 @@ export function dispatch(
       return { state: s, sideEffect: { type: "show-pass-device" } };
     }
 
-    case "trade-response":
-      return { state: resolveTrade(state, payload?.accept as boolean) };
+    case "trade-response": {
+      let s = resolveTrade(state, payload?.accept as boolean);
+      
+      // Intercept if there's an active emergency
+      if (s.emergencyState && state.pendingTrade && s.emergencyState.playerId === state.pendingTrade.fromPlayerId) {
+        if (!payload?.accept) {
+           s.emergencyState = {
+             ...s.emergencyState!,
+             status: "rebalance-required",
+             resolution: "Mandatory Rebalance"
+           };
+        } else {
+           // Trade accepted, check cash
+           const proposerIdx = s.players.findIndex(p => p.id === s.emergencyState!.playerId);
+           const proposer = s.players[proposerIdx];
+           if (proposer.cash >= s.emergencyState.amount) {
+              s = applyEmergency(s, proposerIdx, s.emergencyState.amount);
+              s.emergencyState = {
+                ...s.emergencyState!,
+                status: "resolved",
+                resolution: "Paid After Trade"
+              };
+           } else {
+              s.emergencyState = {
+                ...s.emergencyState!,
+                status: "rebalance-required",
+                resolution: "Mandatory Rebalance"
+              };
+           }
+        }
+      }
+      return { state: s };
+    }
 
     case "end-turn":
       return { state: advanceTurn(state) };
@@ -346,7 +415,7 @@ export function dispatch(
  * whatever modal/auction context is currently active.
  */
 export interface TimeoutContext {
-  activeModal?: "emergency" | "ipo" | "lottery" | null;
+  activeModal?: "emergency" | "ipo" | "lottery" | "emergency-decision" | null;
   activeTargetedAction?: "tax-raid" | "hostile-takeover" | "audit" | null;
   auctionOpen?: boolean;
   pendingEmergencyAmount?: number | null;
@@ -365,6 +434,9 @@ export function resolveTimeout(
   // 1. A modal is open — resolve it directly
   if (ctx.activeModal === "emergency") {
     return { action: "tile-action", payload: { amount: ctx.pendingEmergencyAmount ?? 3 } };
+  }
+  if (ctx.activeModal === "emergency-decision") {
+    return { action: "emergency-decision", payload: { decision: "rebalance" } };
   }
   if (ctx.activeModal === "ipo") {
     return { action: "tile-action", payload: { amount: 0 } };
