@@ -216,6 +216,32 @@ export function dispatch(
       if (s.phase !== "auction") s = { ...s, phase: "trade" };
       return { state: s };
     }
+    case "emergency-decision": {
+      const decision = payload?.decision as string;
+      
+      // Safety net: ensure we only act if there's actually an emergency
+      if (!state.emergencyState || state.emergencyState.playerId !== player.id) {
+        return { state };
+      }
+
+      if (decision === "trade") {
+        return { state, sideEffect: { type: "show-trade" } as any };
+      }
+      
+      if (decision === "rebalance") {
+        let s = state;
+        s = {
+          ...s,
+          emergencyState: {
+            ...s.emergencyState,
+            status: "rebalance-required",
+            resolution: "Mandatory Rebalance"
+          }
+        };
+        return { state: s, sideEffect: { type: "needs-rebalance", penalty: 3 } };
+      }
+      return { state };
+    }
 
     case "bid": {
       if (!state.auctionState?.open) return { state };
