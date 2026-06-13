@@ -201,11 +201,12 @@ export default function RulesPage() {
               <Scale className="w-6 h-6 text-red-400" />
               <h3 className="text-lg font-bold text-white">Portfolio Audits</h3>
             </div>
-            <p className="text-white/60 text-sm leading-relaxed flex-1">
-              Players are vulnerable to audits if they hold <strong className="text-white">more than 40L</strong> in any single asset type. 
-              Initiate an optional audit on a rival's turn. If they exceed 40L, all excess is transferred to the auditing player. 
-              If they are under the limit, you pay a <strong className="text-white">5L false-alarm fee</strong>.
-            </p>
+            <div className="text-white/60 text-sm leading-relaxed flex-1 space-y-2">
+              <p><strong className="text-white">Years 1–2:</strong> Players become auditable if they hold more than 20L in any single asset class.</p>
+              <p><strong className="text-white">Year 3 onwards:</strong> Players become auditable if they hold more than 40L in any single asset class.</p>
+              <p>On a successful audit, all excess above the applicable threshold is confiscated and transferred to the auditing player.</p>
+              <p>False audits cost <strong className="text-white">5L</strong>.</p>
+            </div>
           </div>
 
           <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 border border-white/10 flex flex-col">
@@ -277,7 +278,7 @@ export default function RulesPage() {
               <div>
                 <strong className="text-white text-base block mb-1">⚖️ Audit Tactics & Evasion</strong>
                 <p className="text-white/60 leading-relaxed">
-                  Constantly monitor your opponent's holdings. If their portfolio card highlights any asset exceeding 40L, initiate an audit to slice down their wealth. To protect yourself, always utilize the free Year-End rebalance phase to stay under the 40L threshold.
+                  Constantly monitor your opponent's holdings. If their portfolio card highlights any asset exceeding the applicable threshold (20L early, 40L later), initiate an audit to slice down their wealth. To protect yourself, always utilize the free Year-End rebalance phase to stay under the current limit.
                 </p>
               </div>
               <div>

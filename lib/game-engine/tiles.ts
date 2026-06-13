@@ -263,4 +263,7 @@ export const PENALTY_TIER_2 = { min: 80, max: 89, amount: 15 };
 export const PENALTY_TIER_3 = { min: 90, max: 99, amount: 20 };
 
 // Asset Concentration Rules
-export const ASSET_CONCENTRATION_LIMIT = 40; // 40L
+export function getAuditThreshold(year: number): number {
+  return year <= 2 ? 20 : 40;
+}
+export const ASSET_CONCENTRATION_LIMIT = 40; // 40L (legacy constant)

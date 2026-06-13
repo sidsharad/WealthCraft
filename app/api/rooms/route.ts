@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { rooms, users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { getRoomChannel, PUSHER_EVENTS, safeTrigger } from "@/lib/pusher";
 import { auditDatabaseRoomState } from "@/lib/db/queries";
 
@@ -96,15 +96,19 @@ export async function GET(req: NextRequest) {
   if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
   auditDatabaseRoomState(room);
 
-  // Fetch player details
+  // Fetch player details using a single query (Priority 2)
   const playerIds = room.playerIds as string[];
-  const playerDetails = await Promise.all(
-    playerIds.map(async (id) => {
-      const [u] = await db.select({ id: users.id, name: users.name, avatarUrl: users.avatarUrl })
-        .from(users).where(eq(users.id, id));
-      return u;
-    })
-  );
+  let playerDetails: any[] = [];
+  
+  if (playerIds && playerIds.length > 0) {
+    const fetchedUsers = await db
+      .select({ id: users.id, name: users.name, avatarUrl: users.avatarUrl })
+      .from(users)
+      .where(inArray(users.id, playerIds));
+      
+    // Map them back to the original order to preserve response structure
+    playerDetails = playerIds.map(id => fetchedUsers.find(u => u.id === id)).filter(Boolean);
+  }
 
   const response = NextResponse.json({ room, players: playerDetails });
   

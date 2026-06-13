@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rooms, gameResults } from "@/lib/db/schema";
-import { eq, ne, and, lt } from "drizzle-orm";
+import { eq, ne, and, lt, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -20,23 +20,17 @@ export async function GET() {
 
   try {
     console.log("ANALYTICS_STEP", "rooms query");
-    const allRooms = await db.select().from(rooms);
-    const gamesCreated = allRooms.length;
+    const [createdResult] = await db.select({ count: sql<number>`count(*)` }).from(rooms);
+    const gamesCreated = Number(createdResult.count);
 
-    const gamesStarted = allRooms.filter((room: any) => {
-      const players = Array.isArray(room.playerIds) ? room.playerIds : [];
-      if (players.length < 2) return false;
-      const state = room.gameState as any;
-      if (!state) return false;
-      if (state.turn > 1) return true;
-      if (state.log && Array.isArray(state.log) && state.log.length > 0) return true;
-      return false;
-    }).length;
+    const [startedResult] = await db.select({ count: sql<number>`count(*)` }).from(rooms).where(ne(rooms.status, "lobby"));
+    const gamesStarted = Number(startedResult.count);
 
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const gamesAbandoned = allRooms.filter((room: any) => 
-      room.status !== "finished" && new Date(room.updatedAt).getTime() < oneDayAgo.getTime()
-    ).length;
+    const [abandonedResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(rooms)
+      .where(and(ne(rooms.status, "finished"), lt(rooms.updatedAt, oneDayAgo)));
+    const gamesAbandoned = Number(abandonedResult.count);
 
     console.log("ANALYTICS_STEP", "game results query");
     // Fetch all game results for aggregation

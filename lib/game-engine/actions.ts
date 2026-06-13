@@ -8,7 +8,7 @@ import {
   LOTTERY_COST, TAX_RAID_COST, TAX_RAID_PENALTY,
   HOUSE_MARKET_PRICE, HOUSE_AUCTION_MIN, HOUSE_MANDATORY_YEAR,
   IPO_MAX_INVEST,
-  ASSET_CONCENTRATION_LIMIT, FALSE_AUDIT_PENALTY,
+  getAuditThreshold, ASSET_CONCENTRATION_LIMIT, FALSE_AUDIT_PENALTY,
   getTileByPosition,
 } from "./tiles";
 /** Floor to nearest 5L block (for return calculations) */
@@ -538,12 +538,29 @@ export function processConcentrationAudit(
 
   if (auditorIdx === targetIdx) return { state, valid: false, error: "You cannot audit yourself." };
 
-  const overCash = target.cash > ASSET_CONCENTRATION_LIMIT;
-  const overBonds = target.bonds > ASSET_CONCENTRATION_LIMIT;
-  const overStocks = target.stocks > ASSET_CONCENTRATION_LIMIT;
+  const limit = getAuditThreshold(state.year);
+
+  const overCash = target.cash > limit;
+  const overBonds = target.bonds > limit;
+  const overStocks = target.stocks > limit;
+
+  console.log(JSON.stringify({
+    event: "AUDIT_ATTEMPT",
+    auditorId: auditor.id,
+    targetId: target.id,
+    auditYear: state.year,
+    threshold: limit
+  }));
 
     if (overCash || overBonds || overStocks) {
       // Successful Audit
+      console.log(JSON.stringify({
+        event: "AUDIT_SUCCESS",
+        auditorId: auditor.id,
+        targetId: target.id,
+        auditYear: state.year
+      }));
+
       let s = state;
       let confiscatedMsg = "";
       const targetUpdates: Partial<PlayerState> = {};
@@ -553,20 +570,20 @@ export function processConcentrationAudit(
       let auditorStocksGain = 0;
 
       if (overCash) {
-        const excess = target.cash - ASSET_CONCENTRATION_LIMIT;
-        targetUpdates.cash = ASSET_CONCENTRATION_LIMIT;
+        const excess = target.cash - limit;
+        targetUpdates.cash = limit;
         auditorCashGain += excess;
         confiscatedMsg += `Cash (${excess}L) `;
       }
       if (overBonds) {
-        const excess = target.bonds - ASSET_CONCENTRATION_LIMIT;
-        targetUpdates.bonds = ASSET_CONCENTRATION_LIMIT;
+        const excess = target.bonds - limit;
+        targetUpdates.bonds = limit;
         auditorBondsGain += excess;
         confiscatedMsg += `Bonds (${excess}L) `;
       }
       if (overStocks) {
-        const excess = target.stocks - ASSET_CONCENTRATION_LIMIT;
-        targetUpdates.stocks = ASSET_CONCENTRATION_LIMIT;
+        const excess = target.stocks - limit;
+        targetUpdates.stocks = limit;
         auditorStocksGain += excess;
         confiscatedMsg += `Stocks (${excess}L) `;
       }
@@ -586,6 +603,12 @@ export function processConcentrationAudit(
       return { state: { ...s, announcement: msg }, valid: true };
   } else {
     // Failed Audit
+    console.log(JSON.stringify({
+      event: "AUDIT_FAILURE",
+      auditorId: auditor.id,
+      targetId: target.id,
+      auditYear: state.year
+    }));
     const needsRebalance = auditor.cash < FALSE_AUDIT_PENALTY;
     
     if (needsRebalance) {

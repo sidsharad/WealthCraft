@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { PlayerState } from "@/lib/db/schema";
 import { Sword, Search, Users, AlertCircle, ShieldAlert } from "lucide-react";
+import { getAuditThreshold } from "@/lib/game-engine/tiles";
 
 interface TargetedActionModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export default function TargetedActionModal({
 
   const isHostile = type === "hostile-takeover";
   const isAudit = type === "audit";
+  const limit = getAuditThreshold(currentPlayer.year);
 
   const handleConfirm = () => {
     if (selectedTarget === null) return;
@@ -34,7 +36,12 @@ export default function TargetedActionModal({
     if (isHostile) {
       onConfirm({
         targetIdx: selectedTarget,
-        demandType: demandType,
+        asset: demandType,
+        amount: amount,
+      });
+    } else if (isAudit) {
+      onConfirm({
+        targetIdx: selectedTarget,
       });
     } else {
       onConfirm({
@@ -65,7 +72,7 @@ export default function TargetedActionModal({
             {isHostile 
               ? "Take up to 5L in assets from another player." 
               : isAudit 
-                ? "Check if a player has > 40L in any asset category."
+                ? `Check if a player has > ${limit}L in any asset category.`
                 : "Pay 2L to enforce a penalty on another player."}
           </p>
         </div>
@@ -140,7 +147,7 @@ export default function TargetedActionModal({
             <div className="bg-blue-50 p-4 rounded-2xl flex items-start gap-3 border border-blue-100">
               <ShieldAlert className="text-blue-500 flex-shrink-0" size={18} />
               <p className="text-[11px] font-bold text-blue-800 leading-tight">
-                If successful (any asset &gt; 40L), excess is confiscated. If failed, you pay 5L penalty.
+                If successful (any asset &gt; {limit}L), excess is confiscated. If failed, you pay 5L penalty.
               </p>
             </div>
           )}

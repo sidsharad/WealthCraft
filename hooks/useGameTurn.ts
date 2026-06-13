@@ -432,6 +432,15 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
       // Log the fetch response
       console.log(JSON.stringify({
+        event: "room_fetch",
+        roomId: data?.room?.id || code,
+        playerCount: data?.room?.playerIds?.length || 0,
+        source: source,
+        responseSize: text.length,
+        timestamp: new Date().toISOString()
+      }));
+
+      console.log(JSON.stringify({
         timestamp: new Date().toISOString(),
         event: "FETCH_ROOM_RESPONSE",
         source: source,
@@ -597,8 +606,6 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
         channel = pusher.subscribe(getRoomChannel(code));
         
-        // When Pusher notifies us of an update, fetch the fresh state immediately.
-        // This avoids Pusher's 10KB message limit which was breaking the game mid-way!
         const createPusherHandler = (eventName: string) => {
           return () => {
             console.log(JSON.stringify({
@@ -608,7 +615,8 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
               roomCode: code,
               fetchTriggered: true
             }, null, 2));
-            fetchRoom("pusher_update_fetch", false);
+            lastUpdateTimestampRef.current = Date.now(); // Record pusher event time for watchdog
+            fetchRoom("pusher", false);
           };
         };
         
@@ -621,27 +629,71 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       }
     }
 
-    // Fail-safe Hybrid Polling: always poll the server every 1.5 seconds as a fallback.
-    // This ensures that turns and transitions synchronize seamlessly even if Pusher disconnects.
-    // Uses a recursive setTimeout to prevent requests from stacking and stalling the browser.
+    // Priority 1: Eliminating Aggressive Polling
     let isSubscribed = true;
-    let pollTimer: NodeJS.Timeout;
-
-    const poll = async () => {
+    let fallbackPollTimer: NodeJS.Timeout;
+    let silentFailureWatchdogTimer: NodeJS.Timeout;
+    
+    // We update this timestamp when a Pusher event arrives or a fetch succeeds.
+    // Ensure initial value is present.
+    lastUpdateTimestampRef.current = Date.now();
+    
+    const fallbackPoll = async () => {
       if (!isSubscribed) return;
       try {
         if (!gameStateRef.current || gameStateRef.current.phase !== "finished") {
-          await fetchRoom("poll_fetch", false); // background poll (silent)
+          console.log(JSON.stringify({ event: "fallback_poll_triggered" }));
+          await fetchRoom("fallback_poll", false);
         }
       } catch (e) {
-        // Safe to ignore: error logged in fetchRoom, continue scheduling next poll
+        // Safe to ignore
       } finally {
         if (isSubscribed) {
-          pollTimer = setTimeout(poll, 1500);
+          fallbackPollTimer = setTimeout(fallbackPoll, 15000);
         }
       }
     };
-    pollTimer = setTimeout(poll, 1500);
+
+    const managePolling = () => {
+      if (!isSubscribed) return;
+      const state = pusher?.connection?.state;
+      if (state !== "connected") {
+        if (!fallbackPollTimer) {
+          console.log(JSON.stringify({ event: "fallback_poll_started", connectionState: state }));
+          fallbackPollTimer = setTimeout(fallbackPoll, 15000);
+        }
+      } else {
+        if (fallbackPollTimer) {
+          console.log(JSON.stringify({ event: "fallback_poll_stopped" }));
+          clearTimeout(fallbackPollTimer);
+          fallbackPollTimer = undefined as any;
+        }
+      }
+    };
+
+    // Listen to connection state changes explicitly
+    pusher?.connection?.bind("state_change", (states: any) => {
+      console.log(JSON.stringify({ event: states.current === "connected" ? "pusher_connected" : "pusher_disconnected", state: states.current }));
+      managePolling();
+    });
+    
+    managePolling();
+
+    // Silent failure detection
+    const silentFailureWatchdog = () => {
+      if (!isSubscribed) return;
+      const timeSinceUpdate = Date.now() - lastUpdateTimestampRef.current;
+      if (timeSinceUpdate >= 20000 && pusher?.connection?.state === "connected") {
+        if (!gameStateRef.current || gameStateRef.current.phase !== "finished") {
+          console.log(JSON.stringify({ event: "silent_failure_detected", timeSinceUpdate }));
+          console.log(JSON.stringify({ event: "fallback_poll_triggered" }));
+          fetchRoom("fallback_poll_silent_failure", false);
+        }
+      }
+      if (isSubscribed) silentFailureWatchdogTimer = setTimeout(silentFailureWatchdog, 5000);
+    };
+    silentFailureWatchdogTimer = setTimeout(silentFailureWatchdog, 5000);
+
 
     // When the browser tab becomes active again, fetch immediately.
     // This fixes the issue where Chrome throttles setTimeout in inactive tabs after 5 minutes!
@@ -665,58 +717,12 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
           } catch (e) {}
         }
       }
-      clearTimeout(pollTimer);
+      clearTimeout(fallbackPollTimer);
+      clearTimeout(silentFailureWatchdogTimer);
     };
   }, [code, isLocal, fetchRoom]);
 
-  // 15-second Stale Watchdog Timer
-  useEffect(() => {
-    if (isLocal || !gameState || gameState.phase === "finished") return;
-
-    const interval = setInterval(() => {
-      const timeSinceUpdate = Date.now() - lastUpdateTimestampRef.current;
-      if (timeSinceUpdate > 15000) {
-        setWatchdogStale(true);
-        console.warn(JSON.stringify({
-          timestamp: new Date().toISOString(),
-          event: "WATCHDOG_STALE_DETECTED",
-          roomId: roomIdRef.current,
-          playerId: stableUserId,
-          timeSinceLastUpdateMs: timeSinceUpdate,
-          watchdogRefreshesCount: watchdogRefreshes + 1,
-          message: "No updates received for >15 seconds. Triggering stale refresh recovery."
-        }));
-
-        setWatchdogRefreshes(prev => prev + 1);
-        
-        fetchRoom("watchdog_fetch", false)
-          .then(() => {
-            setWatchdogStale(false);
-            console.log(JSON.stringify({
-              timestamp: new Date().toISOString(),
-              event: "WATCHDOG_RECOVERY_SUCCESS",
-              roomId: roomIdRef.current,
-              playerId: stableUserId,
-              watchdogRefreshesCount: watchdogRefreshes + 1,
-              message: "Watchdog successfully recovered room state"
-            }));
-          })
-          .catch((err) => {
-            console.error(JSON.stringify({
-              timestamp: new Date().toISOString(),
-              event: "WATCHDOG_RECOVERY_FAILURE",
-              roomId: roomIdRef.current,
-              playerId: stableUserId,
-              watchdogRefreshesCount: watchdogRefreshes + 1,
-              error: err?.message || err,
-              message: "Watchdog recovery refresh failed"
-            }));
-          });
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isLocal, gameState, fetchRoom, stableUserId, watchdogRefreshes]);
+  // The 15-second Stale Watchdog Timer has been replaced by the new silent failure detection logic in the main hook.
 
   // 10-second Active Gameplay Freeze Detection Watchdog
   useEffect(() => {
