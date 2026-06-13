@@ -2,6 +2,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { EmergencyTestHarness } from "@/components/game/EmergencyTestHarness";
+import { QAPassAndPlayPanel } from "@/components/game/QAPassAndPlayPanel";
 import { TILES, HOUSE_MARKET_PRICE, HOUSE_AUCTION_MIN } from "@/lib/game-engine/tiles";
 import { netWorth } from "@/lib/game-engine/actions";
 import { useGameTurn } from "@/hooks/useGameTurn";
@@ -156,6 +158,20 @@ export default function GameRoomPage() {
             <LogOut size={18} />
           </button>
         </div>
+
+        {turn.isLocal && turn.currentPlayer && (
+          <EmergencyTestHarness 
+            player={turn.currentPlayer} 
+            roomId={turn.room.id}
+            emergencyState={turn.gameState.emergencyState}
+            onPerformAction={turn.performAction}
+          />
+        )}
+
+        <QAPassAndPlayPanel 
+          isLocal={turn.isLocal} 
+          onPerformAction={turn.performAction} 
+        />
 
         {/* Connection Status Pill */}
         {!isLocal && (

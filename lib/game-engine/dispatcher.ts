@@ -103,25 +103,31 @@ export function dispatch(
       return { state: s };
     }
 
+    case "qa-force-emergency": {
+      // DEV ONLY: Forces an emergency using exact production logic by mocking the tile effect
+      const amount = payload?.amount as number;
+      return dispatch(state, "tile-action", { amount, __qaOverride: "emergency" });
+    }
+
     case "tile-action": {
-      const tile = getTileByPosition(player.position);
+      const effect = payload?.__qaOverride || getTileByPosition(player.position).effect;
 
       // Tiles that need a modal first — signal the page if payload is absent
-      if (!payload) {
-        if (tile.effect === "ipo") return { state, sideEffect: { type: "show-modal", modal: "ipo" } };
-        if (tile.effect === "emergency") {
+      if (!payload || payload.__qaOverride) {
+        if (effect === "ipo" && !payload?.amount) return { state, sideEffect: { type: "show-modal", modal: "ipo" } };
+        if (effect === "emergency" && !payload?.amount) {
           const rand = Math.random();
           const emergencyAmount = rand < 0.5 ? 3 : rand < 0.8 ? 5 : 10;
           return { state, sideEffect: { type: "show-modal", modal: "emergency", emergencyAmount } };
         }
-        if (tile.effect === "lottery") return { state, sideEffect: { type: "show-modal", modal: "lottery" } };
-        if (tile.effect === "tax-raid") return { state, sideEffect: { type: "show-modal", modal: "tax-raid" } };
-        if (tile.effect === "hostile-takeover") return { state, sideEffect: { type: "show-modal", modal: "hostile-takeover" } };
+        if (effect === "lottery" && !payload) return { state, sideEffect: { type: "show-modal", modal: "lottery" } };
+        if (effect === "tax-raid" && !payload) return { state, sideEffect: { type: "show-modal", modal: "tax-raid" } };
+        if (effect === "hostile-takeover" && !payload) return { state, sideEffect: { type: "show-modal", modal: "hostile-takeover" } };
       }
 
       let s = state;
 
-      switch (tile.effect) {
+      switch (effect) {
         case "bonus": s = applyBonus(s, playerIdx); break;
         case "stock-rally": s = applyStockRally(s, playerIdx); break;
         case "stock-crash": s = applyStockCrash(s, playerIdx); break;
