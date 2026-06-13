@@ -194,7 +194,11 @@ export function dispatch(
             s = addLog(s, `${player.name} chose to take no action.`);
           } else {
             const targetIdx = toInt(payload?.targetIdx);
-            const result = applyHostileTakeover(s, playerIdx, targetIdx, payload?.demandType as any);
+            const assetType = payload?.asset || payload?.demandType;
+            if (assetType !== "cash" && assetType !== "bonds" && assetType !== "stocks") {
+              return { state, sideEffect: { type: "error", message: `Invalid asset type requested for takeover: ${assetType}` } };
+            }
+            const result = applyHostileTakeover(s, playerIdx, targetIdx, assetType as "cash" | "bonds" | "stocks");
             if (!result.valid) return { state, sideEffect: { type: "error", message: result.error! } };
             s = result.state;
           }
