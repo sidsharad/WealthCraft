@@ -244,11 +244,32 @@ export function dispatch(
       
       let s = result.state;
       if (s.emergencyState && s.emergencyState.playerId === player.id) {
-         s.emergencyState = {
-           ...s.emergencyState!,
-           status: "resolved",
-           resolution: "Mandatory Rebalance"
-         };
+         const amount = s.emergencyState.amount;
+         const p = s.players[playerIdx];
+         
+         if (p.cash >= amount) {
+           // Case 1: Cash is sufficient after rebalance
+           s = applyEmergency(s, playerIdx, amount);
+         } else {
+           // Case 2: Cash is NOT sufficient after rebalance.
+           // Check if another valid 5L rebalance block exists
+           const blocks = Math.floor(p.bonds / 5) + Math.floor(p.stocks / 5);
+           if (blocks > 0) {
+             // Still possible to rebalance more
+             s.emergencyState = {
+               ...s.emergencyState,
+               status: "rebalance-required",
+               resolution: "Mandatory Rebalance"
+             };
+             return { state: s, sideEffect: { type: "needs-rebalance", penalty: 3 } };
+           } else {
+             // No more 5L blocks possible, deduct all remaining cash
+             s = applyEmergency(s, playerIdx, p.cash);
+           }
+         }
+         
+         // Fully clear emergency state to prevent infinite loops
+         s.emergencyState = undefined;
       }
 
       const isInitialSetup = s.year === 1 && s.phase === "year-end" && s.turn < s.players.length;

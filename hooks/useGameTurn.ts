@@ -892,6 +892,9 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         }
 
         const finalState = applyWinCheck(result.state);
+        if (action === "tile-action" || action === "rebalance") {
+          setPendingEmergencyAmount(null);
+        }
         if (finalState?.currentPlayerIndex !== (gameStateRef.current?.currentPlayerIndex ?? -1)) {
           setPendingEmergencyAmount(null);
           const nextPlayer = finalState?.players?.[finalState?.currentPlayerIndex ?? -1];
@@ -979,7 +982,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
           setRebalancePenaltyOverride(5 + (data.gameState.phase !== "year-end" ? 3 : 0));
           setShowRebalance(true);
         } else {
-          if (action === "tile-action") {
+          if (action === "tile-action" || action === "rebalance") {
             setPendingEmergencyAmount(null);
           }
         }

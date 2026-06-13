@@ -562,7 +562,11 @@ export default function GameRoomPage() {
             playerCash={turn.currentPlayer?.cash || 0}
             emergencyAmount={turn.pendingEmergencyAmount ?? undefined}
             onConfirm={(payload) => {
-              turn.performAction("tile-action", payload);
+              if (turn.showChoiceModal === "emergency-decision") {
+                turn.performAction("emergency-decision", payload);
+              } else {
+                turn.performAction("tile-action", payload);
+              }
               turn.setShowChoiceModal(null);
             }}
             onClose={() => turn.setShowChoiceModal(null)}
