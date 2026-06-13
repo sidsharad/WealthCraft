@@ -10,8 +10,9 @@ export async function GET() {
   let hostname = null;
   let database = null;
 
+  return NextResponse.json({ url: rawUrl });
+
   try {
-    if (rawUrl && !rawUrl.includes("your-") && !rawUrl.includes("password@your")) {
       const parsedUrl = new URL(rawUrl);
       hostname = parsedUrl.hostname;
       // Remove leading slash from pathname
