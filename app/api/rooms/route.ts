@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
       .where(inArray(users.id, playerIds));
       
     // Map them back to the original order to preserve response structure
-    playerDetails = playerIds.map(id => fetchedUsers.find(u => u.id === id)).filter(Boolean);
+    playerDetails = playerIds.map(id => fetchedUsers.find((u: any) => u.id === id)).filter(Boolean);
   }
 
   const response = NextResponse.json({ room, players: playerDetails });
