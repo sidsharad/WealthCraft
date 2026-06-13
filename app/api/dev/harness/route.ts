@@ -39,9 +39,8 @@ export async function POST(req: Request) {
 
     await db.update(rooms).set({ gameState: gs, updatedAt: new Date() }).where(eq(rooms.id, roomId));
     
-    await safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_UPDATED, {
-      gameState: gs,
-      actionId: "dev-harness",
+    await safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STATE_UPDATE, {
+      event: "dev-harness",
       timestamp: Date.now()
     });
 
