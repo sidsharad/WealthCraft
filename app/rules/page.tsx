@@ -238,7 +238,7 @@ export default function RulesPage() {
               { name: "💥 Stock Crash", desc: "Your stocks drop. Deduct -2L stocks per 5L stocks held (only you)." },
               { name: "📊 IPO", desc: "Early investment opportunity. Invest up to 5L cash, receive 2x that amount in stocks." },
               { name: "❄️ Income Freeze", desc: "Temporary block. You do not collect the 5L income during Step 2 of this turn." },
-              { name: "🚨 Emergency", desc: "Unforeseen expenses. Draw a fee randomly and pay 3L, 5L, or 10L cash to the bank." },
+              { name: "🚨 Emergency", desc: "Unforeseen expenses. Draw a fee randomly and pay 5L or 10L cash to the bank." },
               { name: "🎟️ Lottery", desc: "Option to pay 2L to roll: 1-2 = nothing, 3-4 = receive +2L cash, 5-6 = receive +5L cash." },
               { name: "🏠 House Auction", desc: "Sealed-bid auction. All players submit a secret bid (min 10L). Highest bid wins." },
               { name: "🕵️ Tax Raid", desc: "Targeted tax inspection. Pay 2L to bank to target any rival; they must pay 5L to the bank." },

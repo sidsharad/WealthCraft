@@ -470,7 +470,7 @@ export default function GameRoomPage() {
                     <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>Mid-Year Rebalance:</strong> Costs a 3L fine outside of Year-End START.</span></li>
                     <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>Tax Raid:</strong> Proposer pays 2L to enforce audit. Target player pays 5L.</span></li>
                     <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>Hostile Takeover:</strong> Take up to 5L of one asset from another player (no splitting).</span></li>
-                    <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>Emergency:</strong> Costs 3L, 5L, or 10L paid in Cash.</span></li>
+                    <li className="flex gap-2 items-start"><span className="text-[var(--gold)] mt-0.5">●</span> <span><strong>Emergency:</strong> Costs 5L or 10L paid in Cash.</span></li>
                   </ul>
                 </section>
 

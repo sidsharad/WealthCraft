@@ -170,13 +170,13 @@ describe("Emergency Trade Initiation Tests", () => {
     let state = createTestState({ cash: 0, bonds: 0, stocks: 0 });
     state.players[0].position = 7;
     
-    let result = dispatch(state, "tile-action", { amount: 3 });
+    let result = dispatch(state, "tile-action", { amount: 5 });
     const eventIdBefore = result.state.emergencyState?.eventId;
     
     // Simulate a page refresh calling an unhandled action or doing nothing
     let refreshResult = dispatch(result.state, "unknown-action", {});
     
-    expect(refreshResult.state.emergencyState?.amount).toBe(3);
+    expect(refreshResult.state.emergencyState?.amount).toBe(5);
     expect(refreshResult.state.emergencyState?.eventId).toBe(eventIdBefore);
     expect(refreshResult.state.emergencyState?.status).toBe("awaiting-decision");
   });
@@ -186,7 +186,7 @@ describe("Emergency Trade Initiation Tests", () => {
       let state = createTestState({ cash: 0, bonds: 0, stocks: 0 });
       state.players[0].position = 7;
       
-      let res = dispatch(state, "tile-action", { amount: 3 });
+      let res = dispatch(state, "tile-action", { amount: 5 });
       expect(res.state.emergencyState?.status).toBe("awaiting-decision");
       
       res = dispatch(res.state, "emergency-decision", { decision: "trade" });
@@ -206,7 +206,7 @@ describe("Emergency Trade Initiation Tests", () => {
       let state = createTestState({ cash: 0, bonds: 0, stocks: 0 });
       state.players[0].position = 7;
       
-      let res = dispatch(state, "tile-action", { amount: 3 });
+      let res = dispatch(state, "tile-action", { amount: 5 });
       res = dispatch(res.state, "emergency-decision", { decision: "trade" });
       res = dispatch(res.state, "trade-offer", { toPlayerId: "p2", offer: { cash: 0, bonds: 0, stocks: 0 }, request: { cash: 5, bonds: 0, stocks: 0 } });
       res.state.players[1].cash = 10;
@@ -228,7 +228,7 @@ describe("Emergency Trade Initiation Tests", () => {
       let state = createTestState({ cash: 0, bonds: 0, stocks: 0 });
       state.players[0].position = 7;
       
-      let res1 = dispatch(state, "tile-action", { amount: 3 });
+      let res1 = dispatch(state, "tile-action", { amount: 5 });
       const eventId1 = res1.state.emergencyState?.eventId;
       
       res1 = dispatch(res1.state, "emergency-decision", { decision: "trade" });

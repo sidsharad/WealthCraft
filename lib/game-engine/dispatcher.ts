@@ -117,7 +117,7 @@ export function dispatch(
         if (effect === "ipo" && !payload?.amount) return { state, sideEffect: { type: "show-modal", modal: "ipo" } };
         if (effect === "emergency" && !payload?.amount) {
           const rand = Math.random();
-          const emergencyAmount = rand < 0.5 ? 3 : rand < 0.8 ? 5 : 10;
+          const emergencyAmount = rand < 0.5 ? 5 : 10;
           return { state, sideEffect: { type: "show-modal", modal: "emergency", emergencyAmount } };
         }
         if (effect === "lottery" && !payload) return { state, sideEffect: { type: "show-modal", modal: "lottery" } };
@@ -149,7 +149,7 @@ export function dispatch(
               return { state, sideEffect: { type: "show-modal", modal: "emergency", emergencyAmount: stored } };
             }
             const rand = Math.random();
-            const emergencyAmount = rand < 0.5 ? 3 : rand < 0.8 ? 5 : 10;
+            const emergencyAmount = rand < 0.5 ? 5 : 10;
             return { state, sideEffect: { type: "show-modal", modal: "emergency", emergencyAmount } };
           }
           
