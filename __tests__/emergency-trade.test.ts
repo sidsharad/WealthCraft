@@ -67,11 +67,11 @@ describe("Emergency Trade Feature Scenarios", () => {
     state = res4.state;
     
     // Check outcome
-    expect(state.players[0].cash).toBe(2); // Started with 2 + 5 (from trade) - 5 (emergency) = 2
-    expect(state.emergencyState?.status).toBe("resolved");
-    expect(state.emergencyState?.resolution).toBe("Paid After Trade");
+    expect(state.players[0].cash).toBe(2); // Started with 2 + 5 (from trade) - 5 (emergency)
+    expect(state.emergencyState).toBeUndefined();
     
-    console.log("Final State Emergency:", JSON.stringify(state.emergencyState));
+    // Trade should be deleted
+    expect(state.trades || []).toHaveLength(0);
     console.log("Final Cash:", state.players[0].cash);
     console.log("===================================================\n");
   });

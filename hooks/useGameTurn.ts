@@ -976,14 +976,15 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         setGameState(data.gameState, `action_${action}`, Date.now());
         if (data.dice) setLastDice(data.dice);
         
+        let sideEffectHandled = false;
         if (data.sideEffect) {
-          handleSideEffect(data.sideEffect, data.gameState);
+          sideEffectHandled = handleSideEffect(data.sideEffect, data.gameState);
         } else if (data.needsRebalance) {
           setRebalancePenaltyOverride(5 + (data.gameState.phase !== "year-end" ? 3 : 0));
           setShowRebalance(true);
         }
 
-        if (action === "tile-action" || action === "rebalance") {
+        if (!sideEffectHandled && (action === "tile-action" || action === "rebalance")) {
           setPendingEmergencyAmount(null);
         }
 
