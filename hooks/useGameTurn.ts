@@ -981,10 +981,10 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         } else if (data.needsRebalance) {
           setRebalancePenaltyOverride(5 + (data.gameState.phase !== "year-end" ? 3 : 0));
           setShowRebalance(true);
-        } else {
-          if (action === "tile-action" || action === "rebalance") {
-            setPendingEmergencyAmount(null);
-          }
+        }
+
+        if (action === "tile-action" || action === "rebalance") {
+          setPendingEmergencyAmount(null);
         }
 
         const duration = Date.now() - requestStartTime;

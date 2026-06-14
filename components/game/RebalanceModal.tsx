@@ -12,9 +12,10 @@ interface RebalanceModalProps {
   penalty?: number;
   externalTimeLeft?: number | null;
   skipReturnsDelay?: boolean;
+  emergencyAmount?: number;
 }
 
-export default function RebalanceModal({ isOpen, player, onRebalance, onClose, penalty = 0, externalTimeLeft, skipReturnsDelay }: RebalanceModalProps) {
+export default function RebalanceModal({ isOpen, player, onRebalance, onClose, penalty = 0, externalTimeLeft, skipReturnsDelay, emergencyAmount }: RebalanceModalProps) {
   const totalWealth = netWorth(player) - penalty;
   
   // We only let the user adjust Bonds and Stocks. Cash is the remainder.
@@ -51,7 +52,7 @@ export default function RebalanceModal({ isOpen, player, onRebalance, onClose, p
     
     if (timeLeft === 0) {
       // Auto-skip: submit original values ONLY if no penalty (else it would be invalid)
-      if (penalty === 0) {
+      if (penalty === 0 && emergencyAmount === undefined) {
         setHasSubmitted(true);
         onRebalance(player.cash, player.bonds, player.stocks);
       }
@@ -60,21 +61,27 @@ export default function RebalanceModal({ isOpen, player, onRebalance, onClose, p
 
     const timer = setTimeout(() => setInternalTimeLeft(internalTimeLeft - 1), 1000);
     return () => clearTimeout(timer);
-  }, [isOpen, internalTimeLeft, onRebalance, player, hasSubmitted, externalTimeLeft, isInitialDelay]);
+  }, [isOpen, internalTimeLeft, onRebalance, player, hasSubmitted, externalTimeLeft, isInitialDelay, penalty, emergencyAmount]);
 
   if (!isOpen) return null;
 
-  const handleConfirm = () => {
-    console.log("RebalanceModal: Confirming with values:", { cash, bonds, stocks, totalWealth });
-    if (cash < 0) {
-      console.error("RebalanceModal: Invalid cash amount:", cash);
-      return;
+  let isInvalid = cash < 0 || bonds < 0 || stocks < 0;
+  
+  if (emergencyAmount !== undefined && !isInvalid) {
+    if (cash < emergencyAmount) {
+      const hasLegalLiquidations = bonds >= 5 || stocks >= 5;
+      if (hasLegalLiquidations) {
+        isInvalid = true; // Disable confirm: player must liquidate more blocks
+      }
     }
+  }
+
+  const handleConfirm = () => {
+    if (isInvalid) return;
+    console.log("RebalanceModal: Confirming with values:", { cash, bonds, stocks, totalWealth });
     setHasSubmitted(true);
     onRebalance(cash, bonds, stocks);
   };
-
-  const isInvalid = cash < 0 || bonds < 0 || stocks < 0;
 
   const adjustBonds = (delta: number) => {
     const newVal = Math.max(0, bonds + delta);

@@ -162,7 +162,7 @@ export default function GameRoomPage() {
         {turn.isLocal && turn.currentPlayer && (
           <EmergencyTestHarness 
             player={turn.currentPlayer} 
-            roomId={turn.room.id}
+            roomId={turn.room?.id || "local"}
             emergencyState={turn.gameState.emergencyState}
             onPerformAction={turn.performAction}
           />
@@ -531,6 +531,7 @@ export default function GameRoomPage() {
           isOpen={(turn.gameState.phase === "year-end" || turn.showRebalance) && turn.isMyTurn && !turn.showPassDevice && !turn.initialPreview}
           player={turn.currentPlayer!}
           penalty={turn.rebalancePenaltyOverride !== null ? turn.rebalancePenaltyOverride : (turn.gameState.phase !== "year-end" ? 3 : 0)}
+          emergencyAmount={turn.pendingEmergencyAmount ?? undefined}
           onRebalance={(c, b, s) => {
             turn.handleRebalance(c, b, s);
             turn.setShowRebalance(false);

@@ -222,32 +222,7 @@ export function dispatch(
       if (s.phase !== "auction") s = { ...s, phase: "trade" };
       return { state: s };
     }
-    case "emergency-decision": {
-      const decision = payload?.decision as string;
-      
-      // Safety net: ensure we only act if there's actually an emergency
-      if (!state.emergencyState || state.emergencyState.playerId !== player.id) {
-        return { state };
-      }
 
-      if (decision === "trade") {
-        return { state, sideEffect: { type: "show-trade" } as any };
-      }
-      
-      if (decision === "rebalance") {
-        let s = state;
-        s = {
-          ...s,
-          emergencyState: {
-            ...s.emergencyState,
-            status: "rebalance-required",
-            resolution: "Mandatory Rebalance"
-          }
-        };
-        return { state: s, sideEffect: { type: "needs-rebalance", penalty: 3 } };
-      }
-      return { state };
-    }
 
     case "bid": {
       if (!state.auctionState?.open) return { state };
@@ -280,27 +255,21 @@ export function dispatch(
          const p = s.players[playerIdx];
          
          if (p.cash >= amount) {
-           // Case 1: Cash is sufficient after rebalance
+           // Full emergency payment
            s = applyEmergency(s, playerIdx, amount);
          } else {
-           // Case 2: Cash is NOT sufficient after rebalance.
-           // Check if another valid 5L rebalance block exists
+           // Player exhausted all legal liquidation options
+           // Server-side defensive check
            const blocks = Math.floor(p.bonds / 5) + Math.floor(p.stocks / 5);
            if (blocks > 0) {
-             // Still possible to rebalance more
-             s.emergencyState = {
-               ...s.emergencyState,
-               status: "rebalance-required",
-               resolution: "Mandatory Rebalance"
-             };
-             return { state: s, sideEffect: { type: "needs-rebalance", penalty: 3 } };
-           } else {
-             // No more 5L blocks possible, deduct all remaining cash
-             s = applyEmergency(s, playerIdx, p.cash);
+             return { state, sideEffect: { type: "error", message: "Invalid rebalance: You must liquidate all possible 5L blocks to cover the emergency." } };
            }
+           
+           s.players[playerIdx].cash = 0;
+           s = addLog(s, `${player.name} could not fully pay the emergency and lost all remaining cash.`);
          }
          
-         // Fully clear emergency state to prevent infinite loops
+         // Fully clear emergency state
          s.emergencyState = undefined;
          
          // The emergency tile is fully resolved, advance to trade
@@ -425,11 +394,7 @@ export function dispatch(
            const proposer = s.players[proposerIdx];
            if (proposer.cash >= s.emergencyState.amount) {
               s = applyEmergency(s, proposerIdx, s.emergencyState.amount);
-              s.emergencyState = {
-                ...s.emergencyState!,
-                status: "resolved",
-                resolution: "Paid After Trade"
-              };
+              s.emergencyState = undefined;
            } else {
               s.emergencyState = {
                 ...s.emergencyState!,
@@ -439,7 +404,7 @@ export function dispatch(
            }
         }
       }
-      return { state: s };
+      return { state: s, sideEffect: { type: "show-pass-device" } };
     }
 
     case "end-turn":
