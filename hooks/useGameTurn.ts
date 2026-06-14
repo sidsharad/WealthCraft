@@ -1192,6 +1192,8 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     const wasYearEnd = gameState?.phase === "year-end";
 
     performAction("rebalance", payload).then(() => {
+      setShowRebalance(false);
+      setRebalancePenaltyOverride(null);
       if (wasYearEnd && !isSetup) handleTileAction();
     });
   }, [performAction, gameState?.phase, gameState?.year, gameState?.turn, gameState?.players?.length, handleTileAction]);

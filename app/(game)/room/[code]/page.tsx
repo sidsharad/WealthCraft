@@ -534,8 +534,6 @@ export default function GameRoomPage() {
           emergencyAmount={turn.pendingEmergencyAmount ?? undefined}
           onRebalance={(c, b, s) => {
             turn.handleRebalance(c, b, s);
-            turn.setShowRebalance(false);
-            turn.setRebalancePenaltyOverride(null);
           }}
           onClose={turn.rebalancePenaltyOverride !== null ? undefined : () => turn.setShowRebalance(false)}
           externalTimeLeft={turn.timeLeft}
