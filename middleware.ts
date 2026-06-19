@@ -1,7 +1,8 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
 
-export const middleware = auth((req) => {
+export const middleware = NextAuth(authConfig).auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Always allow local pass-and-play — no auth needed
