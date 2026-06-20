@@ -410,7 +410,22 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     return () => clearTimeout(timer);
   }, []);
 
+  const fetchDiagnosticsRef = useRef<{ minuteStarted: number; counts: Record<string, number> }>({ minuteStarted: Date.now(), counts: {} });
+
   const fetchRoom = useCallback(async (source: string = "poll_fetch", showBlockingError: boolean = false) => {
+    const now = Date.now();
+    if (now - fetchDiagnosticsRef.current.minuteStarted > 60000) {
+      console.log(JSON.stringify({
+        event: "FETCH_DIAGNOSTICS_SUMMARY",
+        roomId: code,
+        durationMs: now - fetchDiagnosticsRef.current.minuteStarted,
+        totalCalls: Object.values(fetchDiagnosticsRef.current.counts).reduce((a, b) => a + b, 0),
+        counts: fetchDiagnosticsRef.current.counts
+      }));
+      fetchDiagnosticsRef.current = { minuteStarted: now, counts: {} };
+    }
+    fetchDiagnosticsRef.current.counts[source] = (fetchDiagnosticsRef.current.counts[source] || 0) + 1;
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5-second fetch timeout
 
@@ -490,6 +505,8 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   }, [code, setGameState, setError]);
 
   // Fetch / Init Logic
+  const hasFetchedInit = useRef(false);
+
   useEffect(() => {
     if (isLocal) {
       const playersJson = searchParams.get("players");
@@ -519,9 +536,12 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       }
       setLoading(false);
     } else {
-      fetchRoom("initial_fetch", true); // show blocking error on initial fetch
+      if (!hasFetchedInit.current) {
+        hasFetchedInit.current = true;
+        fetchRoom("initial_fetch", true); // show blocking error on initial fetch
+      }
     }
-  }, [code, isLocal, fetchRoom, gameState, searchParams, setError, setGameState]);
+  }, [code, isLocal, fetchRoom, searchParams]);
 
   // Pusher / Online Sync with Polling Fallback
   useEffect(() => {
@@ -1055,7 +1075,8 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   // Turn Timer
   const timeoutStateRef = useRef({
     showChoiceModal, showAuction, showTargetedAction, pendingEmergencyAmount,
-    isLocal, currentBiddingPlayerId: currentBiddingPlayer?.id, userId: stableUserId
+    isLocal, currentBiddingPlayerId: currentBiddingPlayer?.id, userId: stableUserId,
+    showRebalance
   });
 
   const lastPhaseRef = useRef<string | null>(null);
@@ -1064,9 +1085,10 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   useEffect(() => {
     timeoutStateRef.current = {
       showChoiceModal, showAuction, showTargetedAction, pendingEmergencyAmount,
-      isLocal, currentBiddingPlayerId: currentBiddingPlayer?.id, userId: stableUserId
+      isLocal, currentBiddingPlayerId: currentBiddingPlayer?.id, userId: stableUserId,
+      showRebalance
     };
-  }, [showChoiceModal, showAuction, showTargetedAction, pendingEmergencyAmount, isLocal, currentBiddingPlayer, stableUserId]);
+  }, [showChoiceModal, showAuction, showTargetedAction, pendingEmergencyAmount, isLocal, currentBiddingPlayer, stableUserId, showRebalance]);
 
   useEffect(() => {
     if (!gameState || gameState.endgameCandidate || gameState.phase === "finished") return;
@@ -1110,6 +1132,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         if (showChoiceModal) { setShowChoiceModal(null); setPendingEmergencyAmount(null); }
         if (showAuction) setShowAuction(false);
         if (showTargetedAction) setShowTargetedAction(null);
+        if (timeoutStateRef.current.showRebalance) { setShowRebalance(false); setRebalancePenaltyOverride(null); }
       }
     }
 
