@@ -505,7 +505,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   }, [code, setGameState, setError]);
 
   // Fetch / Init Logic
-  const hasFetchedInit = useRef(false);
+  const hasFetchedInitForCode = useRef<string | null>(null);
 
   useEffect(() => {
     if (isLocal) {
@@ -536,8 +536,8 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       }
       setLoading(false);
     } else {
-      if (!hasFetchedInit.current) {
-        hasFetchedInit.current = true;
+      if (hasFetchedInitForCode.current !== code) {
+        hasFetchedInitForCode.current = code;
         fetchRoom("initial_fetch", true); // show blocking error on initial fetch
       }
     }
