@@ -41,6 +41,7 @@ import {
   addLog,
 } from "./actions";
 import { getTileByPosition } from "./tiles";
+import { trimGameState } from "./utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,18 @@ export interface DispatchResult {
 // ─── Dispatcher ───────────────────────────────────────────────────────────────
 
 export function dispatch(
+  state: GameState,
+  action: string,
+  payload?: Record<string, unknown>
+): DispatchResult {
+  const result = internalDispatch(state, action, payload);
+  if (result.state) {
+    result.state = trimGameState(result.state);
+  }
+  return result;
+}
+
+function internalDispatch(
   state: GameState,
   action: string,
   payload?: Record<string, unknown>
@@ -103,19 +116,13 @@ export function dispatch(
       return { state: s };
     }
 
-    case "qa-force-emergency": {
-      // DEV ONLY: Forces an emergency using exact production logic by mocking the tile effect
-      const amount = payload?.amount as number;
-      return dispatch(state, "tile-action", { amount, __qaOverride: "emergency" });
-    }
-
     case "tile-action": {
-      const effect = payload?.__qaOverride || getTileByPosition(player.position).effect;
+      const effect = getTileByPosition(player.position).effect;
 
       // Tiles that need a modal first — signal the page if payload is absent
-      if (!payload || payload.__qaOverride) {
-        if (effect === "ipo" && !payload?.amount) return { state, sideEffect: { type: "show-modal", modal: "ipo" } };
-        if (effect === "emergency" && !payload?.amount) {
+      if (!payload) {
+        if (effect === "ipo") return { state, sideEffect: { type: "show-modal", modal: "ipo" } };
+        if (effect === "emergency") {
           const rand = Math.random();
           const emergencyAmount = rand < 0.5 ? 5 : 10;
           return { state, sideEffect: { type: "show-modal", modal: "emergency", emergencyAmount } };
