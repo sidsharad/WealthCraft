@@ -56,14 +56,13 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
 
   const updateOffer = (key: keyof typeof offer, val: number) => {
     const maxVal = (currentPlayer as any)[key] || 0;
-    const maxAllowed = Math.floor(maxVal / 5) * 5;
-    const v = Math.min(maxAllowed, Math.max(0, Math.floor(val / 5) * 5));
+    const v = Math.min(maxVal, Math.max(0, Math.floor(val)));
     setOffer({ ...offer, [key]: v });
     console.log(JSON.stringify({ event: "TRADE_INPUT_CHANGE", field: `offer.${key}`, value: v }));
   };
 
   const updateRequest = (key: keyof typeof request, val: number) => {
-    const v = Math.max(0, Math.floor(val / 5) * 5);
+    const v = Math.max(0, Math.floor(val));
     setRequest({ ...request, [key]: v });
     console.log(JSON.stringify({ event: "TRADE_INPUT_CHANGE", field: `request.${key}`, value: v }));
   };
@@ -101,7 +100,7 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
                   </div>
                   <input
                     type="number"
-                    step={5}
+                    step={1}
                     value={(offer as any)[asset.key]}
                     onChange={(e) => updateOffer(asset.key as keyof typeof offer, Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold focus:ring-2 focus:ring-yellow-400 outline-none"
@@ -141,10 +140,11 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
                 <div key={asset.key}>
                   <div className="flex justify-between text-[11px] font-bold mb-1">
                     <span className="flex items-center gap-1 text-gray-500">{asset.icon} {asset.label}</span>
+                    <span className="text-gray-400">Max: {target ? (target as any)[asset.key] : "—"}L</span>
                   </div>
                   <input
                     type="number"
-                    step={5}
+                    step={1}
                     value={(request as any)[asset.key]}
                     onChange={(e) => updateRequest(asset.key as keyof typeof request, Number(e.target.value))}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold focus:ring-2 focus:ring-yellow-400 outline-none"

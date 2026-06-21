@@ -62,7 +62,7 @@ function clampValue(val: number): number {
 // ─── INITIAL STATE ────────────────────────────────────────────────────────────
 
 export function createInitialGameState(
-  players: Array<{ id: string; name: string; avatar: string; isBot: boolean }>
+  players: Array<{ id: string; name: string; avatar: string; isBot: boolean; botType?: "defensive" | "balanced" | "aggressive" }>
 ): GameState {
   return {
     turn: 0,
@@ -74,6 +74,7 @@ export function createInitialGameState(
       name: p.name,
       avatar: p.avatar,
       isBot: p.isBot,
+      botType: p.botType,
       cash: 10,       // 10L starting cash
       bonds: 0,
       stocks: 0,
@@ -625,6 +626,52 @@ export function processConcentrationAudit(
 }
 
 // ─── TRADING ─────────────────────────────────────────────────────────────────
+
+/**
+ * Validates a trade offer before it is dispatched to the other player.
+ * Supports free-amount trading (1L increments) instead of 5L blocks.
+ * Designed to allow portfolio optimization trades (e.g. 2L Stocks for 2L Bonds).
+ */
+export function validateTradeOffer(
+  fromPlayer: PlayerState,
+  offer: { cash: number; bonds: number; stocks: number },
+  request: { cash: number; bonds: number; stocks: number }
+): { valid: boolean; error?: string } {
+  const oCash = offer?.cash || 0;
+  const oBonds = offer?.bonds || 0;
+  const oStocks = offer?.stocks || 0;
+  const rCash = request?.cash || 0;
+  const rBonds = request?.bonds || 0;
+  const rStocks = request?.stocks || 0;
+
+  const offerTotal = oCash + oBonds + oStocks;
+  const requestTotal = rCash + rBonds + rStocks;
+
+  if (offerTotal === 0 && requestTotal === 0) {
+    return { valid: false, error: "Trade cannot be empty (all zeros)." };
+  }
+
+  // Ensure all values are non-negative whole numbers (1L increments)
+  const vals = [oCash, oBonds, oStocks, rCash, rBonds, rStocks];
+  for (const val of vals) {
+    if (val < 0) return { valid: false, error: "Trade amounts cannot be negative." };
+    if (!Number.isInteger(val)) return { valid: false, error: "Trade amounts must be whole numbers (1L increments)." };
+  }
+
+  // Prevent same-asset swaps
+  if ((oCash > 0 && rCash > 0) ||
+      (oBonds > 0 && rBonds > 0) ||
+      (oStocks > 0 && rStocks > 0)) {
+    return { valid: false, error: "You cannot trade the same asset type for itself." };
+  }
+
+  // Validate the proposer actually has the assets they are offering
+  if (fromPlayer.cash < oCash || fromPlayer.bonds < oBonds || fromPlayer.stocks < oStocks) {
+    return { valid: false, error: "Insufficient assets to make this offer." };
+  }
+
+  return { valid: true };
+}
 
 export function resolveTrade(
   state: GameState,

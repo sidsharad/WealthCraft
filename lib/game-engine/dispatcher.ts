@@ -39,6 +39,7 @@ import {
   advanceTurn,
   checkWinCondition,
   addLog,
+  validateTradeOffer
 } from "./actions";
 import { getTileByPosition } from "./tiles";
 import { trimGameState } from "./utils";
@@ -335,22 +336,9 @@ function internalDispatch(
       const offer = payload?.offer as any;
       const request = payload?.request as any;
 
-      const hasCashSwap = (offer?.cash || 0) > 0 && (request?.cash || 0) > 0;
-      const hasBondSwap = (offer?.bonds || 0) > 0 && (request?.bonds || 0) > 0;
-      const hasStockSwap = (offer?.stocks || 0) > 0 && (request?.stocks || 0) > 0;
-
-      if (hasCashSwap || hasBondSwap || hasStockSwap) {
-        let sameAssets: string[] = [];
-        if (hasCashSwap) sameAssets.push("Cash");
-        if (hasBondSwap) sameAssets.push("Bonds");
-        if (hasStockSwap) sameAssets.push("Stocks");
-        return {
-          state,
-          sideEffect: {
-            type: "error",
-            message: `Invalid Trade: You cannot trade same asset types (${sameAssets.join(", ")}). Trade must happen in different types of assets.`
-          }
-        };
+      const validation = validateTradeOffer(player, offer, request);
+      if (!validation.valid) {
+        return { state, sideEffect: { type: "error", message: `Invalid Trade: ${validation.error}` } };
       }
 
       if (payload?.toPlayerId === player.id) {

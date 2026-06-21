@@ -53,7 +53,7 @@ describe('Parity between Pass & Play (dispatcher) and Online (API Route)', () =>
     initialGameState = createInitialGameState(mockPlayers);
 
     // Mock successful auth session
-    vi.mocked(auth).mockResolvedValue({
+    (vi.mocked(auth) as any).mockResolvedValue({
       user: { id: mockUserId, name: 'Player 1' },
       expires: '',
     });
@@ -111,9 +111,9 @@ describe('Parity between Pass & Play (dispatcher) and Online (API Route)', () =>
   });
 
   it('Exhaustive Parity Test 2: Emergency Modal triggering sideEffect', async () => {
-    // Put current player on an Emergency tile (tile at index 7 is Emergency)
+    // Put current player on an Emergency tile (tile at index 5 is Emergency)
     const stateWithEmergency = { ...initialGameState };
-    stateWithEmergency.players[0].position = 7; 
+    stateWithEmergency.players[0].position = 5; 
     stateWithEmergency.phase = 'action';
 
     // Local dispatcher: requesting tile action without payload
@@ -149,7 +149,7 @@ describe('Parity between Pass & Play (dispatcher) and Online (API Route)', () =>
 
   it('Exhaustive Parity Test 3: Emergency Resolve (with payload)', async () => {
     const stateWithEmergency = { ...initialGameState };
-    stateWithEmergency.players[0].position = 7;
+    stateWithEmergency.players[0].position = 5;
     stateWithEmergency.phase = 'action';
     const originalCash = stateWithEmergency.players[0].cash; // should be 10L
 
@@ -220,7 +220,7 @@ describe('Parity between Pass & Play (dispatcher) and Online (API Route)', () =>
 
   it('Exhaustive Parity Test 5: End Turn clears emergency announcement and privateMessage', async () => {
     const stateWithEmergencyResolved = { ...initialGameState };
-    stateWithEmergencyResolved.players[0].position = 7;
+    stateWithEmergencyResolved.players[0].position = 5;
     stateWithEmergencyResolved.players[0].cash = 7;
     stateWithEmergencyResolved.phase = 'trade';
     stateWithEmergencyResolved.announcement = '🚨 EMERGENCY!';
@@ -328,7 +328,7 @@ describe('Parity between Pass & Play (dispatcher) and Online (API Route)', () =>
 
     const result = dispatch(stateWithTrade, 'trade-offer', invalidPayload);
     expect(result.sideEffect?.type).toBe('error');
-    expect(result.sideEffect?.message).toContain('You cannot trade same asset types');
+    expect((result.sideEffect as any)?.message).toContain('You cannot trade the same asset type for itself');
     expect(result.state.phase).toBe('trade');
   });
 
@@ -378,6 +378,120 @@ describe('Parity between Pass & Play (dispatcher) and Online (API Route)', () =>
     state = dispatch(offer.state, 'trade-response', { accept: true }).state;
     expect(state.players[0].cash).toBe(10);
     expect(state.players[1].stocks).toBe(10);
+  });
+
+  describe('Free-Amount Trading (1L increments) & 5L Regressions', () => {
+    it('Allows 2L Stocks ↔ 2L Bonds (non-5L trade)', () => {
+      let state = { ...initialGameState };
+      state.phase = 'trade';
+      state.players[0].stocks = 8;
+      state.players[1].bonds = 8;
+
+      let offer = dispatch(state, 'trade-offer', {
+        toPlayerId: 'p2',
+        offer: { cash: 0, bonds: 0, stocks: 2 },
+        request: { cash: 0, bonds: 2, stocks: 0 }
+      });
+      expect(offer.sideEffect?.type).not.toBe('error');
+      
+      state = dispatch(offer.state, 'trade-response', { accept: true }).state;
+      expect(state.players[0].stocks).toBe(6);
+      expect(state.players[0].bonds).toBe(2);
+      expect(state.players[1].stocks).toBe(2);
+      expect(state.players[1].bonds).toBe(6);
+    });
+
+    it('Allows 7L Cash ↔ 10L Stocks (asymmetric amounts)', () => {
+      let state = { ...initialGameState };
+      state.phase = 'trade';
+      state.players[0].cash = 10;
+      state.players[1].stocks = 10;
+
+      let offer = dispatch(state, 'trade-offer', {
+        toPlayerId: 'p2',
+        offer: { cash: 7, bonds: 0, stocks: 0 },
+        request: { cash: 0, bonds: 0, stocks: 10 }
+      });
+      expect(offer.sideEffect?.type).not.toBe('error');
+
+      state = dispatch(offer.state, 'trade-response', { accept: true }).state;
+      expect(state.players[0].cash).toBe(3);
+      expect(state.players[0].stocks).toBe(10);
+      expect(state.players[1].cash).toBe(7 + 10); // 10L initial + 7L received
+      expect(state.players[1].stocks).toBe(0);
+    });
+
+    it('Allows 1L Stock ↔ 1L Bond (minimum trade)', () => {
+      let state = { ...initialGameState };
+      state.phase = 'trade';
+      state.players[0].stocks = 1;
+      state.players[1].bonds = 1;
+
+      let offer = dispatch(state, 'trade-offer', {
+        toPlayerId: 'p2',
+        offer: { cash: 0, bonds: 0, stocks: 1 },
+        request: { cash: 0, bonds: 1, stocks: 0 }
+      });
+      expect(offer.sideEffect?.type).not.toBe('error');
+    });
+
+    it('Rejects trade if amount exceeds holdings', () => {
+      let state = { ...initialGameState };
+      state.phase = 'trade';
+      state.players[0].stocks = 4; // Only 4L
+      state.players[1].bonds = 10;
+
+      let offer = dispatch(state, 'trade-offer', {
+        toPlayerId: 'p2',
+        offer: { cash: 0, bonds: 0, stocks: 5 }, // Tries to offer 5L
+        request: { cash: 0, bonds: 5, stocks: 0 }
+      });
+      expect(offer.sideEffect?.type).toBe('error');
+      expect((offer.sideEffect as any)?.message).toContain('Insufficient assets');
+    });
+
+    it('Rejects negative trade amounts', () => {
+      let state = { ...initialGameState };
+      state.phase = 'trade';
+      state.players[0].cash = 10;
+      state.players[1].stocks = 10;
+
+      let offer = dispatch(state, 'trade-offer', {
+        toPlayerId: 'p2',
+        offer: { cash: -5, bonds: 0, stocks: 0 },
+        request: { cash: 0, bonds: 0, stocks: 5 }
+      });
+      expect(offer.sideEffect?.type).toBe('error');
+      expect((offer.sideEffect as any)?.message).toContain('negative');
+    });
+
+    it('Rejects fractional trade amounts (e.g. 1.5L)', () => {
+      let state = { ...initialGameState };
+      state.phase = 'trade';
+      state.players[0].cash = 10;
+      state.players[1].stocks = 10;
+
+      let offer = dispatch(state, 'trade-offer', {
+        toPlayerId: 'p2',
+        offer: { cash: 1.5, bonds: 0, stocks: 0 },
+        request: { cash: 0, bonds: 0, stocks: 1.5 }
+      });
+      expect(offer.sideEffect?.type).toBe('error');
+      expect((offer.sideEffect as any)?.message).toContain('whole numbers');
+    });
+
+    it('Rejects zero trade (all zeros)', () => {
+      let state = { ...initialGameState };
+      state.phase = 'trade';
+
+      let offer = dispatch(state, 'trade-offer', {
+        toPlayerId: 'p2',
+        offer: { cash: 0, bonds: 0, stocks: 0 },
+        request: { cash: 0, bonds: 0, stocks: 0 }
+      });
+      expect(offer.sideEffect?.type).toBe('error');
+      expect((offer.sideEffect as any)?.message).toContain('Trade cannot be empty');
+    });
   });
 });
 

@@ -131,7 +131,8 @@ export default function RulesPage() {
             <h2 className="text-2xl font-bold text-white">Assets & Year-End Returns</h2>
           </div>
           <p className="text-white/80 leading-relaxed mb-6">
-            All asset investments, purchases, and rebalancing transactions must be in multiples of <strong className="text-white">5L blocks</strong>. 
+            Asset <strong className="text-white">rebalancing</strong> transactions must be in multiples of <strong className="text-white">5L blocks</strong>. 
+            <strong className="text-white font-semibold"> Direct player-to-player trades</strong> may be in any whole-number amount (1L increments).
             Returns are calculated and paid <strong className="text-yellow-400">at Year-End only</strong> (when landing on or passing the Start tile). 
             Only complete 5L blocks earn returns; partial blocks do not qualify. All returns are paid directly in Cash.
           </p>
@@ -216,7 +217,7 @@ export default function RulesPage() {
             </div>
             <p className="text-white/60 text-sm leading-relaxed flex-1">
               Offer a trade once per turn to any active player. Deals can combine Cash, Bonds, and Stocks. 
-              Both players must mutually agree. 
+              Both players must mutually agree. Trades can be for <strong className="text-white">any whole-number amount (1L increments)</strong>.
               <br /><br />
               <strong className="text-white font-semibold">Free Trade Zone</strong>: If a trade is executed inside this zone and represents 25L+ in assets, both players receive a <strong className="text-white">5L incentive</strong>.
             </p>
