@@ -38,8 +38,6 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
 
   if (!isOpen) return null;
 
-  const target = otherPlayers.find(p => p.id === targetId);
-
   const hasCashOverlap = offer.cash > 0 && request.cash > 0;
   const hasBondsOverlap = offer.bonds > 0 && request.bonds > 0;
   const hasStocksOverlap = offer.stocks > 0 && request.stocks > 0;
