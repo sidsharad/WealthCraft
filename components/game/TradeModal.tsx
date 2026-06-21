@@ -140,7 +140,6 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
                 <div key={asset.key}>
                   <div className="flex justify-between text-[11px] font-bold mb-1">
                     <span className="flex items-center gap-1 text-gray-500">{asset.icon} {asset.label}</span>
-                    <span className="text-gray-400">Max: {target ? (target as any)[asset.key] : "—"}L</span>
                   </div>
                   <input
                     type="number"

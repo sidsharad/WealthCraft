@@ -108,7 +108,7 @@ export default function TradeResponseModal({ isOpen, offer, fromPlayer, toPlayer
         </div>
         {!canAfford && (
           <p className="text-center text-red-500 text-xs font-bold mt-4">
-            You do not have enough assets to accept this trade.
+            You do not have sufficient assets to fulfil this trade.
           </p>
         )}
       </div>
