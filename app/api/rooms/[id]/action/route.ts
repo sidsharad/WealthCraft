@@ -7,8 +7,9 @@ import { rooms, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import type { GameState } from "@/lib/db/schema";
 import { createInitialGameState, getLeaderboard } from "@/lib/game-engine/actions";
-import { dispatch, applyWinCheck } from "@/lib/game-engine/dispatcher";
+import { dispatch, applyWinCheck, resolveTimeout } from "@/lib/game-engine/dispatcher";
 import { roomLocks } from "@/lib/locks";
+import { checkGlobalCircuitBreaker } from "@/lib/rate-limit";
 
 function hashGameState(state: any): string {
   if (!state) return "null";
@@ -69,7 +70,7 @@ function releaseRoomLock(roomId: string, holder: string) {
 // ─── IDEMPOTENCY UTILITY ──────────────────────────────────────────────────────
 function appendActionId(state: GameState, actionId?: string): GameState {
   if (!actionId) return state;
-  const processed: string[] = (state as any).processedActionIds ?? [];
+  const processed: string[] = state.processedActionIds ?? [];
   const nextProcessed = [...processed.filter(id => id !== actionId), actionId].slice(-50); // Rolling cache of last 50 actionIds
   return {
     ...state,
@@ -135,6 +136,15 @@ export async function POST(
   const body = await req.json();
   const { action, payload, actionId } = body;
   const userId = (session.user as { id?: string }).id!;
+
+  // Global circuit breaker: block users exceeding 100 req/min across all endpoints.
+  // Checked before room lock or any DB query.
+  if (checkGlobalCircuitBreaker(userId, "POST /api/rooms/[id]/action")) {
+    return NextResponse.json(
+      { error: "Too Many Requests" },
+      { status: 429, headers: { "Retry-After": "10" } }
+    );
+  }
 
   const startTime = Date.now();
   let phaseBefore = "lobby";
@@ -257,6 +267,70 @@ export async function POST(
 
     if (!gameState) return NextResponse.json({ error: "Game not started" }, { status: 400 });
 
+    // ─── FORCE TIMEOUT (Deadlock Recovery) ────────────────────────────────────────
+    if (action === "force-timeout") {
+      const idleMs = Date.now() - new Date(room.updatedAt).getTime();
+      if (idleMs < 35000) {
+        return NextResponse.json({ error: "Timeout deadline not reached. Room must be idle for 35+ seconds." }, { status: 400 });
+      }
+
+      let nextState = gameState;
+      let didMutate = false;
+
+      if (nextState.phase === "auction") {
+        // Auction: sweep all eligible players who haven't bid
+        const auctionBids = nextState.auctionState?.bids || [];
+        for (const player of nextState.players) {
+          if (!player.hasHouse && !auctionBids.find(b => b.playerId === player.id)) {
+            const res = dispatch(nextState, "bid", { amount: 0, bidderId: player.id });
+            if (res.state) {
+              nextState = res.state;
+              didMutate = true;
+            }
+          }
+        }
+      } else {
+        // Normal turn, Emergency, or Trade
+        const currentIdx = nextState.currentPlayerIndex;
+        const player = nextState.players[currentIdx];
+        
+        let ctxActiveModal: any = null;
+        let ctxEmergencyAmount = undefined;
+        if (nextState.emergencyState && nextState.emergencyState.playerId === player.id) {
+          if (nextState.emergencyState.status === "awaiting-decision") ctxActiveModal = "emergency-decision";
+          else if (nextState.emergencyState.status === "rebalance-required") {
+            // Can't auto-resolve rebalance penalty natively via resolveTimeout, 
+            // but the RebalanceModal usually handles this. Let's force an end-turn.
+            ctxActiveModal = null; 
+          }
+          else ctxActiveModal = "emergency";
+          ctxEmergencyAmount = nextState.emergencyState.amount;
+        }
+
+        const resolution = resolveTimeout(nextState, {
+          activeModal: ctxActiveModal,
+          activeTargetedAction: null,
+          auctionOpen: false,
+          pendingEmergencyAmount: ctxEmergencyAmount
+        });
+
+        if (resolution) {
+          const res = dispatch(nextState, resolution.action, resolution.payload);
+          if (res.state) {
+            nextState = res.state;
+            didMutate = true;
+          }
+        }
+      }
+
+      if (didMutate) {
+        nextState = appendActionId(nextState, actionId);
+        await updateGameState(roomId, nextState);
+        safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STATE_UPDATE, { timestamp: Date.now() }).catch(err => console.error(err));
+      }
+      return NextResponse.json({ gameState: nextState });
+    }
+
     // 3. Validate Game State Integrity
     if (!gameState.players || typeof gameState.currentPlayerIndex !== "number") {
       console.error(JSON.stringify({
@@ -271,7 +345,7 @@ export async function POST(
     }
 
     // 4. Validate Action Idempotency
-    const processedIds: string[] = (gameState as any).processedActionIds ?? [];
+    const processedIds: string[] = gameState.processedActionIds ?? [];
     if (actionId && processedIds.includes(actionId)) {
       console.warn(JSON.stringify({
         timestamp: new Date().toISOString(),
@@ -547,6 +621,17 @@ export async function POST(
       year: state.year,
       hash: hashGameState(state)
     }, null, 2));
+
+    const size = Buffer.byteLength(JSON.stringify(response));
+    console.log(JSON.stringify({
+      event: "API_RESPONSE_METRIC",
+      endpoint: "POST /api/rooms/[id]/action",
+      source: action,
+      roomCode: room.code,
+      responseSizeBytes: size,
+      timestamp: new Date().toISOString()
+    }));
+
     return NextResponse.json(response);
   } finally {
     // 5. Always release the lock

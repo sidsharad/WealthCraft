@@ -20,5 +20,5 @@ export function trimGameState(state: GameState): GameState {
     ...state,
     log: trimmedLog,
     processedActionIds: trimmedActions,
-  };
+  } as GameState;
 }

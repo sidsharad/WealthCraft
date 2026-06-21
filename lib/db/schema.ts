@@ -48,7 +48,7 @@ export const rooms = pgTable("rooms", {
   id: uuid("id").primaryKey().defaultRandom(),
   code: text("code").notNull().unique(),
   mode: text("mode", { enum: ["online", "local"] }).notNull().default("online"),
-  status: text("status", { enum: ["lobby", "active", "finished"] }).notNull().default("lobby"),
+  status: text("status", { enum: ["lobby", "active", "finished", "abandoned"] }).notNull().default("lobby"),
   hostId: uuid("host_id").references(() => users.id),
   playerIds: jsonb("player_ids").$type<string[]>().notNull().default([]),
   gameState: jsonb("game_state").$type<GameState>(),
@@ -132,6 +132,7 @@ export interface GameState {
   announcement?: string;
   privateMessage?: string;
   emergencyState?: EmergencyState;
+  processedActionIds?: string[];
   
   // Endgame Rules
   endgameCandidate?: boolean;
