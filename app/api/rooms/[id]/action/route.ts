@@ -9,7 +9,6 @@ import type { GameState } from "@/lib/db/schema";
 import { createInitialGameState, getLeaderboard } from "@/lib/game-engine/actions";
 import { dispatch, applyWinCheck, resolveTimeout } from "@/lib/game-engine/dispatcher";
 import { roomLocks } from "@/lib/locks";
-import { checkGlobalCircuitBreaker } from "@/lib/rate-limit";
 
 function hashGameState(state: any): string {
   if (!state) return "null";
@@ -136,15 +135,6 @@ export async function POST(
   const body = await req.json();
   const { action, payload, actionId } = body;
   const userId = (session.user as { id?: string }).id!;
-
-  // Global circuit breaker: block users exceeding 100 req/min across all endpoints.
-  // Checked before room lock or any DB query.
-  if (checkGlobalCircuitBreaker(userId, "POST /api/rooms/[id]/action")) {
-    return NextResponse.json(
-      { error: "Too Many Requests" },
-      { status: 429, headers: { "Retry-After": "10" } }
-    );
-  }
 
   const startTime = Date.now();
   let phaseBefore = "lobby";
