@@ -752,7 +752,7 @@ export function handleOpenTradeResponse(state: GameState, playerId: string, acce
   if (trade.responses?.find((r) => r.playerId === playerId)) return state;
 
   const newResponses = [...(trade.responses || []), { playerId, accept }];
-  let s = {
+  let s: GameState = {
     ...state,
     pendingTrade: {
       ...trade,
