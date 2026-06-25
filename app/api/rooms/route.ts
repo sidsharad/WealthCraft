@@ -7,11 +7,34 @@ import { rooms, users } from "@/lib/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { getRoomChannel, PUSHER_EVENTS, safeTrigger } from "@/lib/pusher";
 import { auditDatabaseRoomState } from "@/lib/db/queries";
+import { cleanupExpiredRooms } from "@/lib/db/cleanup";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 // Generate a 6-character room code
 function generateCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
+
+let getCounter = 0;
+function logResponseMetric(endpoint: string, source: string, code: string, body: any, forceLog: boolean = false) {
+  if (endpoint === "GET /api/rooms") {
+    getCounter++;
+    const isNormal = source === "pusher" || source === "unknown" || !source;
+    if (isNormal && getCounter % 100 !== 1 && !forceLog) {
+      return;
+    }
+  }
+  const size = Buffer.byteLength(JSON.stringify(body));
+  console.log(JSON.stringify({
+    event: "API_RESPONSE_METRIC",
+    endpoint,
+    source: source || "unknown",
+    roomCode: code,
+    responseSizeBytes: size,
+    timestamp: new Date().toISOString()
+  }));
+}
+
 
 // POST /api/rooms — create or join a room
 export async function POST(req: NextRequest) {
@@ -26,6 +49,9 @@ export async function POST(req: NextRequest) {
   const userId = (session.user as { id?: string }).id!;
 
   if (action === "create") {
+    if (Math.random() < 0.01) {
+      cleanupExpiredRooms().catch(console.error);
+    }
     // Create a new room
     let roomCode = generateCode();
     // Ensure uniqueness
@@ -47,10 +73,15 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    return NextResponse.json({ room });
+    const payload = { room };
+    logResponseMetric("POST /api/rooms", action, room.code, payload, true);
+    return NextResponse.json(payload);
   }
 
   if (action === "join") {
+    if (Math.random() < 0.01) {
+      cleanupExpiredRooms().catch(console.error);
+    }
     if (!code) return NextResponse.json({ error: "Room code required" }, { status: 400 });
 
     const [room] = await db.select().from(rooms).where(eq(rooms.code, code.toUpperCase()));
@@ -81,7 +112,9 @@ export async function POST(req: NextRequest) {
       console.error("[Pusher] Broadcast failed:", err)
     );
 
-    return NextResponse.json({ room: updated });
+    const payload = { room: updated };
+    logResponseMetric("POST /api/rooms", action, room.code, payload, true);
+    return NextResponse.json(payload);
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
@@ -90,7 +123,25 @@ export async function POST(req: NextRequest) {
 // GET /api/rooms?code=XXXXXX — get room details
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
+  const source = req.nextUrl.searchParams.get("source") || "unknown";
   if (!code) return NextResponse.json({ error: "Code required" }, { status: 400 });
+
+  // Auth check happens BEFORE any DB query so unauthenticated loops cost nothing.
+  const session = await auth();
+  const userId = (session?.user as { id?: string })?.id;
+
+  // Rate limit: 1 request per 2s per user+room. DB is never touched if limited.
+  if (userId) {
+    const rl = checkRateLimit(userId, code.toUpperCase());
+    if (!rl.allowed) {
+      const response = NextResponse.json(
+        { error: "Too Many Requests", retryAfterMs: rl.retryAfterMs },
+        { status: 429 }
+      );
+      response.headers.set("Retry-After", String(Math.ceil(rl.retryAfterMs / 1000)));
+      return response;
+    }
+  }
 
   const [room] = await db.select().from(rooms).where(eq(rooms.code, code.toUpperCase()));
   if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
@@ -110,7 +161,9 @@ export async function GET(req: NextRequest) {
     playerDetails = playerIds.map(id => fetchedUsers.find((u: any) => u.id === id)).filter(Boolean);
   }
 
-  const response = NextResponse.json({ room, players: playerDetails });
+  const responseBody = { room, players: playerDetails };
+  logResponseMetric("GET /api/rooms", source, room.code, responseBody);
+  const response = NextResponse.json(responseBody);
   
   // Ensure strict no-caching headers
   response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");

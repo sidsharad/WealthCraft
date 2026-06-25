@@ -1,0 +1,550 @@
+
+> wealthcraft@0.1.0 lint
+> eslint
+
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\__tests__\emergency-payment.test.ts
+    4:10  warning  'getTileByPosition' is defined but never used              @typescript-eslint/no-unused-vars
+   56:9   error    'state' is never reassigned. Use 'const' instead           prefer-const
+   78:9   error    'state' is never reassigned. Use 'const' instead           prefer-const
+  100:9   error    'state' is never reassigned. Use 'const' instead           prefer-const
+  129:9   error    'state' is never reassigned. Use 'const' instead           prefer-const
+  133:9   error    'result' is never reassigned. Use 'const' instead          prefer-const
+  135:34  error    Unexpected any. Specify a different type                   @typescript-eslint/no-explicit-any
+  142:9   error    'tradeResult' is never reassigned. Use 'const' instead     prefer-const
+  153:9   error    'state' is never reassigned. Use 'const' instead           prefer-const
+  156:9   error    'result' is never reassigned. Use 'const' instead          prefer-const
+  162:9   error    'tradeResult' is never reassigned. Use 'const' instead     prefer-const
+  170:9   error    'state' is never reassigned. Use 'const' instead           prefer-const
+  173:9   error    'result' is never reassigned. Use 'const' instead          prefer-const
+  177:9   error    'refreshResult' is never reassigned. Use 'const' instead   prefer-const
+  186:11  error    'state' is never reassigned. Use 'const' instead           prefer-const
+  206:11  error    'state' is never reassigned. Use 'const' instead           prefer-const
+  221:11  error    'normalTradeRes' is never reassigned. Use 'const' instead  prefer-const
+  229:11  error    'state' is never reassigned. Use 'const' instead           prefer-const
+  244:11  error    'res2' is never reassigned. Use 'const' instead            prefer-const
+  258:9   error    'state' is never reassigned. Use 'const' instead           prefer-const
+  283:9   error    'state' is never reassigned. Use 'const' instead           prefer-const
+  306:9   error    'state' is never reassigned. Use 'const' instead           prefer-const
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\__tests__\emergency-trade.test.ts
+    3:21  warning  'PlayerState' is defined but never used                 @typescript-eslint/no-unused-vars
+   37:9   warning  'getEmergencyState' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   47:32  error    Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  154:32  error    Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  156:63  error    Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\__tests__\endgame-logic.test.ts
+    3:23  warning  'checkWinCondition' is defined but never used  @typescript-eslint/no-unused-vars
+  222:20  warning  'e' is defined but never used                  @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\__tests__\trade-invariant.test.ts
+  37:11  warning  'secondOffer' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\(auth)\forgot-password\page.tsx
+  39:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+  68:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\(auth)\login\page.tsx
+  109:14  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\(auth)\register\page.tsx
+  65:81  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\(game)\lobby\page.tsx
+   22:7    error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\(game)\lobby\page.tsx:22:7
+  20 |     const m = params.get("mode");
+  21 |     if (m === "local" || m === "create" || m === "join") {
+> 22 |       setMode(m as any);
+     |       ^^^^^^^ Avoid calling setState() directly within an effect
+  23 |     }
+  24 |   }, []);
+  25 |  react-hooks/set-state-in-effect
+   22:20   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-explicit-any
+   27:20   warning  'setGameMode' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+   34:10   warning  'createdCode' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+   52:17   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-explicit-any
+   73:17   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-explicit-any
+  157:122  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                react/no-unescaped-entities
+  157:133  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                react/no-unescaped-entities
+  240:63   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\(game)\room\[code]\page.tsx
+   2:50  warning  'useRef' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+  47:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\(game)\room\[code]\page.tsx:47:9
+  45 |       localStorage.setItem("wc_user_id", userId);
+  46 |       if (userId !== stableUserId) {
+> 47 |         setStableUserId(userId);
+     |         ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  48 |       }
+  49 |     }
+  50 |   }, [userId, stableUserId]);  react-hooks/set-state-in-effect
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\admin\users\data.ts
+  3:10  warning  'inArray' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\api\admin\analytics\route.ts
+    4:10  warning  'eq' is defined but never used            @typescript-eslint/no-unused-vars
+  119:19  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\api\admin\debug\route.ts
+  30:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\api\admin\migrate\route.ts
+  46:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\api\admin\users\route.ts
+  20:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\api\reset-password\route.ts
+  63:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\api\reset-password\send-otp\route.ts
+   4:14  warning  'and' is defined but never used           @typescript-eslint/no-unused-vars
+  44:19  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\api\rooms\[id]\action\route.ts
+   14:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   16:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   73:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:8   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   84:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   88:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  297:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  348:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  532:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  544:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\api\rooms\route.ts
+   19:82  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   47:31  warning  'playerName' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  152:22  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  161:63  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\app\rules\page.tsx
+    2:38  warning  'ShieldCheck' is defined but never used                          @typescript-eslint/no-unused-vars
+   87:36  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  282:51  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\audit-db.ts
+  13:7   error  'roomsCount' is never reassigned. Use 'const' instead  prefer-const
+  16:38  error  Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\board\Board.tsx
+   2:19  warning  'TILE_COUNT' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  20:7   warning  'DIE_FACES' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+  27:19  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
+  29:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\board\Board.tsx:29:7
+  27 |     let interval: any;
+  28 |     if (rolling) {
+> 29 |       setShowDice(true);
+     |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  30 |       interval = setInterval(() => {
+  31 |         setDisplayDie(Math.floor(Math.random() * 6) + 1);
+  32 |       }, 50);  react-hooks/set-state-in-effect
+  87:28  warning  'playerIdx' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\AuctionModal.tsx
+  20:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\AuctionModal.tsx:20:5
+  18 |   // Reset bid amount when player changes
+  19 |   React.useEffect(() => {
+> 20 |     setBidAmount(minBid);
+     |     ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  21 |   }, [currentPlayer?.id, minBid]);
+  22 |
+  23 |   if (!isOpen) return null;  react-hooks/set-state-in-effect
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\BigDice.tsx
+  15:19  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-explicit-any
+  17:7   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\BigDice.tsx:17:7
+  15 |     let interval: any;
+  16 |     if (rolling) {
+> 17 |       setVisible(true);
+     |       ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  18 |       interval = setInterval(() => {
+  19 |         setDisplayDie(Math.floor(Math.random() * 6) + 1);
+  20 |       }, 50);  react-hooks/set-state-in-effect
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\ChoiceModal.tsx
+  2:10  warning  'HelpCircle' is defined but never used    @typescript-eslint/no-unused-vars
+  7:24  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\DiceRoller.tsx
+   1:17  warning  'useState' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  17:19  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-explicit-any
+  23:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\DiceRoller.tsx:23:7
+  21 |       }, 50);
+  22 |     } else if (dice) {
+> 23 |       setDisplayDie(dice);
+     |       ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  24 |     }
+  25 |     return () => clearInterval(interval);
+  26 |   }, [rolling, dice]);  react-hooks/set-state-in-effect
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\LeadersDilemmaModal.tsx
+  17:3   warning  'player' is defined but never used                               @typescript-eslint/no-unused-vars
+  33:72  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  59:21  warning  'targetIdx' is assigned a value but never used                   @typescript-eslint/no-unused-vars
+  91:13  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  91:89  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\PassDeviceScreen.tsx
+  22:13  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  22:80  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\PortfolioPanel.tsx
+  4:16  warning  'User' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\RebalanceModal.tsx
+   4:10  warning  'REBALANCE_PENALTY' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   5:21  warning  'AlertTriangle' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+   5:43  warning  'X' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  34:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\RebalanceModal.tsx:34:7
+  32 |   useEffect(() => {
+  33 |     if (isOpen) {
+> 34 |       setBonds(player.bonds);
+     |       ^^^^^^^^ Avoid calling setState() directly within an effect
+  35 |       setStocks(player.stocks);
+  36 |       setInternalTimeLeft(30);
+  37 |       setHasSubmitted(false);                                                                                                                   react-hooks/set-state-in-effect
+  56:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\RebalanceModal.tsx:56:9
+  54 |       // Auto-skip: submit original values ONLY if no penalty (else it would be invalid)
+  55 |       if (penalty === 0 && emergencyAmount === undefined) {
+> 56 |         setHasSubmitted(true);
+     |         ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  57 |         onRebalance(player.cash, player.bonds, player.stocks);
+  58 |       }
+  59 |       return;  react-hooks/set-state-in-effect
+  64:6   warning  React Hook useEffect has a missing dependency: 'timeLeft'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          react-hooks/exhaustive-deps
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\TargetedActionModal.tsx
+  11:24  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  24:18  warning  'setAmount' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\TradeModal.tsx
+   10:40  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+   10:54  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+   24:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\components\game\TradeModal.tsx:24:7
+  22 |       const initialRequest = { cash: 0, bonds: 0, stocks: 0 };
+  23 |       
+> 24 |       setTargetId(initialTargetId);
+     |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  25 |       setOffer(initialOffer);
+  26 |       setRequest(initialRequest);
+  27 |         react-hooks/set-state-in-effect
+   41:9   warning  'target' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   58:38  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+  104:38  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+  147:40  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+  161:28  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react/no-unescaped-entities
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\hooks\useGameTurn.ts
+     3:21  warning  'PlayerState' is defined but never used                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+     4:10  warning  'TILES' is defined but never used                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+    17:88  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+    18:30  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+    32:37  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+    38:35  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   103:38  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   105:33  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   263:36  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   285:44  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   293:29  warning  'setWatchdogRefreshes' is assigned a value but never used                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+   296:25  warning  'setWatchdogStale' is assigned a value but never used                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   333:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   351:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   362:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   374:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   387:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   399:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   498:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   507:6   warning  React Hook useCallback has a missing dependency: 'stableUserId'. Either include it or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setPlayerTelemetry' needs the current value of 'stableUserId'  react-hooks/exhaustive-deps
+   525:35  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   535:18  warning  'e' is defined but never used                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+   546:6   warning  React Hook useEffect has missing dependencies: 'gameState' and 'setGameState'. Either include them or remove the dependency array                                                                                                                      react-hooks/exhaustive-deps
+   553:18  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   555:39  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   670:16  warning  'e' is defined but never used                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+   691:44  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   697:55  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   722:18  warning  'e' is defined but never used                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+   726:20  warning  'e' is defined but never used                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+   731:6   warning  React Hook useEffect has a missing dependency: 'stableUserId'. Either include it or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setPlayerTelemetry' needs the current value of 'stableUserId'    react-hooks/exhaustive-deps
+   808:6   warning  React Hook useEffect has a missing dependency: 'gameState'. Either include it or remove the dependency array                                                                                                                                           react-hooks/exhaustive-deps
+   821:70  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   822:35  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+   924:11  warning  'startTimeISO' is assigned a value but never used                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+   944:23  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  1020:21  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  1043:17  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  1061:6   warning  React Hook useCallback has missing dependencies: 'connectionStatus', 'pusherReconnectsCount', 'room?.status', and 'watchdogRefreshes'. Either include them or remove the dependency array                                                              react-hooks/exhaustive-deps
+  1130:6   warning  React Hook useEffect has a missing dependency: 'gameState'. Either include it or remove the dependency array                                                                                                                                           react-hooks/exhaustive-deps
+  1197:6   warning  React Hook useEffect has missing dependencies: 'gameState' and 'portfolios'. Either include them or remove the dependency array                                                                                                                        react-hooks/exhaustive-deps
+  1207:57  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  1217:20  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  1344:30  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  1370:28  error    Unexpected any. Specify a different type                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  1397:6   warning  React Hook useEffect has missing dependencies: 'botDebug', 'currentBiddingPlayer?.isBot', 'diceMode', 'gameState', 'pendingEmergencyAmount', and 'performAction'. Either include them or remove the dependency array                                   react-hooks/exhaustive-deps
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\lib\auth.config.ts
+  66:20  warning  'user' is defined but never used     @typescript-eslint/no-unused-vars
+  66:26  warning  'account' is defined but never used  @typescript-eslint/no-unused-vars
+  66:35  warning  'profile' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\lib\auth.ts
+  12:30  error    A `require()` style import is forbidden             @typescript-eslint/no-require-imports
+  13:18  error    A `require()` style import is forbidden             @typescript-eslint/no-require-imports
+  14:61  error    A `require()` style import is forbidden             @typescript-eslint/no-require-imports
+  17:26  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  18:32  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  19:32  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  20:52  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  24:37  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  25:20  warning  'emailVerified' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\lib\db\index.ts
+   19:12  error    A `require()` style import is forbidden          @typescript-eslint/no-require-imports
+   26:12  error    A `require()` style import is forbidden          @typescript-eslint/no-require-imports
+   76:19  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   83:14  warning  'e' is defined but never used                    @typescript-eslint/no-unused-vars
+   94:23  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  109:34  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  128:31  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  128:49  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  128:55  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  164:17  warning  'sqlObj' is defined but never used               @typescript-eslint/no-unused-vars
+  164:25  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  168:19  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  169:11  error    Unexpected aliasing of 'this' to local variable  @typescript-eslint/no-this-alias
+  171:25  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  174:22  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  178:24  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  182:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  182:34  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  192:41  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  193:32  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  195:43  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  216:20  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  217:11  error    Unexpected aliasing of 'this' to local variable  @typescript-eslint/no-this-alias
+  219:25  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  222:25  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  226:17  warning  'fields' is defined but never used               @typescript-eslint/no-unused-vars
+  226:26  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  229:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  229:34  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  271:20  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  272:11  error    Unexpected aliasing of 'this' to local variable  @typescript-eslint/no-this-alias
+  274:20  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  275:25  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  278:19  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  282:24  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  286:17  warning  'fields' is defined but never used               @typescript-eslint/no-unused-vars
+  286:26  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  289:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  289:34  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  295:33  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  297:39  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  301:63  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  302:59  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  330:20  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  331:11  error    Unexpected aliasing of 'this' to local variable  @typescript-eslint/no-this-alias
+  333:25  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  336:24  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  340:21  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  340:34  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  346:42  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  364:27  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\lib\db\queries.ts
+  5:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\lib\game-engine\actions.ts
+   11:22  warning  'ASSET_CONCENTRATION_LIMIT' is defined but never used  @typescript-eslint/no-unused-vars
+   15:10  warning  'floorTo5L' is defined but never used                  @typescript-eslint/no-unused-vars
+   30:10  warning  'getAuditPenalty' is defined but never used            @typescript-eslint/no-unused-vars
+  162:7   error    's' is never reassigned. Use 'const' instead           prefer-const
+  202:7   error    'messages' is never reassigned. Use 'const' instead    prefer-const
+  228:7   error    'messages' is never reassigned. Use 'const' instead    prefer-const
+  277:7   error    's' is never reassigned. Use 'const' instead           prefer-const
+  296:7   error    's' is never reassigned. Use 'const' instead           prefer-const
+  510:9   error    's' is never reassigned. Use 'const' instead           prefer-const
+  568:13  warning  'auditorUpdates' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  617:11  error    's' is never reassigned. Use 'const' instead           prefer-const
+  715:23  error    Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+  876:33  warning  'i' is defined but never used                          @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\lib\game-engine\dispatcher.ts
+   40:3   warning  'checkWinCondition' is defined but never used  @typescript-eslint/no-unused-vars
+  179:99  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  256:72  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  308:13  error    's' is never reassigned. Use 'const' instead   prefer-const
+  318:13  error    's' is never reassigned. Use 'const' instead   prefer-const
+  324:66  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  336:39  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  337:43  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  368:27  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  369:31  error    Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\lib\game-engine\utils.ts
+  14:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\lib\pusher.ts
+  14:70  error    Unexpected any. Specify a different type                                                               @typescript-eslint/no-explicit-any
+  45:7   warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-var-requires')
+  46:22  error    A `require()` style import is forbidden                                                                @typescript-eslint/no-require-imports
+  81:73  error    Unexpected any. Specify a different type                                                               @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\lib\rate-limit.ts
+  152:7  error  'entry' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\measure-usage.ts
+  16:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:65  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  32:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\neon-diag.ts
+  70:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  74:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\run-sim.ts
+  14:5   error    'MAX_TURNS' is never reassigned. Use 'const' instead  prefer-const
+  19:31  warning  'turns' is assigned a value but never used            @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\scratch-db-stats.ts
+  21:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\scratch-db-stats2.ts
+  23:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\scratch-gen.ts
+   1:10  warning  'db' is defined but never used     @typescript-eslint/no-unused-vars
+   2:10  warning  'rooms' is defined but never used  @typescript-eslint/no-unused-vars
+   3:10  warning  'eq' is defined but never used     @typescript-eslint/no-unused-vars
+  21:36  warning  'i' is defined but never used      @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\scratch-stats.ts
+  13:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\scripts\test-endgame.ts
+  1:47  warning  'checkWinCondition' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\tests\action-dispatch.test.ts
+   56:25  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+   62:55  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  122:39  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  194:39  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  331:34  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  390:11  error  'offer' is never reassigned. Use 'const' instead  prefer-const
+  410:11  error  'offer' is never reassigned. Use 'const' instead  prefer-const
+  425:11  error  'state' is never reassigned. Use 'const' instead  prefer-const
+  430:11  error  'offer' is never reassigned. Use 'const' instead  prefer-const
+  439:11  error  'state' is never reassigned. Use 'const' instead  prefer-const
+  444:11  error  'offer' is never reassigned. Use 'const' instead  prefer-const
+  450:35  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  454:11  error  'state' is never reassigned. Use 'const' instead  prefer-const
+  459:11  error  'offer' is never reassigned. Use 'const' instead  prefer-const
+  465:35  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  469:11  error  'state' is never reassigned. Use 'const' instead  prefer-const
+  474:11  error  'offer' is never reassigned. Use 'const' instead  prefer-const
+  480:35  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  484:11  error  'state' is never reassigned. Use 'const' instead  prefer-const
+  487:11  error  'offer' is never reassigned. Use 'const' instead  prefer-const
+  493:35  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\tests\analytics.test.ts
+   46:11  error    Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+   64:11  warning  'mockStartedRooms' is assigned a value but never used    @typescript-eslint/no-unused-vars
+   65:11  warning  'mockAbandonedRooms' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  102:35  error    Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+  106:20  error    Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+  114:12  error    Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\tests\cleanup.test.ts
+  3:10  warning  'sql' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\tests\idempotency.test.ts
+   63:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   86:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:66  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\tests\rooms-api.test.ts
+  74:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\verify.ts
+  6:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 297 problems (226 errors, 71 warnings)
+  44 errors and 1 warning potentially fixable with the `--fix` option.
+

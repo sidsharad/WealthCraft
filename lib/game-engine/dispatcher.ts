@@ -39,7 +39,11 @@ import {
   advanceTurn,
   checkWinCondition,
   addLog,
-  validateTradeOffer
+  validateTradeOffer,
+  checkAndResolveExpiredTrades,
+  handleOpenTradeResponse,
+  executeTradeTransfer,
+  processOpenTradeResolution
 } from "./actions";
 import { getTileByPosition } from "./tiles";
 import { trimGameState } from "./utils";
@@ -87,6 +91,14 @@ function internalDispatch(
   action: string,
   payload?: Record<string, unknown>
 ): DispatchResult {
+  // Always check for expired open trades before processing any action
+  state = checkAndResolveExpiredTrades(state);
+
+  // Pause turn flow while a trade is pending
+  if (state.phase === "waiting-trade" && !["trade-response", "open-trade-select", "acknowledge-endgame-trigger", "acknowledge-endgame-cancellation"].includes(action)) {
+    return { state, sideEffect: { type: "error", message: "Cannot perform action while a trade is pending." } };
+  }
+
   const playerIdx = state.currentPlayerIndex;
   const player = state.players[playerIdx];
 
@@ -327,6 +339,10 @@ function internalDispatch(
     }
 
     case "trade-offer": {
+      if (state.pendingTrade) {
+        return { state, sideEffect: { type: "error", message: "A trade is already pending." } };
+      }
+
       if (state.emergencyState && state.emergencyState.playerId === player.id) {
         if (state.emergencyState.status !== "awaiting-trade-response") {
           return { state, sideEffect: { type: "error", message: "Trade already attempted or not allowed for this emergency." } };
@@ -335,13 +351,14 @@ function internalDispatch(
 
       const offer = payload?.offer as any;
       const request = payload?.request as any;
+      const tradeType = (payload?.tradeType as "direct" | "open") || "direct";
 
       const validation = validateTradeOffer(player, offer, request);
       if (!validation.valid) {
         return { state, sideEffect: { type: "error", message: `Invalid Trade: ${validation.error}` } };
       }
 
-      if (payload?.toPlayerId === player.id) {
+      if (tradeType === "direct" && payload?.toPlayerId === player.id) {
         return {
           state,
           sideEffect: {
@@ -351,40 +368,70 @@ function internalDispatch(
         };
       }
 
-      console.log(JSON.stringify({
-        event: "TRADE_CREATED",
-        fromPlayerId: player.id,
-        toPlayerId: payload?.toPlayerId as string,
-        proposerName: player.name,
-        receiverName: state.players.find(p => p.id === payload?.toPlayerId)?.name
-      }));
+      let eligiblePlayerIds: string[] | undefined;
+      if (tradeType === "open") {
+        eligiblePlayerIds = state.players
+          .filter(p => p.id !== player.id && p.cash >= request.cash && p.bonds >= request.bonds && p.stocks >= request.stocks)
+          .map(p => p.id);
+        
+        console.log(JSON.stringify({
+          event: "OPEN_TRADE_CREATED",
+          fromPlayerId: player.id,
+          proposerName: player.name,
+          eligibleCount: eligiblePlayerIds.length
+        }));
+      } else {
+        console.log(JSON.stringify({
+          event: "TRADE_CREATED",
+          fromPlayerId: player.id,
+          toPlayerId: payload?.toPlayerId as string,
+          proposerName: player.name,
+          receiverName: state.players.find(p => p.id === payload?.toPlayerId)?.name
+        }));
+      }
 
       const s: GameState = {
         ...state,
         phase: "waiting-trade",
         pendingTrade: {
           fromPlayerId: player.id,
-          toPlayerId: payload?.toPlayerId as string,
+          toPlayerId: tradeType === "direct" ? (payload?.toPlayerId as string) : undefined,
           offer: offer as any,
           request: request as any,
+          tradeType,
+          status: tradeType === "open" ? "pending" : undefined,
+          responses: tradeType === "open" ? [] : undefined,
+          createdAt: tradeType === "open" ? Date.now() : undefined,
+          expiresAt: tradeType === "open" ? Date.now() + 15000 : undefined,
+          eligiblePlayerIds,
         },
       };
       return { state: s, sideEffect: { type: "show-pass-device" } };
     }
 
     case "trade-response": {
-      let s = resolveTrade(state, payload?.accept as boolean);
+      const isAccept = payload?.accept as boolean;
+      const responderId = payload?.responderId as string || state.pendingTrade?.toPlayerId;
       
-      // Intercept if there's an active emergency
-      if (s.emergencyState && state.pendingTrade && s.emergencyState.playerId === state.pendingTrade.fromPlayerId) {
-        if (!payload?.accept) {
+      let s = state;
+
+      if (state.pendingTrade?.tradeType === "open") {
+        s = handleOpenTradeResponse(s, responderId!, isAccept);
+      } else {
+        s = resolveTrade(state, isAccept);
+      }
+      
+      // Intercept if there's an active emergency and the trade resolved
+      if (s.emergencyState && state.pendingTrade && s.emergencyState.playerId === state.pendingTrade.fromPlayerId && !s.pendingTrade) {
+        if (!isAccept && state.pendingTrade.tradeType === "direct") {
+           // For open trades, the final resolution handles the trade state.
            s.emergencyState = {
              ...s.emergencyState!,
              status: "rebalance-required",
              resolution: "Mandatory Rebalance"
            };
         } else {
-           // Trade accepted, check cash
+           // If it was accepted or an open trade completed, check cash
            const proposerIdx = s.players.findIndex(p => p.id === s.emergencyState!.playerId);
            const proposer = s.players[proposerIdx];
            if (proposer.cash >= s.emergencyState.amount) {
@@ -400,6 +447,32 @@ function internalDispatch(
         }
       }
       return { state: s, sideEffect: { type: "show-pass-device" } };
+    }
+
+    case "open-trade-select": {
+      const winnerId = payload?.winnerId as string;
+      if (!state.pendingTrade || state.pendingTrade.tradeType !== "open" || state.pendingTrade.status !== "selection_required") return { state };
+      
+      // Revalidate the selected winner
+      const winner = state.players.find(p => p.id === winnerId);
+      if (!winner || winner.cash < state.pendingTrade.request.cash || winner.bonds < state.pendingTrade.request.bonds || winner.stocks < state.pendingTrade.request.stocks) {
+        // Invalid winner! Force their response to false and re-evaluate
+        let s = {
+          ...state,
+          pendingTrade: {
+            ...state.pendingTrade,
+            responses: state.pendingTrade.responses?.map(r => 
+              r.playerId === winnerId ? { ...r, accept: false } : r
+            )
+          }
+        };
+        return { state: processOpenTradeResolution(s), sideEffect: { type: "error", message: "That player no longer has the required assets. Selection re-evaluated." } };
+      }
+      
+      console.log(JSON.stringify({ event: "OPEN_TRADE_COMPLETED", fromPlayerId: state.pendingTrade.fromPlayerId, toPlayerId: winnerId, type: "manual_selection" }));
+      
+      const s = executeTradeTransfer(state, state.pendingTrade.fromPlayerId, winnerId, state.pendingTrade.offer, state.pendingTrade.request);
+      return { state: s };
     }
 
     case "end-turn":

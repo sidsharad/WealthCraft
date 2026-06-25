@@ -57,10 +57,18 @@ providers.push(
   })
 );
 
+import { cleanupExpiredRooms } from "./db/cleanup";
+
 export const authConfig: NextAuthConfig = {
   session: { strategy: "jwt" },
   providers,
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (Math.random() < 0.01) {
+        cleanupExpiredRooms().catch(console.error);
+      }
+      return true;
+    },
     jwt({ token, user }) {
       if (user) token.id = user.id;
       return token;

@@ -426,11 +426,13 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     }
     fetchDiagnosticsRef.current.counts[source] = (fetchDiagnosticsRef.current.counts[source] || 0) + 1;
 
+    console.log(JSON.stringify({ event: "client_fetch_trigger", source }));
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5-second fetch timeout
 
     try {
-      const res = await fetch(`/api/rooms?code=${code}&t=${Date.now()}`, { 
+      const res = await fetch(`/api/rooms?code=${code}&t=${Date.now()}&source=${source}`, { 
         cache: "no-store",
         signal: controller.signal
       });
@@ -652,7 +654,6 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     // Priority 1: Eliminating Aggressive Polling
     let isSubscribed = true;
     let fallbackPollTimer: NodeJS.Timeout;
-    let silentFailureWatchdogTimer: NodeJS.Timeout;
     
     // We update this timestamp when a Pusher event arrives or a fetch succeeds.
     // Ensure initial value is present.
@@ -661,6 +662,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     const fallbackPoll = async () => {
       if (!isSubscribed) return;
       try {
+        if (document.visibilityState === "hidden") return;
         if (!gameStateRef.current || gameStateRef.current.phase !== "finished") {
           console.log(JSON.stringify({ event: "fallback_poll_triggered" }));
           await fetchRoom("fallback_poll", false);
@@ -669,7 +671,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         // Safe to ignore
       } finally {
         if (isSubscribed) {
-          fallbackPollTimer = setTimeout(fallbackPoll, 15000);
+          fallbackPollTimer = setTimeout(fallbackPoll, 60000);
         }
       }
     };
@@ -680,7 +682,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       if (state !== "connected") {
         if (!fallbackPollTimer) {
           console.log(JSON.stringify({ event: "fallback_poll_started", connectionState: state }));
-          fallbackPollTimer = setTimeout(fallbackPoll, 15000);
+          fallbackPollTimer = setTimeout(fallbackPoll, 60000);
         }
       } else {
         if (fallbackPollTimer) {
@@ -699,26 +701,13 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     
     managePolling();
 
-    // Silent failure detection
-    const silentFailureWatchdog = () => {
-      if (!isSubscribed) return;
-      const timeSinceUpdate = Date.now() - lastUpdateTimestampRef.current;
-      if (timeSinceUpdate >= 20000 && pusher?.connection?.state === "connected") {
-        if (!gameStateRef.current || gameStateRef.current.phase !== "finished") {
-          console.log(JSON.stringify({ event: "silent_failure_detected", timeSinceUpdate }));
-          console.log(JSON.stringify({ event: "fallback_poll_triggered" }));
-          fetchRoom("fallback_poll_silent_failure", false);
-        }
-      }
-      if (isSubscribed) silentFailureWatchdogTimer = setTimeout(silentFailureWatchdog, 5000);
-    };
-    silentFailureWatchdogTimer = setTimeout(silentFailureWatchdog, 5000);
-
 
     // When the browser tab becomes active again, fetch immediately.
     // This fixes the issue where Chrome throttles setTimeout in inactive tabs after 5 minutes!
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && isSubscribed) {
+      const state = document.visibilityState;
+      console.log(JSON.stringify({ event: state === "visible" ? "tab_visible" : "tab_hidden" }));
+      if (state === "visible" && isSubscribed) {
         fetchRoom("visibility_change_fetch", false);
       }
     };
@@ -738,7 +727,6 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         }
       }
       clearTimeout(fallbackPollTimer);
-      clearTimeout(silentFailureWatchdogTimer);
     };
   }, [code, isLocal, fetchRoom]);
 
@@ -1140,6 +1128,24 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [gameState?.phase, gameState?.currentPlayerIndex, timeLeft, performAction]);
+
+  // ─── OBSERVER TIMEOUT (Deadlock Recovery) ───────────────────────────────────
+  useEffect(() => {
+    // Only run if we are NOT the active player holding the main timer
+    if (isMyTurn) return;
+    
+    const interval = setInterval(() => {
+      if (!room?.updatedAt) return;
+      const idleTime = Date.now() - new Date(room.updatedAt).getTime();
+      
+      // If the room has been dead for 40s, poke the server
+      if (idleTime > 40000) {
+        performAction("force-timeout");
+      }
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [isMyTurn, room?.updatedAt, performAction]);
 
   // Auto-clear overlay
   useEffect(() => {

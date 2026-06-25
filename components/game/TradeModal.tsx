@@ -7,10 +7,11 @@ interface TradeModalProps {
   onClose: () => void;
   currentPlayer: PlayerState;
   otherPlayers: PlayerState[];
-  onPropose: (targetId: string, offer: any, request: any) => void;
+  onPropose: (targetId: string, offer: any, request: any, tradeType: "direct" | "open") => void;
 }
 
 export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayers, onPropose }: TradeModalProps) {
+  const [tradeType, setTradeType] = useState<"direct" | "open">("direct");
   const [targetId, setTargetId] = useState("");
   const [offer, setOffer] = useState({ cash: 0, bonds: 0, stocks: 0 });
   const [request, setRequest] = useState({ cash: 0, bonds: 0, stocks: 0 });
@@ -48,8 +49,8 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
     hasOverlap;
 
   const handlePropose = () => {
-    if (!targetId) return;
-    onPropose(targetId, offer, request);
+    if (tradeType === "direct" && !targetId) return;
+    onPropose(targetId, offer, request, tradeType);
   };
 
   const updateOffer = (key: keyof typeof offer, val: number) => {
@@ -74,6 +75,21 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex bg-gray-100 p-1 rounded-xl mb-6">
+          <button
+            onClick={() => setTradeType("direct")}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${tradeType === "direct" ? "bg-white text-[var(--navy)] shadow" : "text-gray-500 hover:text-[var(--navy)]"}`}
+          >
+            Direct Trade
+          </button>
+          <button
+            onClick={() => setTradeType("open")}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${tradeType === "open" ? "bg-white text-[var(--navy)] shadow" : "text-gray-500 hover:text-[var(--navy)]"}`}
+          >
+            Open Trade
           </button>
         </div>
 
@@ -116,18 +132,25 @@ export default function TradeModal({ isOpen, onClose, currentPlayer, otherPlayer
 
           {/* Their Assets (Request) */}
           <div className="md:col-span-5 space-y-4">
-            <div className="mb-4">
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">Trade With</label>
-              <select 
-                value={targetId}
-                onChange={(e) => setTargetId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold outline-none bg-white"
-              >
-                {otherPlayers.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
+            {tradeType === "direct" ? (
+              <div className="mb-4">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 block">Trade With</label>
+                <select 
+                  value={targetId}
+                  onChange={(e) => setTargetId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold outline-none bg-white"
+                >
+                  {otherPlayers.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Broadcast To</p>
+                <p className="text-sm font-bold text-gray-700">All Players</p>
+              </div>
+            )}
 
             <div className="space-y-3">
               {[

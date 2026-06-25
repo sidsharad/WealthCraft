@@ -5,10 +5,17 @@ import Link from "next/link";
 
 const PLAYER_COLORS = ["#3B82F6", "#F97316", "#A855F7", "#EC4899"];
 
+import { cleanupExpiredRooms } from "@/lib/db/cleanup";
+
 export default function LobbyPage() {
   const [mode, setMode] = useState<"create" | "join" | "local" | null>(null);
   
   useEffect(() => {
+    // 1% chance to trigger cleanup on lobby load
+    if (Math.random() < 0.01) {
+      cleanupExpiredRooms().catch(console.error);
+    }
+
     const params = new URLSearchParams(window.location.search);
     const m = params.get("mode");
     if (m === "local" || m === "create" || m === "join") {

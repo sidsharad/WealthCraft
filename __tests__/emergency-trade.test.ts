@@ -30,7 +30,7 @@ describe("Emergency Trade Feature Scenarios", () => {
     };
     
     // Simulate landing on an emergency tile
-    baseState.players[0].position = 7; // Tile 8 is emergency
+    baseState.players[0].position = 5; // Tile 8 is emergency
     baseState.phase = "action";
   });
 

@@ -44,7 +44,7 @@ export default function RebalanceModal({ isOpen, player, onRebalance, onClose, p
         return () => clearTimeout(timer);
       }
     }
-  }, [isOpen, player.id, skipReturnsDelay]); // use id to reset only when player changes or reopen
+  }, [isOpen, player.id, skipReturnsDelay, player.bonds, player.stocks, player.cash]); // use id/assets to reset when player state actually changes from server
 
   // Timer logic
   useEffect(() => {

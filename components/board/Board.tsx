@@ -147,7 +147,7 @@ export default function Board({ tiles, players, onTileClick, rolling, dice, over
           <div className="mt-4 flex gap-4 text-sm font-bold text-gray-600">
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500"></span> Gain</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500"></span> Loss</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-yellow-500"></span> Special</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-gray-400"></span> Action</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-500"></span> Year End</span>
           </div>
         </div>

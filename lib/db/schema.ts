@@ -90,9 +90,18 @@ export interface AuctionState {
 
 export interface TradeOffer {
   fromPlayerId: string;
-  toPlayerId: string;
+  toPlayerId?: string; // Optional for open trades
   offer: { cash: number; bonds: number; stocks: number };
   request: { cash: number; bonds: number; stocks: number };
+  
+  // Open Trade fields
+  tradeType?: "direct" | "open";
+  status?: "pending" | "selection_required" | "completed" | "expired";
+  responses?: { playerId: string; accept: boolean }[];
+  selectedPlayerId?: string;
+  createdAt?: number;
+  expiresAt?: number;
+  eligiblePlayerIds?: string[];
 }
 
 export interface LogEntry {

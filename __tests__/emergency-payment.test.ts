@@ -54,7 +54,7 @@ describe("Emergency Rebalance Flow Verification", () => {
   it("Test C: Emergency -> Rebalance -> Bonds+Stocks < 5L -> Cash < amount (Deadlock prevention)", () => {
     // 3L bonds + 2L stocks = 5L total, but neither is >= 5L block.
     let state = createTestState({ cash: 7, bonds: 3, stocks: 2 });
-    state.players[0].position = 7; // Emergency tile
+    state.players[0].position = 5; // Emergency tile
     
     // 1. Land on tile
     let result = dispatch(state, "tile-action", { amount: 10 });
@@ -76,7 +76,7 @@ describe("Emergency Rebalance Flow Verification", () => {
   it("Case B: One legal rebalance possible. Triggers needs-rebalance.", () => {
     // 5L bonds, 0L stocks. They CAN legally rebalance.
     let state = createTestState({ cash: 4, bonds: 5, stocks: 0 });
-    state.players[0].position = 7;
+    state.players[0].position = 5;
     
     // 1. Land on tile
     let result = dispatch(state, "tile-action", { amount: 10 });
@@ -98,7 +98,7 @@ describe("Emergency Rebalance Flow Verification", () => {
 
   it("Test A & B: Emergency -> Rebalance -> 3L Penalty -> Cash sufficient -> One-time deduction & no loops", () => {
     let state = createTestState({ cash: 1, bonds: 15, stocks: 10 });
-    state.players[0].position = 7;
+    state.players[0].position = 5;
     
     // 1. Land on tile
     let result = dispatch(state, "tile-action", { amount: 10 });
@@ -127,7 +127,7 @@ describe("Emergency Rebalance Flow Verification", () => {
 describe("Emergency Trade Initiation Tests", () => {
   it("Test 1: Click Initiate Trade maintains state and opens Trade Modal", () => {
     let state = createTestState({ cash: 0, bonds: 0, stocks: 0 });
-    state.players[0].position = 7;
+    state.players[0].position = 5;
     
     // 1. Trigger emergency
     let result = dispatch(state, "tile-action", { amount: 10 });
@@ -151,7 +151,7 @@ describe("Emergency Trade Initiation Tests", () => {
 
   it("Test 2: Dispatching emergency-decision 'trade' does not enter tile-logic or generate new amount", () => {
     let state = createTestState({ cash: 0, bonds: 0, stocks: 0 });
-    state.players[0].position = 7;
+    state.players[0].position = 5;
     
     let result = dispatch(state, "tile-action", { amount: 5 });
     
@@ -168,7 +168,7 @@ describe("Emergency Trade Initiation Tests", () => {
 
   it("Test 3: Dispatching unknown actions maintains emergency state (simulate refresh/invalid action)", () => {
     let state = createTestState({ cash: 0, bonds: 0, stocks: 0 });
-    state.players[0].position = 7;
+    state.players[0].position = 5;
     
     let result = dispatch(state, "tile-action", { amount: 5 });
     const eventIdBefore = result.state.emergencyState?.eventId;
@@ -184,7 +184,7 @@ describe("Emergency Trade Initiation Tests", () => {
   describe("Emergency Cleared After Trade Tests", () => {
     it("Test 1: Emergency -> Initiate Trade -> Trade Accepted -> Emergency Paid", () => {
       let state = createTestState({ cash: 0, bonds: 0, stocks: 0 });
-      state.players[0].position = 7;
+      state.players[0].position = 5;
       
       let res = dispatch(state, "tile-action", { amount: 5 });
       expect(res.state.emergencyState?.status).toBe("awaiting-decision");
@@ -204,7 +204,7 @@ describe("Emergency Trade Initiation Tests", () => {
 
     it("Test 2 & 3: Normal trade is allowed next turn, emergencyState is undefined", () => {
       let state = createTestState({ cash: 0, bonds: 0, stocks: 0 });
-      state.players[0].position = 7;
+      state.players[0].position = 5;
       
       let res = dispatch(state, "tile-action", { amount: 5 });
       res = dispatch(res.state, "emergency-decision", { decision: "trade" });
@@ -217,6 +217,7 @@ describe("Emergency Trade Initiation Tests", () => {
 
       // Next Turn (simulate page refresh just means using the same state)
       // Normal trade by the same player
+      res.state.players[0].cash = 10; // Give them cash to trade
       let normalTradeRes = dispatch(res.state, "trade-offer", { toPlayerId: "p2", offer: { cash: 1 }, request: { bonds: 1 } });
       
       // Should NOT have an error
@@ -226,7 +227,7 @@ describe("Emergency Trade Initiation Tests", () => {
 
     it("Test 4: New emergency generates a fresh eventId", () => {
       let state = createTestState({ cash: 0, bonds: 0, stocks: 0 });
-      state.players[0].position = 7;
+      state.players[0].position = 5;
       
       let res1 = dispatch(state, "tile-action", { amount: 5 });
       const eventId1 = res1.state.emergencyState?.eventId;
@@ -255,7 +256,7 @@ describe("Emergency Trade Initiation Tests", () => {
 describe("Environment-Specific Execution Path Verification", () => {
   it("Local Pass & Play: Emergency -> Trade Accepted -> Returns show-pass-device", () => {
     let state = createTestState({ cash: 0, bonds: 0, stocks: 0 });
-    state.players[0].position = 7; // Emergency tile
+    state.players[0].position = 5; // Emergency tile
     
     // 1. Emergency Triggered
     let result = dispatch(state, "tile-action", { amount: 10 });
@@ -280,7 +281,7 @@ describe("Environment-Specific Execution Path Verification", () => {
 
   it("Online Multiplayer: Emergency -> Rebalance -> Side Effect cleanup works", () => {
     let state = createTestState({ cash: 5, bonds: 5, stocks: 0 });
-    state.players[0].position = 7; // Emergency tile
+    state.players[0].position = 5; // Emergency tile
     
     // 1. Emergency Triggered
     let result = dispatch(state, "tile-action", { amount: 10 });
@@ -303,7 +304,7 @@ describe("Environment-Specific Execution Path Verification", () => {
 
   it("Defensive Validation: Server rejects partial payment if 5L blocks remain", () => {
     let state = createTestState({ cash: 7, bonds: 15, stocks: 15 });
-    state.players[0].position = 7; // Emergency tile
+    state.players[0].position = 5; // Emergency tile
     
     // 1. Emergency Triggered
     let result = dispatch(state, "tile-action", { amount: 10 });

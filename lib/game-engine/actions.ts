@@ -673,32 +673,135 @@ export function validateTradeOffer(
   return { valid: true };
 }
 
-export function resolveTrade(
-  state: GameState,
-  accept: boolean
-): GameState {
-  if (!state.pendingTrade) return state;
+export function checkAndResolveExpiredTrades(state: GameState): GameState {
+  if (!state.pendingTrade || state.pendingTrade.tradeType !== "open") return state;
   const trade = state.pendingTrade;
 
-  if (!accept) {
-    return { ...state, pendingTrade: undefined, phase: "trade", announcement: "🤝 TRADE REJECTED." };
+  // Only resolve if it's pending and expired
+  if (trade.status !== "pending") return state;
+  if (!trade.expiresAt || Date.now() < trade.expiresAt) return state;
+
+  return processOpenTradeResolution(state);
+}
+
+export function processOpenTradeResolution(state: GameState): GameState {
+  if (!state.pendingTrade || state.pendingTrade.tradeType !== "open") return state;
+  let trade = state.pendingTrade;
+
+  const creator = state.players.find(p => p.id === trade.fromPlayerId);
+  if (!creator) return state;
+
+  const creatorCanAfford = 
+    creator.cash >= trade.offer.cash &&
+    creator.bonds >= trade.offer.bonds &&
+    creator.stocks >= trade.offer.stocks;
+
+  if (!creatorCanAfford) {
+    return { ...state, pendingTrade: undefined, phase: "trade", announcement: "⏱️ OPEN TRADE FAILED: Creator no longer has the offered assets." };
   }
 
-  const fromIdx = state.players.findIndex(p => p.id === trade.fromPlayerId);
-  const toIdx = state.players.findIndex(p => p.id === trade.toPlayerId);
+  // Revalidate acceptors: filter out players who can no longer afford the requested assets
+  const originalAccepts = trade.responses?.filter((r) => r.accept) || [];
+  const validAccepts = originalAccepts.filter(r => {
+    const p = state.players.find(player => player.id === r.playerId);
+    if (!p) return false;
+    return p.cash >= trade.request.cash && p.bonds >= trade.request.bonds && p.stocks >= trade.request.stocks;
+  });
+
+  // If some responses were invalidated due to lack of assets, update the trade responses in state
+  if (validAccepts.length !== originalAccepts.length) {
+    trade = {
+      ...trade,
+      responses: trade.responses?.map(r => {
+        if (r.accept && !validAccepts.some(va => va.playerId === r.playerId)) {
+          return { ...r, accept: false }; // Flip invalid accepts to rejects
+        }
+        return r;
+      })
+    };
+    state = { ...state, pendingTrade: trade };
+  }
+
+  if (validAccepts.length === 0) {
+    console.log(JSON.stringify({ event: "OPEN_TRADE_EXPIRED", fromPlayerId: trade.fromPlayerId }));
+    return { ...state, pendingTrade: undefined, phase: "trade", announcement: "⏱️ OPEN TRADE EXPIRED: No valid players accepted." };
+  } else if (validAccepts.length === 1) {
+    const winnerId = validAccepts[0].playerId;
+    console.log(JSON.stringify({ event: "OPEN_TRADE_COMPLETED", fromPlayerId: trade.fromPlayerId, toPlayerId: winnerId, type: "auto" }));
+    return executeTradeTransfer(state, trade.fromPlayerId, winnerId, trade.offer, trade.request);
+  } else {
+    console.log(JSON.stringify({ event: "OPEN_TRADE_SELECTION_REQUIRED", fromPlayerId: trade.fromPlayerId, accepts: validAccepts.length }));
+    return {
+      ...state,
+      pendingTrade: {
+        ...trade,
+        status: "selection_required",
+      },
+    };
+  }
+}
+
+export function handleOpenTradeResponse(state: GameState, playerId: string, accept: boolean): GameState {
+  if (!state.pendingTrade || state.pendingTrade.tradeType !== "open" || state.pendingTrade.status !== "pending") return state;
+  const trade = state.pendingTrade;
+
+  // Verify eligible
+  if (!trade.eligiblePlayerIds?.includes(playerId)) return state;
+
+  // Prevent duplicate response
+  if (trade.responses?.find((r) => r.playerId === playerId)) return state;
+
+  const newResponses = [...(trade.responses || []), { playerId, accept }];
+  let s = {
+    ...state,
+    pendingTrade: {
+      ...trade,
+      responses: newResponses,
+    },
+  };
+
+  console.log(JSON.stringify({ event: "OPEN_TRADE_RESPONSE", fromPlayerId: trade.fromPlayerId, responderId: playerId, accept }));
+
+  // Check if mathematically resolved early
+  const eligibleCount = trade.eligiblePlayerIds.length;
+  if (newResponses.length === eligibleCount) {
+    // All eligible responded, resolve immediately
+    s = processOpenTradeResolution(s);
+  } else {
+    // Check if early abort possible (all remaining eligible have rejected so far, and no accepts exist)
+    const accepts = newResponses.filter((r) => r.accept);
+    const rejects = newResponses.filter((r) => !r.accept);
+    if (accepts.length === 0 && rejects.length === eligibleCount) {
+       // All rejected
+       s = processOpenTradeResolution(s);
+    }
+  }
+
+  return s;
+}
+
+export function executeTradeTransfer(
+  state: GameState,
+  fromPlayerId: string,
+  toPlayerId: string,
+  offer: { cash: number; bonds: number; stocks: number },
+  request: { cash: number; bonds: number; stocks: number }
+): GameState {
+  const fromIdx = state.players.findIndex(p => p.id === fromPlayerId);
+  const toIdx = state.players.findIndex(p => p.id === toPlayerId);
   const from = state.players[fromIdx];
   const to = state.players[toIdx];
 
   // Verify both players can afford the trade at the exact moment of execution
   const fromCanAfford = 
-    from.cash >= trade.offer.cash &&
-    from.bonds >= trade.offer.bonds &&
-    from.stocks >= trade.offer.stocks;
+    from.cash >= offer.cash &&
+    from.bonds >= offer.bonds &&
+    from.stocks >= offer.stocks;
 
   const toCanAfford = 
-    to.cash >= trade.request.cash &&
-    to.bonds >= trade.request.bonds &&
-    to.stocks >= trade.request.stocks;
+    to.cash >= request.cash &&
+    to.bonds >= request.bonds &&
+    to.stocks >= request.stocks;
 
   if (!fromCanAfford || !toCanAfford) {
     return { 
@@ -714,13 +817,13 @@ export function resolveTrade(
 
   const toNum = (val: any) => Number(val) || 0;
 
-  const offerCash = toNum(trade.offer?.cash);
-  const offerBonds = toNum(trade.offer?.bonds);
-  const offerStocks = toNum(trade.offer?.stocks);
+  const offerCash = toNum(offer?.cash);
+  const offerBonds = toNum(offer?.bonds);
+  const offerStocks = toNum(offer?.stocks);
 
-  const requestCash = toNum(trade.request?.cash);
-  const requestBonds = toNum(trade.request?.bonds);
-  const requestStocks = toNum(trade.request?.stocks);
+  const requestCash = toNum(request?.cash);
+  const requestBonds = toNum(request?.bonds);
+  const requestStocks = toNum(request?.stocks);
 
   // Check if the proposing player (from) is located on a Free Trade Zone tile
   const fromTile = getTileByPosition(toNum(from.position));
@@ -756,6 +859,22 @@ export function resolveTrade(
 
   s = { ...s, pendingTrade: undefined, phase: "trade", announcement };
   return addLog(s, logMessage);
+}
+
+export function resolveTrade(
+  state: GameState,
+  accept: boolean
+): GameState {
+  if (!state.pendingTrade) return state;
+  const trade = state.pendingTrade;
+
+  if (!accept) {
+    return { ...state, pendingTrade: undefined, phase: "trade", announcement: "🤝 TRADE REJECTED." };
+  }
+
+  if (!trade.toPlayerId) return state; // Safety check
+
+  return executeTradeTransfer(state, trade.fromPlayerId, trade.toPlayerId, trade.offer, trade.request);
 }
 
 // ─── WIN CONDITION ────────────────────────────────────────────────────────────

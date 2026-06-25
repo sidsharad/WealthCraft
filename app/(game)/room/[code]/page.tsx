@@ -1,9 +1,8 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { Suspense, useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { EmergencyTestHarness } from "@/components/game/EmergencyTestHarness";
-import { QAPassAndPlayPanel } from "@/components/game/QAPassAndPlayPanel";
+
 import { TILES, HOUSE_MARKET_PRICE, HOUSE_AUCTION_MIN } from "@/lib/game-engine/tiles";
 import { netWorth } from "@/lib/game-engine/actions";
 import { useGameTurn } from "@/hooks/useGameTurn";
@@ -19,13 +18,14 @@ import TargetedActionModal from "@/components/game/TargetedActionModal";
 import ChoiceModal from "@/components/game/ChoiceModal";
 import PassDeviceScreen from "@/components/game/PassDeviceScreen";
 import TradeResponseModal from "@/components/game/TradeResponseModal";
+import OpenTradeModal from "@/components/game/OpenTradeModal";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
 import EndgameNotifyModal from "@/components/game/EndgameNotifyModal";
 import { LogOut, MessageSquare, ShieldAlert } from "lucide-react";
 
 const PLAYER_COLORS = ["#3B82F6", "#F97316", "#A855F7", "#EC4899"];
 
-export default function GameRoomPage() {
+function GameRoomContent() {
   const params = useParams();
   const { data: session } = useSession();
   const router = useRouter();
@@ -159,19 +159,6 @@ export default function GameRoomPage() {
           </button>
         </div>
 
-        {turn.isLocal && turn.currentPlayer && (
-          <EmergencyTestHarness 
-            player={turn.currentPlayer} 
-            roomId={turn.room?.id || "local"}
-            emergencyState={turn.gameState.emergencyState}
-            onPerformAction={turn.performAction}
-          />
-        )}
-
-        <QAPassAndPlayPanel 
-          isLocal={turn.isLocal} 
-          onPerformAction={turn.performAction} 
-        />
 
         {/* Connection Status Pill */}
         {!isLocal && (
@@ -204,7 +191,7 @@ export default function GameRoomPage() {
           </div>
 
           {/* Diagnostics Telemetry Panel */}
-          {!isLocal && (
+          {!isLocal && (params.debug === "1" || (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1")) && (
             <div className="border border-gray-200 bg-white/70 backdrop-blur-md rounded-2xl p-3 shadow-md">
               <button
                 onClick={() => setShowTelemetry(!showTelemetry)}
@@ -507,8 +494,8 @@ export default function GameRoomPage() {
           onClose={() => turn.setShowTrade(false)}
           currentPlayer={turn.currentPlayer!}
           otherPlayers={turn.gameState.players.filter(p => p.id !== turn.currentPlayer?.id)}
-          onPropose={(targetId, offer, request) => {
-            turn.performAction("trade-offer", { toPlayerId: targetId, offer, request });
+          onPropose={(targetId, offer, request, tradeType) => {
+            turn.performAction("trade-offer", { toPlayerId: targetId, offer, request, tradeType });
             turn.setShowTrade(false);
           }}
         />
@@ -597,16 +584,27 @@ export default function GameRoomPage() {
           />
         )}
 
-        <TradeResponseModal
-          isOpen={
-            turn.gameState.phase === "waiting-trade" &&
-            (isLocal || turn.gameState.pendingTrade?.toPlayerId === stableUserId)
-          }
-          offer={turn.gameState!.pendingTrade!}
-          fromPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.fromPlayerId)!}
-          toPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.toPlayerId)!}
-          onResponse={(accept) => turn.performAction("trade-response", { accept })}
-        />
+        {turn.gameState.pendingTrade?.tradeType !== "open" ? (
+          <TradeResponseModal
+            isOpen={
+              turn.gameState.phase === "waiting-trade" &&
+              (isLocal || turn.gameState.pendingTrade?.toPlayerId === stableUserId)
+            }
+            offer={turn.gameState!.pendingTrade!}
+            fromPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.fromPlayerId)!}
+            toPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.toPlayerId)!}
+            onResponse={(accept) => turn.performAction("trade-response", { accept })}
+          />
+        ) : (
+          <OpenTradeModal
+            isOpen={turn.gameState.phase === "waiting-trade"}
+            offer={turn.gameState!.pendingTrade!}
+            currentPlayer={(isLocal ? turn.currentPlayer : turn.gameState!.players.find(p => p.id === stableUserId)) || turn.currentPlayer!}
+            players={turn.gameState!.players}
+            onResponse={(accept) => turn.performAction("trade-response", { accept, responderId: stableUserId })}
+            onSelectWinner={(winnerId) => turn.performAction("open-trade-select", { winnerId })}
+          />
+        )}
 
         <EndgameNotifyModal
           isOpen={turn.gameState.endgameCandidate === true && turn.gameState.endgameTriggerAcknowledged === false}
@@ -624,5 +622,13 @@ export default function GameRoomPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function GameRoomPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[var(--cream)]"><div className="animate-spin text-4xl">💰</div></div>}>
+      <GameRoomContent />
+    </Suspense>
   );
 }
