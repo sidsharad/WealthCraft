@@ -161,7 +161,7 @@ export async function GET(req: NextRequest) {
     playerDetails = playerIds.map(id => fetchedUsers.find((u: any) => u.id === id)).filter(Boolean);
   }
 
-  const responseBody = { room, players: playerDetails };
+  const responseBody = { room, players: playerDetails, appVersion: process.env.NEXT_PUBLIC_APP_VERSION };
   logResponseMetric("GET /api/rooms", source, room.code, responseBody);
   const response = NextResponse.json(responseBody);
   

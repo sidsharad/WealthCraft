@@ -252,7 +252,7 @@ export async function POST(
         year: gameState.year,
         hash: hashGameState(gameState)
       }, null, 2));
-      return NextResponse.json({ gameState });
+      return NextResponse.json({ gameState, appVersion: process.env.NEXT_PUBLIC_APP_VERSION });
     }
 
     if (!gameState) return NextResponse.json({ error: "Game not started" }, { status: 400 });
@@ -318,7 +318,7 @@ export async function POST(
         await updateGameState(roomId, nextState);
         safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STATE_UPDATE, { timestamp: Date.now() }).catch(err => console.error(err));
       }
-      return NextResponse.json({ gameState: nextState });
+      return NextResponse.json({ gameState: nextState, appVersion: process.env.NEXT_PUBLIC_APP_VERSION });
     }
 
     // 3. Validate Game State Integrity
@@ -367,7 +367,7 @@ export async function POST(
         year: gameState.year,
         hash: hashGameState(gameState)
       }, null, 2));
-      return NextResponse.json({ gameState });
+      return NextResponse.json({ gameState, appVersion: process.env.NEXT_PUBLIC_APP_VERSION });
     }
 
     const currentPlayerIdx = gameState.currentPlayerIndex;
@@ -519,7 +519,7 @@ export async function POST(
         hash: hashGameState(nextState)
       }, null, 2));
       
-      const responseData: any = { gameState: nextState };
+      const responseData: any = { gameState: nextState, appVersion: process.env.NEXT_PUBLIC_APP_VERSION };
       if (nextState.phase === "finished") {
         responseData.leaderboard = getLeaderboard(nextState);
       }
@@ -585,7 +585,7 @@ export async function POST(
     );
 
     // Build response — include extra fields consumers may need
-    const response: Record<string, unknown> = { gameState: state };
+    const response: Record<string, unknown> = { gameState: state, appVersion: process.env.NEXT_PUBLIC_APP_VERSION };
     if (result.dice !== undefined) response.dice = result.dice;
     if (result.sideEffect?.type === "needs-rebalance") response.needsRebalance = true;
     if (result.sideEffect) response.sideEffect = result.sideEffect;

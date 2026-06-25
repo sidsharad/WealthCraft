@@ -8,6 +8,7 @@ export const metadata: Metadata = {
 };
 
 import Providers from "@/components/Providers";
+import VersionDetector from "@/components/VersionDetector";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,7 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="min-h-screen" style={{ background: "var(--cream)" }} suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        <Providers>
+          <VersionDetector />
+          {children}
+        </Providers>
       </body>
     </html>
   );

@@ -569,7 +569,17 @@ export function resolveTimeout(
     return null;
   }
 
-  // 6. Default — end turn
+  // 6. Trade phase — auto-reject AFK direct trades, or pause for open trades
+  if (state.phase === "waiting-trade" && state.pendingTrade) {
+    if (state.pendingTrade.tradeType === "direct") {
+      return { action: "trade-response", payload: { accept: false, responderId: state.pendingTrade.toPlayerId } };
+    }
+    if (state.pendingTrade.tradeType === "open" && state.pendingTrade.status === "selection_required") {
+      return null;
+    }
+  }
+
+  // 7. Default — end turn
   return { action: "end-turn" };
 }
 

@@ -6,6 +6,7 @@ import { dispatch, applyWinCheck, resolveTimeout } from "@/lib/game-engine/dispa
 import { createInitialGameState } from "@/lib/game-engine/actions";
 import { getBotDecision } from "@/lib/game-engine/bot";
 import { getPusherClient, getRoomChannel, PUSHER_EVENTS } from "@/lib/pusher";
+import { checkVersion } from "@/hooks/useVersion";
 
 export interface UseGameTurnProps {
   code: string;
@@ -441,6 +442,10 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       const data = text ? JSON.parse(text) : null;
       if (!res.ok) throw new Error(data?.error || "Failed to fetch room details");
       if (!data?.room) throw new Error("Room details not found");
+      
+      if (data.appVersion) {
+        checkVersion(data.appVersion);
+      }
       
       const newGameState = data.room.gameState;
       const preState = gameStateRef.current;
@@ -979,6 +984,10 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         const actionText = await actionRes.text();
         const data = actionText ? JSON.parse(actionText) : null;
         if (!actionRes.ok || !data) throw new Error(data?.error || "Failed to perform action");
+        
+        if (data.appVersion) {
+          checkVersion(data.appVersion);
+        }
         
         const preState = gameStateRef.current;
         setGameState(data.gameState, `action_${action}`, Date.now());
