@@ -12,7 +12,11 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/db/queries', () => ({
   getRoomById: vi.fn(),
-  updateGameState: vi.fn().mockResolvedValue({ ts: new Date(), gameVersion: 2 }),
+  updateGameState: vi.fn().mockImplementation((roomId, gameState, currentVersion) => {
+    const nextVersion = (currentVersion || 1) + 1;
+    gameState.version = nextVersion;
+    return Promise.resolve({ ts: new Date(), gameVersion: nextVersion });
+  }),
   recordGameResult: vi.fn(),
 }));
 

@@ -175,7 +175,11 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
   
   // 3. YEAR-END REBALANCE PHASE
   else if (phase === "year-end") {
-    const newPort = getBestRebalance(bot, 0, legacyBotType);
+    let requiredCash = 0;
+    if (state.emergencyState?.playerId === bot.id) {
+        requiredCash = state.emergencyState.amount;
+    }
+    const newPort = getBestRebalance(bot, 0, legacyBotType, requiredCash);
     if (newPort) {
       candidates.push({ action: { type: "rebalance", payload: { ...newPort, penalty: 0 } }, score: 100 });
     }
@@ -197,7 +201,7 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
       bid = Math.min(bot.cash - 3, HOUSE_MARKET_PRICE - 5);
       if (bid < HOUSE_AUCTION_MIN) bid = isMandatoryYear && bot.cash >= 10 ? 10 : 0;
     }
-    candidates.push({ action: { type: "house-auction-bid", payload: { amount: bid } }, score: 100 });
+    candidates.push({ action: { type: "house-auction-bid", payload: { amount: bid, bidderId: bot.id } }, score: 100 });
   }
 
   // 5. TRADE PHASE (TRADING, MID-YEAR REBALANCE)
@@ -353,7 +357,8 @@ function getAuditTarget(
 export function getBestRebalance(
   bot: PlayerState,
   penalty: number,
-  botType: "defensive" | "balanced" | "aggressive"
+  botType: "defensive" | "balanced" | "aggressive",
+  requiredCash: number = 0
 ): { newCash: number; newBonds: number; newStocks: number } | null {
   const total = bot.cash + bot.bonds + bot.stocks - penalty;
   let bestComb = { newCash: total, newBonds: 0, newStocks: 0 };
@@ -368,7 +373,13 @@ export function getBestRebalance(
 
       let score = 0;
 
-      if (c < minCash) {
+      if (c < requiredCash) {
+        if (total >= requiredCash) {
+          score -= 1000000;
+        } else {
+          score += c * 10000;
+        }
+      } else if (c < minCash) {
         if (total >= minCash) {
           score -= 10000;
         } else {
@@ -444,6 +455,22 @@ export function getBestRebalance(
      else if (bondsDelta > 0) bondsDelta -= 5;
      else break; // Should not happen if total >= 0
      cashDelta = -(stocksDelta + bondsDelta);
+  }
+
+  // If we are forced to pay an emergency, forcefully liquidate more blocks until we have enough cash
+  // (unless we are completely out of blocks)
+  while (currentCash + cashDelta < requiredCash) {
+    let liquidated = false;
+    if (currentBonds + bondsDelta >= 5) {
+      bondsDelta -= 5;
+      liquidated = true;
+    } else if (currentStocks + stocksDelta >= 5) {
+      stocksDelta -= 5;
+      liquidated = true;
+    }
+    
+    if (!liquidated) break;
+    cashDelta = -(stocksDelta + bondsDelta);
   }
 
   const finalAction = {

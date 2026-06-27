@@ -147,10 +147,19 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   const [gameState, _setGameState] = useState<GameState | null>(null);
   const gameStateRef = useRef<GameState | null>(null);
   const lastGameVersionRef = useRef<number>(0);
-  const fetchRoomRef = useRef<(source?: string) => void>();
+  const fetchRoomRef = useRef<((source?: string) => void) | undefined>(undefined);
 
   const setGameState = useCallback((s: GameState | null | undefined, source: string = "unknown", incomingVersion: number = 0, incomingUpdatedAt: number = 0) => {
     const pre = gameStateRef.current;
+    
+    console.log({
+      source,
+      roomId: code,
+      gameVersion: incomingVersion > 0 ? incomingVersion : lastGameVersionRef.current,
+      turn: s?.turn,
+      currentPlayer: s?.currentPlayerIndex,
+      timestamp: Date.now()
+    });
 
     // 1. Log the SET_GAME_STATE attempt
     console.log(JSON.stringify({
@@ -497,10 +506,6 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       roomIdRef.current = data.room.id;
       setLoading(false);
 
-      if (stateChanged) {
-        logStateTransition(source, source === "initial_fetch" ? "init" : `fetch_${Date.now()}`, preState, newGameState, data.room.status, data.room.playerIds.length);
-      }
-
       // Track telemetry updates
       lastUpdateTimestampRef.current = Date.now();
       if (stableUserId) {
@@ -675,6 +680,13 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
               }
               if (incomingVersion > currentVersion + 1) {
                 console.warn("VERSION_GAP: Pusher delivered version", incomingVersion, "but we are at", currentVersion);
+                console.log(JSON.stringify({
+                  source: "version-gap-recovery",
+                  gameVersion: incomingVersion,
+                  turn: gameStateRef.current?.turn,
+                  currentPlayer: gameStateRef.current?.currentPlayerIndex,
+                  timestamp: Date.now(),
+                }));
                 fetchRoom("pusher_gap", false);
                 return;
               }

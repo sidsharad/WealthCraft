@@ -25,6 +25,14 @@ function logResponseMetric(endpoint: string, source: string, code: string, body:
     }
   }
   const size = Buffer.byteLength(JSON.stringify(body));
+  console.log({
+    source: source || "unknown",
+    roomId: code,
+    gameVersion: body.room?.gameVersion,
+    turn: body.room?.gameState?.turn,
+    currentPlayer: body.room?.gameState?.currentPlayerIndex,
+    timestamp: Date.now()
+  });
   console.log(JSON.stringify({
     event: "API_RESPONSE_METRIC",
     endpoint,

@@ -224,6 +224,15 @@ export async function POST(
       gameState.version = newVersion;
       await db.update(rooms).set({ status: "active", gameState, updatedAt: startTs, gameVersion: newVersion }).where(eq(rooms.id, roomId));
 
+      console.log(
+        "PUSHER_BROADCAST",
+        {
+          roomId,
+          gameVersion: newVersion,
+          turn: gameState.turn,
+          currentPlayer: gameState.currentPlayerIndex,
+        }
+      );
       safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STARTED, { timestamp: Date.now(), version: newVersion }).catch(err =>
         console.error(JSON.stringify({
           timestamp: new Date().toISOString(),
@@ -249,6 +258,16 @@ export async function POST(
         turnAfter,
         durationMs: Date.now() - startTime
       }, null, 2));
+      console.log(
+        "VERSION_CHECK",
+        {
+          roomVersion: newVersion,
+          gameStateVersion: gameState.version,
+          turn: gameState.turn,
+          currentPlayer: gameState.currentPlayerIndex,
+        }
+      );
+
       console.log(JSON.stringify({
         event: "STATE_HASH",
         turn: gameState.turn,
@@ -323,8 +342,28 @@ export async function POST(
         const updateResult = await updateGameState(roomId, nextState, room.gameVersion ?? 1);
         timeoutTs = updateResult.ts;
         timeoutVersion = updateResult.gameVersion;
+        console.log(
+          "PUSHER_BROADCAST",
+          {
+            roomId,
+            gameVersion: timeoutVersion,
+            turn: nextState.turn,
+            currentPlayer: nextState.currentPlayerIndex,
+          }
+        );
         safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STATE_UPDATE, { timestamp: Date.now(), version: timeoutVersion }).catch(err => console.error(err));
       }
+      
+      console.log(
+        "VERSION_CHECK",
+        {
+          roomVersion: timeoutVersion,
+          gameStateVersion: nextState.version,
+          turn: nextState.turn,
+          currentPlayer: nextState.currentPlayerIndex,
+        }
+      );
+
       return NextResponse.json({ gameState: nextState, gameVersion: timeoutVersion, appVersion: process.env.NEXT_PUBLIC_APP_VERSION, updatedAt: timeoutTs.getTime() });
     }
 
@@ -483,6 +522,15 @@ export async function POST(
         await db.update(rooms).set({ status: "finished" }).where(eq(rooms.id, roomId));
         console.log(JSON.stringify({ event: "GAME_FINISHED_COMMIT" }));
         
+        console.log(
+          "PUSHER_BROADCAST",
+          {
+            roomId,
+            gameVersion: endTurnVersion,
+            turn: nextState.turn,
+            currentPlayer: nextState.currentPlayerIndex,
+          }
+        );
         safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_FINISHED, { timestamp: Date.now(), version: endTurnVersion }).catch(err =>
           console.error(JSON.stringify({
             timestamp: new Date().toISOString(),
@@ -532,6 +580,16 @@ export async function POST(
       if (nextState.phase === "finished") {
         responseData.leaderboard = getLeaderboard(nextState);
       }
+      console.log(
+        "VERSION_CHECK",
+        {
+          roomVersion: endTurnVersion,
+          gameStateVersion: nextState.version,
+          turn: nextState.turn,
+          currentPlayer: nextState.currentPlayerIndex,
+        }
+      );
+      
       return NextResponse.json(responseData);
     }
 
@@ -584,6 +642,16 @@ export async function POST(
     // Send a lightweight payload to trigger clients to fetch the state
     const pusherPayload: Record<string, unknown> = { timestamp: Date.now(), version: actionVersion };
 
+    console.log(
+      "PUSHER_BROADCAST",
+      {
+        roomId,
+        gameVersion: actionVersion,
+        turn: state.turn,
+        currentPlayer: state.currentPlayerIndex,
+      }
+    );
+
     safeTrigger(getRoomChannel(room.code), pusherEvent, pusherPayload).catch(err =>
       console.error(JSON.stringify({
         timestamp: new Date().toISOString(),
@@ -600,6 +668,17 @@ export async function POST(
     if (result.dice !== undefined) response.dice = result.dice;
     if (result.sideEffect?.type === "needs-rebalance") response.needsRebalance = true;
     if (result.sideEffect) response.sideEffect = result.sideEffect;
+
+    console.log({
+        source: "api-action-response",
+        roomId,
+        gameVersion: actionVersion,
+        turn: state.turn,
+        currentPlayer: state.currentPlayerIndex,
+        timestamp: Date.now(),
+    });
+
+    return NextResponse.json(response);
 
     phaseAfter = state.phase;
     turnAfter = state.turn;
@@ -632,6 +711,16 @@ export async function POST(
       responseSizeBytes: size,
       timestamp: new Date().toISOString()
     }));
+
+    console.log(
+      "VERSION_CHECK",
+      {
+        roomVersion: actionVersion,
+        gameStateVersion: state.version,
+        turn: state.turn,
+        currentPlayer: state.currentPlayerIndex,
+      }
+    );
 
     return NextResponse.json(response);
   } finally {

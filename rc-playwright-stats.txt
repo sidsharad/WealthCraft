@@ -1,0 +1,10 @@
+Starting WealthCraft RC Validation Suite...
+Creating Multiplayer Room as Player A...
+VALIDATION FAILED page.waitForURL: Timeout 30000ms exceeded.
+=========================== logs ===========================
+waiting for navigation until "load"
+============================================================
+    at runValidation (C:\Users\Siddharth Sharad\OneDrive\Desktop\Antigravity Test\WealthCraft\wealthcraft\scripts\rc-playwright-validation.ts:23:15) {
+  log: [],
+  name: 'TimeoutError'
+}
