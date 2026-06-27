@@ -46,12 +46,24 @@ function logResponseMetric(endpoint: string, source: string, code: string, body:
 
 // POST /api/rooms — create or join a room
 export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
+  if (body.action === "debug-db") {
+    try {
+      await db.select().from(rooms).limit(1);
+      return NextResponse.json({ success: true, host: process.env.DATABASE_URL?.match(/@([^/]+)/)?.[1] });
+    } catch (e: any) {
+      return NextResponse.json({ 
+        error: e.message, 
+        host: process.env.DATABASE_URL?.match(/@([^/]+)/)?.[1] 
+      }, { status: 500 });
+    }
+  }
+
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
   const { action, code, mode, playerName } = body;
 
   const userId = (session.user as { id?: string }).id!;
