@@ -12,7 +12,7 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/db/queries', () => ({
   getRoomById: vi.fn(),
-  updateGameState: vi.fn(),
+  updateGameState: vi.fn().mockResolvedValue({ ts: new Date(), gameVersion: 2 }),
   recordGameResult: vi.fn(),
 }));
 

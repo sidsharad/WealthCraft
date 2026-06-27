@@ -54,15 +54,86 @@ export const rooms = pgTable("rooms", {
   gameState: jsonb("game_state").$type<GameState>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  gameVersion: integer("game_version").notNull().default(1),
 });
 
 // ─── GAME STATE TYPES ─────────────────────────────────────────────────────────
+export interface BotPersonality {
+  risk: number;
+  greed: number;
+  aggression: number;
+  liquidity: number;
+  sociability: number;
+  targetAllocation: {
+    cash: number;
+    bonds: number;
+    stocks: number;
+  };
+}
+
+export type StrategyMode =
+  | "EXPANSION"
+  | "BALANCED"
+  | "AGGRESSIVE"
+  | "DEFENSIVE"
+  | "RECOVERY"
+  | "ENDGAME"
+  | "SABOTAGE"
+  | "KINGMAKER";
+
+export interface BotEmotions {
+  confidence: number;
+  fear: number;
+  revenge: number;
+  desperation: number;
+}
+
+export interface BotMotivations {
+  win: number;
+  preserveCash: number;
+  attackLeader: number;
+  revenge: number;
+  houseOwnership: number;
+}
+
+export interface AssetBelief {
+  mean: number;
+  variance: number;
+  confidence: number;
+}
+
+export interface PlayerModel {
+  cash: AssetBelief;
+  bonds: AssetBelief;
+  stocks: AssetBelief;
+  riskScore: number;
+  aggressionScore: number;
+  tradeAcceptanceScore: number;
+}
+
+export interface BotState {
+  personality: BotPersonality;
+  strategicMode: StrategyMode;
+  emotions: BotEmotions;
+  motivations: BotMotivations;
+  memory: {
+    successfulAudits: number;
+    failedAudits: number;
+    acceptedTrades: number;
+    rejectedTrades: number;
+    revengeTargets: string[];
+  };
+  playerModels: {
+    [playerId: string]: PlayerModel;
+  };
+}
+
 export interface PlayerState {
   id: string;
   name: string;
   avatar: string;
   isBot: boolean;
-  botType?: "defensive" | "balanced" | "aggressive";
+  botType?: "BULL" | "DISCIPLINED" | "AUDIT_HAWK" | "OPPORTUNIST" | "SAFETY_BUILDER" | "PROPERTY_BUILDER";
   cash: number;      // in Lakhs, integers only
   bonds: number;     // in Lakhs, integers only
   stocks: number;    // in Lakhs, integers only
@@ -75,6 +146,7 @@ export interface PlayerState {
   turnsWithJobLoss: number;
   hasTraded: boolean;
   privateMessage?: string;
+  botState?: BotState;
 }
 
 export interface AuctionBid {
@@ -130,6 +202,7 @@ export interface EmergencyState {
 }
 
 export interface GameState {
+  version: number;
   turn: number;
   year: number;
   currentPlayerIndex: number;

@@ -83,11 +83,12 @@ export default function HomePage() {
         </div>
 
         {/* Feature cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
           {[
-            { icon: "🌐", title: "Online Multiplayer", desc: "Play with 2–4 friends with a 6-char room code. Real-time updates via live sync.", link: "/lobby" },
-            { icon: "🤝", title: "Pass-and-Play", desc: "No sign-in needed for friends on one device. Includes AI bot players.", link: "/lobby?mode=local" },
-            { icon: "📊", title: "The Complete Rulebook", desc: "Bonds, stocks, cash, audit, auctions, hostile takeovers and trade. Click here to read the entire rulebook", link: "/rules", download: false },
+            { icon: "🌐", title: "Online Multiplayer", desc: "Play online with friends. Supports human players and optional AI bots.", link: "/lobby?mode=online" },
+            { icon: "🤖", title: "Play vs Bots", desc: "Challenge AI opponents in a solo game.", link: "/lobby?mode=solo" },
+            { icon: "🤝", title: "Local Pass-and-Play", desc: "Play locally with friends and optional AI bots.", link: "/lobby?mode=local" },
+            { icon: "📚", title: "Complete Rulebook", desc: "Learn rules, strategies, assets, trading and audits.", link: "/rules", download: false },
           ].map((f) => {
             const cardClasses = `bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-left border border-white/20 h-full transition-all block no-underline hover:bg-white/15 cursor-pointer`;
 

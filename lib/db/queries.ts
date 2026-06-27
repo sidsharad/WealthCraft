@@ -107,11 +107,15 @@ export async function getRoomById(id: string) {
   return room;
 }
 
-export async function updateGameState(roomId: string, gameState: GameState) {
+export async function updateGameState(roomId: string, gameState: GameState, currentVersion: number) {
+  const ts = new Date();
+  const nextVersion = currentVersion + 1;
+  gameState.version = nextVersion;
   await db
     .update(rooms)
-    .set({ gameState, updatedAt: new Date() })
+    .set({ gameState, updatedAt: ts, gameVersion: nextVersion })
     .where(eq(rooms.id, roomId));
+  return { ts, gameVersion: nextVersion };
 }
 
 export async function getUserById(id: string) {

@@ -11,6 +11,7 @@ import {
   getAuditThreshold, ASSET_CONCENTRATION_LIMIT, FALSE_AUDIT_PENALTY,
   getTileByPosition,
 } from "./tiles";
+import { createInitialBotState } from "./bot";
 /** Floor to nearest 5L block (for return calculations) */
 function floorTo5L(amount: number): number {
   return Math.floor(amount / 5) * 5;
@@ -62,9 +63,10 @@ function clampValue(val: number): number {
 // ─── INITIAL STATE ────────────────────────────────────────────────────────────
 
 export function createInitialGameState(
-  players: Array<{ id: string; name: string; avatar: string; isBot: boolean; botType?: "defensive" | "balanced" | "aggressive" }>
+  players: Array<{ id: string; name: string; avatar: string; isBot: boolean; botType?: "BULL" | "DISCIPLINED" | "AUDIT_HAWK" | "OPPORTUNIST" | "SAFETY_BUILDER" | "PROPERTY_BUILDER" }>
 ): GameState {
   return {
+    version: 1,
     turn: 0,
     year: 1,
     currentPlayerIndex: 0,
@@ -75,6 +77,7 @@ export function createInitialGameState(
       avatar: p.avatar,
       isBot: p.isBot,
       botType: p.botType,
+      botState: p.isBot ? createInitialBotState(p.id, p.botType || "DISCIPLINED", players) : undefined,
       cash: 10,       // 10L starting cash
       bonds: 0,
       stocks: 0,
@@ -537,6 +540,21 @@ export function processConcentrationAudit(
   const auditor = state.players[auditorIdx];
   const target = state.players[targetIdx];
 
+  console.log(
+    "AUDIT EXECUTION",
+    {
+      targetPlayerId: targetIdx,
+      playerCount: state.players.length,
+      players: state.players.map((p, i) => ({
+        index: i,
+        id: p.id,
+        name: p.name,
+        isBot: p.isBot
+      }))
+    }
+  );
+
+  if (!target) return { state, valid: false, error: "Invalid target player." };
   if (auditorIdx === targetIdx) return { state, valid: false, error: "You cannot audit yourself." };
 
   const limit = getAuditThreshold(state.year);

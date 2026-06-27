@@ -146,9 +146,10 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
   const [gameState, _setGameState] = useState<GameState | null>(null);
   const gameStateRef = useRef<GameState | null>(null);
-  const lastRoomUpdatedAtRef = useRef<number>(0);
+  const lastGameVersionRef = useRef<number>(0);
+  const fetchRoomRef = useRef<(source?: string) => void>();
 
-  const setGameState = useCallback((s: GameState | null | undefined, source: string = "unknown", incomingUpdatedAt: number = 0) => {
+  const setGameState = useCallback((s: GameState | null | undefined, source: string = "unknown", incomingVersion: number = 0, incomingUpdatedAt: number = 0) => {
     const pre = gameStateRef.current;
 
     // 1. Log the SET_GAME_STATE attempt
@@ -174,9 +175,10 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       const currentYear = pre.year;
 
       const isLowerTurn = incomingYear < currentYear || (incomingYear === currentYear && incomingTurn < currentTurn);
-      const isOlderTimestamp = incomingUpdatedAt > 0 && lastRoomUpdatedAtRef.current > 0 && incomingUpdatedAt < lastRoomUpdatedAtRef.current;
+      const isOlderVersion = incomingVersion > 0 && lastGameVersionRef.current > 0 && incomingVersion <= lastGameVersionRef.current;
+      const isVersionGap = incomingVersion > 0 && lastGameVersionRef.current > 0 && incomingVersion > lastGameVersionRef.current + 1;
 
-      if (isLowerTurn || isOlderTimestamp) {
+      if (isLowerTurn || isOlderVersion) {
         console.warn(JSON.stringify({
           timestamp: new Date().toISOString(),
           event: "STATE_REGRESSION",
@@ -185,19 +187,26 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
             phase: s.phase,
             turn: incomingTurn,
             year: incomingYear,
+            version: incomingVersion,
             updatedAt: incomingUpdatedAt > 0 ? new Date(incomingUpdatedAt).toISOString() : null
           },
           currentState: {
             phase: pre.phase,
             turn: currentTurn,
             year: currentYear,
-            updatedAt: lastRoomUpdatedAtRef.current > 0 ? new Date(lastRoomUpdatedAtRef.current).toISOString() : null
+            version: lastGameVersionRef.current
           },
-          reason: isLowerTurn ? "incoming state has a lower turn/year count" : "incoming state is older (updatedAt timestamp is older)"
+          reason: isLowerTurn ? "incoming state has a lower turn/year count" : "incoming state is older or duplicate (version is <= current)"
         }, null, 2));
         
         // Reject the update!
         return;
+      }
+      
+      if (isVersionGap) {
+        console.warn("VERSION_GAP");
+        // Automatically execute fetchRoom to resynchronize
+        if (fetchRoomRef.current) fetchRoomRef.current("gap_sync");
       }
     }
 
@@ -256,8 +265,14 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       }, null, 2));
     }
     
-    if (incomingUpdatedAt > 0) {
-      lastRoomUpdatedAtRef.current = incomingUpdatedAt;
+    if (incomingVersion > 0) {
+      if (lastGameVersionRef.current > 0) {
+        console.assert(
+          incomingVersion >= lastGameVersionRef.current,
+          "STATE_REGRESSION"
+        );
+      }
+      lastGameVersionRef.current = incomingVersion;
     }
   }, [isLocal, stableUserId]);
 
@@ -283,6 +298,8 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   const [overlayMessage, setOverlayMessage] = useState<string | null>(null);
 
   const [isBotProcessing, setIsBotProcessing] = useState(false);
+  const isBotProcessingRef = useRef(false);
+  const [botThinkingMessage, setBotThinkingMessage] = useState<string | null>(null);
   const [botDebug, setBotDebug] = useState<any | null>(null);
   const [initialPreview, setInitialPreview] = useState(true);
   const [isEndingTurn, setIsEndingTurn] = useState(false);
@@ -450,6 +467,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       const newGameState = data.room.gameState;
       const preState = gameStateRef.current;
       const stateChanged = !preState || JSON.stringify(preState) !== JSON.stringify(newGameState);
+      const incomingVersion = data?.room?.gameVersion || 0;
       const incomingUpdatedAt = data?.room?.updatedAt ? new Date(data.room.updatedAt).getTime() : 0;
 
       // Log the fetch response
@@ -474,7 +492,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         } : null
       }, null, 2));
 
-      setGameState(newGameState, source, incomingUpdatedAt);
+      setGameState(newGameState, source, incomingVersion, incomingUpdatedAt);
       setRoom(data.room);
       roomIdRef.current = data.room.id;
       setLoading(false);
@@ -634,15 +652,34 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         channel = pusher.subscribe(getRoomChannel(code));
         
         const createPusherHandler = (eventName: string) => {
-          return () => {
+          return (data: any) => {
+            const incomingVersion = data?.version || 0;
+            const currentVersion = lastGameVersionRef.current;
+            
             console.log(JSON.stringify({
               timestamp: new Date().toISOString(),
               event: "PUSHER_EVENT_RECEIVED",
               eventName,
               roomCode: code,
+              incomingVersion,
+              currentVersion,
               fetchTriggered: true
             }, null, 2));
+            
             lastUpdateTimestampRef.current = Date.now(); // Record pusher event time for watchdog
+            
+            if (incomingVersion > 0 && currentVersion > 0) {
+              if (incomingVersion <= currentVersion) {
+                // Ignore stale or duplicate events
+                return;
+              }
+              if (incomingVersion > currentVersion + 1) {
+                console.warn("VERSION_GAP: Pusher delivered version", incomingVersion, "but we are at", currentVersion);
+                fetchRoom("pusher_gap", false);
+                return;
+              }
+            }
+            
             fetchRoom("pusher", false);
           };
         };
@@ -990,7 +1027,14 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         }
         
         const preState = gameStateRef.current;
-        setGameState(data.gameState, `action_${action}`, Date.now());
+        if (data.gameVersion > 0 && lastGameVersionRef.current > 0) {
+          console.assert(
+            data.gameVersion === lastGameVersionRef.current + 1,
+            "INVALID_VERSION_INCREMENT"
+          );
+        }
+        
+        setGameState(data.gameState, `action_${action}`, data.gameVersion || 0, data.updatedAt || 0);
         if (data.dice) setLastDice(data.dice);
         
         let sideEffectHandled = false;
@@ -1205,6 +1249,11 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     if (hasChanged) setPortfolios(newPortfolios);
   }, [gameState?.players, gameState?.currentPlayerIndex, isLocal, stableUserId]);
 
+  // Keep fetchRoomRef updated
+  useEffect(() => {
+    fetchRoomRef.current = fetchRoom;
+  }, [fetchRoom]);
+
   // Reset Pass Device screen on turn change in online mode
   useEffect(() => {
     if (!isLocal) {
@@ -1288,6 +1337,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     }
 
     let activeBotIdx = -1;
+    console.log("BOT TURN DETECTOR EFFECT TRIGGERED. Phase:", gameState?.phase, "PlayerIdx:", gameState?.currentPlayerIndex);
     if (gameState?.phase === "auction") {
       if (currentBiddingPlayer?.isBot) {
         activeBotIdx = gameState?.players?.findIndex(p => p.id === currentBiddingPlayer.id) ?? -1;
@@ -1306,8 +1356,12 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
     if (activeBotIdx === -1) {
       if (botDebug !== null) setBotDebug(null);
+      console.log("BOT DETECTOR: No active bot found.");
       return;
     }
+
+    console.log("BOT TURN START", activeBotIdx);
+    console.log("BOT DETECTED", gameState?.players?.[activeBotIdx]?.name);
 
     // If an AI bot is active, immediately dismiss any pass-device screens to keep automation fluid
     if (showPassDevice) {
@@ -1315,24 +1369,42 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       return;
     }
 
-    if (initialPreview || isBotProcessing) {
+    if (initialPreview || isBotProcessingRef.current) {
       return;
     }
 
     let active = true;
     const runBotAction = async () => {
+      isBotProcessingRef.current = true;
       setIsBotProcessing(true);
 
+      const botName = gameState?.players?.[activeBotIdx]?.name || "The bot";
+      const thinkingMessages = [
+        `${botName} is evaluating investments...`,
+        `${botName} is analyzing the market...`,
+        `${botName} is planning the next move...`
+      ];
+      setBotThinkingMessage(thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)]);
+
+      // 300 - 700ms delay for human-like experience
+      const delayMs = Math.floor(Math.random() * 401) + 300;
+      await new Promise(r => setTimeout(r, delayMs));
+
+      if (!active) {
+        setBotThinkingMessage(null);
+        return;
+      }
+      
+      console.log("Calling getBotDecision()");
       const decision = getBotDecision(gameState, activeBotIdx);
+      console.log("Bot action", decision);
       if (decision && decision.debug) {
         setBotDebug(decision.debug);
       }
 
-      await new Promise(r => setTimeout(r, 1500));
-      if (!active) {
-        return;
-      }
+      setBotThinkingMessage(null);
 
+      console.log("Dispatching bot action", decision.type);
       try {
         if (decision.type === "roll") {
           setRolling(true);
@@ -1393,7 +1465,9 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         console.error("Bot action error:", err);
       } finally {
         if (active) {
+          isBotProcessingRef.current = false;
           setIsBotProcessing(false);
+          console.log("Bot action completed, isBotProcessing set to false");
         }
       }
     };
@@ -1413,7 +1487,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     currentBiddingPlayer?.id,
     initialPreview,
     showPassDevice,
-    isBotProcessing,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ]);
 
   return {
@@ -1442,6 +1516,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     currentPlayer,
     currentBiddingPlayer,
     botDebug,
+    botThinkingMessage,
     isBotProcessing,
     eligibleBiddersCount,
     allPlayersHaveHouses,

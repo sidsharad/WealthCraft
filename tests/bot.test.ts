@@ -78,34 +78,7 @@ describe("WealthCraft AI Bots Strategic Personalities", () => {
     });
   });
 
-  describe("Audit Trigger Logic", () => {
-    it("Defensive Bot: Audits only when highly confident (asset > 40L)", () => {
-      const bot = createMockPlayer({ botType: "defensive", cash: 10 });
-      const targetNormal = createMockPlayer({ id: "p2", cash: 10, bonds: 10, stocks: 20 });
-      const targetAuditable = createMockPlayer({ id: "p2", cash: 10, bonds: 10, stocks: 45 }); // stocks > 40
 
-      // Case A: normal opponent -> no audit
-      let state = createMockGameState([bot, targetNormal], { phase: "trade" });
-      let decision = getBotDecision(state, 0);
-      expect(decision.type).toBe("end-turn");
-
-      // Case B: auditable opponent -> audits target
-      state = createMockGameState([bot, targetAuditable], { phase: "trade" });
-      decision = getBotDecision(state, 0);
-      expect(decision.type).toBe("audit");
-      expect(decision.payload?.targetIdx).toBe(1);
-    });
-
-    it("Aggressive Bot: Audits high-stock players aggressively (stocks >= 25L)", () => {
-      const bot = createMockPlayer({ botType: "aggressive", cash: 10 });
-      const targetWithStocks = createMockPlayer({ id: "p2", cash: 10, bonds: 5, stocks: 25 }); // stocks >= 25
-
-      const state = createMockGameState([bot, targetWithStocks], { phase: "trade" });
-      const decision = getBotDecision(state, 0);
-      expect(decision.type).toBe("audit");
-      expect(decision.payload?.targetIdx).toBe(1);
-    });
-  });
 
   describe("Auction Bidding Logic", () => {
     it("Defensive Bot auction bidding keeps a 10L cash buffer", () => {

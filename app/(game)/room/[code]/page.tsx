@@ -299,7 +299,7 @@ function GameRoomContent() {
               onTileClick={() => { }}
               rolling={turn.rolling}
               dice={turn.lastDice}
-              overlayMessage={turn.overlayMessage}
+              overlayMessage={turn.botThinkingMessage || turn.overlayMessage}
               announcement={turn.gameState.announcement}
               privateMessage={turn.myPrivateMessage}
               disabled={turn.isInitialSetup}
