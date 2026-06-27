@@ -69,20 +69,29 @@ export async function POST(req: NextRequest) {
       existing = await db.select().from(rooms).where(eq(rooms.code, roomCode));
     }
 
-    const [room] = await db
-      .insert(rooms)
-      .values({
-        code: roomCode,
-        mode: mode || "online",
-        status: "lobby",
-        hostId: userId,
-        playerIds: [userId],
-        gameState: null,
-      })
-      .returning();
+    let payload;
+    try {
+      const [room] = await db
+        .insert(rooms)
+        .values({
+          code: roomCode,
+          mode: mode || "online",
+          status: "lobby",
+          hostId: userId,
+          playerIds: [userId],
+          gameState: null,
+        })
+        .returning();
+      payload = { room };
+    } catch (error) {
+      console.error({
+        databaseHost: process.env.DATABASE_URL?.match(/@([^/]+)/)?.[1],
+        error
+      });
+      throw error;
+    }
 
-    const payload = { room };
-    logResponseMetric("POST /api/rooms", action, room.code, payload, true);
+    logResponseMetric("POST /api/rooms", action, roomCode, payload, true);
     return NextResponse.json(payload);
   }
 
