@@ -62,6 +62,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (body.action === "test-create") {
+    try {
+      const code = "T" + Math.floor(Math.random() * 10000);
+      const inserted = await db.insert(rooms).values({
+        code,
+        mode: "online",
+        status: "lobby",
+        playerIds: []
+      }).returning();
+      return NextResponse.json({ success: true, room: inserted[0] });
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+  }
+
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
