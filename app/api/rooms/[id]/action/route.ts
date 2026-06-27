@@ -133,7 +133,7 @@ export async function POST(
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { action, payload, actionId } = body;
+  const { action, payload, actionId, clientVersion, clientCurrentPlayer } = body;
   const userId = (session.user as { id?: string }).id!;
 
   const startTime = Date.now();
@@ -424,6 +424,15 @@ export async function POST(
     const isHost = room.hostId === userId;
 
     if (room.mode === "online" && !isBotTurn && currentPlayer.id !== userId && action !== "bid" && action !== "trade-response" && action !== "audit") {
+      console.error(JSON.stringify({
+        event: "TURN_DESYNC",
+        clientVersion,
+        serverVersion: gameState.version,
+        clientCurrentPlayer,
+        serverCurrentPlayer: currentPlayerIdx,
+        turn: gameState.turn,
+        roomId
+      }));
       console.warn(JSON.stringify({
         timestamp: new Date().toISOString(),
         event: "VALIDATION_FAILED",

@@ -1026,7 +1026,13 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
       try {
         const actionRes = await fetch(`/api/rooms/${roomId}/action`, {
           method: "POST",
-          body: JSON.stringify({ action, payload, actionId }),
+          body: JSON.stringify({ 
+            action, 
+            payload, 
+            actionId,
+            clientVersion: gameStateRef.current?.version,
+            clientCurrentPlayer: gameStateRef.current?.currentPlayerIndex
+          }),
           headers: { "Content-Type": "application/json" },
           signal: actionController.signal
         });
