@@ -47,36 +47,6 @@ function logResponseMetric(endpoint: string, source: string, code: string, body:
 // POST /api/rooms — create or join a room
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  if (body.action === "debug-db") {
-    try {
-      if (body.query) {
-        const result = await db.execute(sql.raw(body.query));
-        return NextResponse.json({ success: true, host: process.env.DATABASE_URL?.match(/@([^/]+)/)?.[1], data: result.rows || result });
-      }
-      return NextResponse.json({ error: "No query provided" }, { status: 400 });
-    } catch (e: any) {
-      return NextResponse.json({ 
-        error: e.message, 
-        host: process.env.DATABASE_URL?.match(/@([^/]+)/)?.[1] 
-      }, { status: 500 });
-    }
-  }
-
-  if (body.action === "test-create") {
-    try {
-      const code = "T" + Math.floor(Math.random() * 10000);
-      const inserted = await db.insert(rooms).values({
-        code,
-        mode: "online",
-        status: "lobby",
-        playerIds: []
-      }).returning();
-      return NextResponse.json({ success: true, room: inserted[0] });
-    } catch (e: any) {
-      return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-  }
-
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
