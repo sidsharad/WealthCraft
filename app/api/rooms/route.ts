@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { rooms, users } from "@/lib/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { getRoomChannel, PUSHER_EVENTS, safeTrigger } from "@/lib/pusher";
 import { auditDatabaseRoomState } from "@/lib/db/queries";
 import { cleanupExpiredRooms } from "@/lib/db/cleanup";
@@ -49,8 +49,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   if (body.action === "debug-db") {
     try {
-      await db.select().from(rooms).limit(1);
-      return NextResponse.json({ success: true, host: process.env.DATABASE_URL?.match(/@([^/]+)/)?.[1] });
+      const result = await db.execute(sql`
+        SELECT column_name, data_type, column_default, is_nullable
+        FROM information_schema.columns
+        WHERE table_name = 'rooms';
+      `);
+      return NextResponse.json({ success: true, host: process.env.DATABASE_URL?.match(/@([^/]+)/)?.[1], data: result.rows || result });
     } catch (e: any) {
       return NextResponse.json({ 
         error: e.message, 
