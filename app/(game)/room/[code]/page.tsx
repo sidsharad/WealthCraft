@@ -293,6 +293,12 @@ function GameRoomContent() {
         <div className={`flex flex-col lg:flex-row items-center lg:items-start justify-center gap-4 w-full transition-all duration-1000 ${turn.isInitialSetup ? 'opacity-50 grayscale pointer-events-none' : 'opacity-100'}`}>
           {/* Left Side: Board and Notifications */}
           <div className="w-full max-w-3xl relative flex flex-col items-center gap-4">
+            {turn.isPendingVersion && (
+               <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 bg-blue-100 border border-blue-300 text-blue-800 px-4 py-2 rounded-xl text-xs font-bold animate-pulse shadow-lg flex items-center gap-2">
+                 <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
+                 Waiting for server confirmation...
+               </div>
+            )}
             <Board
               tiles={TILES}
               players={turn.gameState.players}
@@ -312,7 +318,7 @@ function GameRoomContent() {
                   onRoll={turn.handleRoll}
                   rolling={turn.rolling}
                   dice={turn.lastDice}
-                  disabled={!turn.isMyTurn || (turn.gameState.phase !== "roll" && turn.diceMode !== "lottery")}
+                  disabled={!turn.isMyTurn || (turn.gameState.phase !== "roll" && turn.diceMode !== "lottery") || turn.isSubmitting || turn.isRecovering || turn.isPendingVersion}
                   label={turn.diceMode === "lottery" ? "Roll" : "Roll Dice"}
                 />
               )}
@@ -337,7 +343,9 @@ function GameRoomContent() {
                         <button onClick={() => {
                           if (turn.gameState!.phase === "auction") turn.setShowAuction(true);
                           else turn.handleTileAction();
-                        }} className="btn-primary px-8">
+                        }} 
+                        disabled={turn.isSubmitting || turn.isRecovering || turn.isPendingVersion}
+                        className="btn-primary px-8 disabled:opacity-50 disabled:cursor-not-allowed">
                           {turn.gameState.phase === "auction" ? "Join Auction" : "Execute Tile"}
                         </button>
                       )}
@@ -345,29 +353,30 @@ function GameRoomContent() {
                         <>
                           <button
                             onClick={() => turn.setShowTrade(true)}
-                            disabled={turn.currentPlayer?.hasTraded || turn.gameState.phase === "year-end"}
-                            className="btn-secondary flex items-center gap-2 disabled:opacity-50 px-4"
+                            disabled={turn.currentPlayer?.hasTraded || turn.gameState.phase === "year-end" || turn.isSubmitting || turn.isRecovering || turn.isPendingVersion}
+                            className="btn-secondary flex items-center gap-2 disabled:opacity-50 px-4 disabled:cursor-not-allowed"
                           >
                             <MessageSquare size={16} /> Trade
                           </button>
                           <button
                             onClick={() => turn.setShowRebalance(true)}
-                            className={`px-4 ${turn.gameState.phase === "year-end" ? "btn-primary" : "btn-secondary"}`}
+                            disabled={turn.isSubmitting || turn.isRecovering || turn.isPendingVersion}
+                            className={`px-4 ${turn.gameState.phase === "year-end" ? "btn-primary" : "btn-secondary"} disabled:opacity-50 disabled:cursor-not-allowed`}
                           >
                             Rebalance
                           </button>
                           <button
                             onClick={() => turn.setShowTargetedAction("audit")}
-                            disabled={turn.gameState.phase === "year-end"}
-                            className="btn-secondary flex items-center gap-2 disabled:opacity-50 px-4"
+                            disabled={turn.gameState.phase === "year-end" || turn.isSubmitting || turn.isRecovering || turn.isPendingVersion}
+                            className="btn-secondary flex items-center gap-2 disabled:opacity-50 px-4 disabled:cursor-not-allowed"
                           >
                             <ShieldAlert size={16} /> Audit
                           </button>
                           {turn.gameState.phase === "trade" && (
                             <button
                               onClick={turn.handleEndTurn}
-                              disabled={turn.isEndingTurn}
-                              className="btn-primary disabled:opacity-50 px-8"
+                              disabled={turn.isEndingTurn || turn.isSubmitting || turn.isRecovering || turn.isPendingVersion}
+                              className="btn-primary disabled:opacity-50 px-8 disabled:cursor-not-allowed"
                             >
                               {turn.isEndingTurn ? "..." : "Next Turn"}
                             </button>

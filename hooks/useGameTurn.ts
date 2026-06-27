@@ -149,6 +149,13 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   const lastGameVersionRef = useRef<number>(0);
   const fetchRoomRef = useRef<((source?: string) => void) | undefined>(undefined);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRecovering, setIsRecovering] = useState(false);
+
+  const pendingVersionRef = useRef<number | null>(null);
+  const pendingSinceRef = useRef<number | null>(null);
+  const submittedVersionRef = useRef<number | null>(null);
+
   const setGameState = useCallback((s: GameState | null | undefined, source: string = "unknown", incomingVersion: number = 0, incomingUpdatedAt: number = 0) => {
     const pre = gameStateRef.current;
     
@@ -282,8 +289,28 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         );
       }
       lastGameVersionRef.current = incomingVersion;
+      
+      if (
+          pendingVersionRef.current !== null &&
+          lastGameVersionRef.current >= pendingVersionRef.current
+      ) {
+          console.log(JSON.stringify({
+              timestamp: new Date().toISOString(),
+              event: "ACTION_VERSION_CONFIRMED",
+              version: pendingVersionRef.current,
+              roomId: code,
+              playerId: stableUserId
+          }));
+      
+          pendingVersionRef.current = null;
+          pendingSinceRef.current = null;
+          submittedVersionRef.current = null;
+      
+          setIsSubmitting(false);
+          setIsRecovering(false);
+      }
     }
-  }, [isLocal, stableUserId]);
+  }, [code, isLocal, stableUserId]);
 
   const [room, setRoom] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -318,6 +345,47 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   // Telemetry state counters
   const [pusherReconnectsCount, setPusherReconnectsCount] = useState<number>(0);
   const [watchdogRefreshes, setWatchdogRefreshes] = useState<number>(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+        if (
+            pendingVersionRef.current !== null &&
+            pendingSinceRef.current !== null &&
+            Date.now() - pendingSinceRef.current > 10000
+        ) {
+            console.log(JSON.stringify({
+                event: "ACTION_TIMEOUT",
+                version: pendingVersionRef.current,
+                roomId: code
+            }));
+
+            if (fetchRoomRef.current) fetchRoomRef.current("pending_timeout");
+        }
+
+        if (
+            pendingVersionRef.current !== null &&
+            pendingSinceRef.current !== null &&
+            Date.now() - pendingSinceRef.current > 15000
+        ) {
+            console.log(JSON.stringify({
+                event: "ACTION_RECOVERED",
+                roomId: code
+            }));
+
+            pendingVersionRef.current = null;
+            pendingSinceRef.current = null;
+            submittedVersionRef.current = null;
+
+            setIsSubmitting(false);
+            setIsRecovering(false);
+
+            setOverlayMessage("Connection interrupted. Refreshing game state...");
+            setTimeout(() => setOverlayMessage(null), 3000);
+        }
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [code]);
   const [failedActionsCount, setFailedActionsCount] = useState<number>(0);
   const [recentActionDurationMs, setRecentActionDurationMs] = useState<number | null>(null);
   const [watchdogStale, setWatchdogStale] = useState<boolean>(false);
@@ -663,7 +731,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
             
             console.log(JSON.stringify({
               timestamp: new Date().toISOString(),
-              event: "PUSHER_EVENT_RECEIVED",
+              event: "ACTION_PUBLISH_RECEIVED",
               eventName,
               roomCode: code,
               incomingVersion,
@@ -873,6 +941,14 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
   // Action Dispatcher
   const performAction = useCallback(async (action: string, payload?: any) => {
+    if (
+        isSubmitting ||
+        isRecovering ||
+        pendingVersionRef.current !== null
+    ) {
+        return;
+    }
+
     const handleSideEffect = (fx: any, stateToSet: GameState) => {
       if (fx.type === "show-modal") {
         const m = fx.modal;
@@ -980,6 +1056,14 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     let roomId = roomIdRef.current;
     let fallbackPerformed = false;
 
+    setIsSubmitting(true);
+    console.log(JSON.stringify({
+        event: "ACTION_SUBMIT",
+        localVersion: lastGameVersionRef.current,
+        roomId: roomId || code,
+        playerId: stableUserId
+    }));
+
     try {
       if (!roomId) {
         fallbackPerformed = true;
@@ -1038,7 +1122,48 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         });
         const actionText = await actionRes.text();
         const data = actionText ? JSON.parse(actionText) : null;
-        if (!actionRes.ok || !data) throw new Error(data?.error || "Failed to perform action");
+        
+        if (!actionRes.ok || !data) {
+          if (actionRes.status === 403 && data?.error === "Not your turn") {
+            console.log(JSON.stringify({
+                timestamp: new Date().toISOString(),
+                event: "TURN_DESYNC_RECOVERED",
+                roomId: roomIdRef.current,
+                playerId: stableUserId
+            }));
+        
+            setIsRecovering(true);
+            setOverlayMessage("Synchronizing game state...");
+        
+            if (fetchRoomRef.current) fetchRoomRef.current("turn_desync_recovery");
+        
+            if (
+                submittedVersionRef.current !== null &&
+                lastGameVersionRef.current > submittedVersionRef.current
+            ) {
+                console.log(JSON.stringify({
+                    timestamp: new Date().toISOString(),
+                    event: "ACTION_RECOVERED",
+                    roomId: roomIdRef.current,
+                    playerId: stableUserId
+                }));
+            }
+            return null;
+          }
+          throw new Error(data?.error || "Failed to perform action");
+        }
+        
+        submittedVersionRef.current = lastGameVersionRef.current;
+        pendingVersionRef.current = data.gameVersion;
+        pendingSinceRef.current = Date.now();
+        
+        console.log(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            event: "ACTION_HTTP_SUCCESS",
+            roomId: roomIdRef.current,
+            playerId: stableUserId,
+            serverVersion: data.gameVersion
+        }));
         
         if (data.appVersion) {
           checkVersion(data.appVersion);
@@ -1089,6 +1214,8 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
         return data;
       } catch (err: any) {
+        setIsSubmitting(false);
+        setIsRecovering(false);
         if (err.name === "AbortError") {
           console.error(JSON.stringify({
             timestamp: new Date().toISOString(),
@@ -1112,6 +1239,8 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         clearTimeout(actionTimeoutId);
       }
     } catch (e: any) {
+      setIsSubmitting(false);
+      setIsRecovering(false);
       console.error(JSON.stringify({
         timestamp: new Date().toISOString(),
         event: "CLIENT_ACTION_FAILED",
@@ -1510,6 +1639,9 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
   return {
     gameState,
+    isSubmitting,
+    isRecovering,
+    isPendingVersion: pendingVersionRef.current !== null,
     room,
     loading,
     error,
