@@ -58,6 +58,46 @@ export const rooms = pgTable("rooms", {
 });
 
 // ─── GAME STATE TYPES ─────────────────────────────────────────────────────────
+
+export interface BotProfile {
+  type:
+    | "BULL"
+    | "DISCIPLINED"
+    | "AUDIT_HAWK"
+    | "OPPORTUNIST"
+    | "SAFETY_BUILDER"
+    | "PROPERTY_BUILDER";
+  hardCashFloor: number;
+  softCashTarget: number;
+  auditBudget: number;
+  riskTolerance: number;
+  aggression: number;
+  personalityVariance: number;
+  tiltSensitivity: number;
+  auditThreshold: number;
+  urgencyWeights: {
+    property: number;
+    survival: number;
+    growth: number;
+    audit: number;
+  };
+}
+
+export interface RegretMemory {
+  action: string;
+  penalty: number;
+  turn: number;
+}
+
+export interface BotDNA {
+  aggression: number;
+  greed: number;
+  patience: number;
+  revenge: number;
+  fear: number;
+  confidence: number;
+}
+
 export interface BotPersonality {
   risk: number;
   greed: number;
@@ -69,15 +109,26 @@ export interface BotPersonality {
     bonds: number;
     stocks: number;
   };
+  dna: BotDNA;
+}
+
+export interface RegretMemory {
+  action: string;
+  loss: number;
+  turn: number;
+  emotionalImpact: number;
 }
 
 export type StrategyMode =
-  | "EXPANSION"
-  | "BALANCED"
+  | "NORMAL"
   | "AGGRESSIVE"
   | "DEFENSIVE"
   | "RECOVERY"
   | "ENDGAME"
+  | "HOME_OWNER"
+  | "DESPERATE"
+  | "EXPANSION"
+  | "BALANCED"
   | "SABOTAGE"
   | "KINGMAKER";
 
@@ -86,6 +137,7 @@ export interface BotEmotions {
   fear: number;
   revenge: number;
   desperation: number;
+  frustration: number;
 }
 
 export interface BotMotivations {
@@ -96,16 +148,109 @@ export interface BotMotivations {
   houseOwnership: number;
 }
 
-export interface AssetBelief {
+// ─── V5.1 PORTFOLIO ESTIMATION ENGINE TYPES ──────────────────────────────────
+
+export interface AssetEstimate {
   mean: number;
   variance: number;
   confidence: number;
+  lowerBound: number;
+  upperBound: number;
+  source:
+    | "INITIAL"
+    | "INCOME"
+    | "YEAR_END"
+    | "IPO"
+    | "TRADE"
+    | "AUDIT"
+    | "RALLY"
+    | "CRASH"
+    | "TAKEOVER"
+    | "RECONCILIATION";
+  lastUpdatedTurn: number;
+}
+
+export interface PropertyEstimate {
+  ownsProperty: boolean;
+  acquisitionPrice: number;
+  confidence: number;
+  lastUpdatedTurn: number;
+}
+
+export interface PortfolioHypothesis {
+  cashRange?: [number, number];
+  bondRange?: [number, number];
+  stockRange?: [number, number];
+  probability: number;
+  confidence: number;
+  source: string;
+  createdTurn: number;
+}
+
+export interface ReconciliationRecord {
+  turn: number;
+  estimated: number;
+  actual: number;
+  hidden: number;
+  strategy: string;
+}
+
+export type AuditKnowledgeState = "CERTAIN" | "BOUNDED" | "UNCERTAIN";
+
+export interface AuditEligibility {
+  eligible: boolean;
+  probability: number;
+  expectedValue: number;
+  reason: "KNOWN_FAIL" | "KNOWN_SUCCESS" | "LOCKED" | "LOW_CONFIDENCE" | "NEGATIVE_EV" | "SUCCESS";
+}
+
+export interface AuditHistoryEvent {
+  turn: number;
+  eventType: string;
+  delta?: number;
+  previous: {
+    lower: number;
+    upper: number;
+  };
+  next: {
+    lower: number;
+    upper: number;
+  };
+  reason: string;
+}
+
+export interface AuditMemory {
+  targetPlayerId: string;
+  asset: "cash" | "stocks" | "bonds";
+  auditTurn: number;
+  outcome: "SUCCESS" | "FAIL";
+  thresholdUsed: number;
+  state: AuditKnowledgeState;
+  lockedEstimate: {
+    lowerBound: number;
+    upperBound: number;
+    confidence: number;
+    certainty: boolean;
+  };
+  estimateLastChangedTurn: number;
+  auditKnowledgeStrength: number;
+  suspicionSinceAudit: number;
+  failedAuditCount: number;
+  contradictionCount: number;
+  sourceHistory: AuditHistoryEvent[];
 }
 
 export interface PlayerModel {
-  cash: AssetBelief;
-  bonds: AssetBelief;
-  stocks: AssetBelief;
+  cash: AssetEstimate;
+  bonds: AssetEstimate;
+  stocks: AssetEstimate;
+  property: PropertyEstimate;
+  hypotheses: PortfolioHypothesis[];
+  hiddenWealth: number;
+  visibilityScore: number;
+  suspicionScore: number;
+  lastObservedTurn: number;
+  reconciliationHistory: ReconciliationRecord[];
   riskScore: number;
   aggressionScore: number;
   tradeAcceptanceScore: number;
@@ -116,12 +261,22 @@ export interface BotState {
   strategicMode: StrategyMode;
   emotions: BotEmotions;
   motivations: BotMotivations;
+  recentFailures: number;
+  tilt: number;
+  regrets: RegretMemory[];
   memory: {
     successfulAudits: number;
     failedAudits: number;
     acceptedTrades: number;
     rejectedTrades: number;
     revengeTargets: string[];
+    auditMemory: Record<string, AuditMemory>;
+    auditBudgetYear: number;
+    auditBudget: {
+      attempted: number;
+      succeeded: number;
+      failed: number;
+    };
   };
   playerModels: {
     [playerId: string]: PlayerModel;

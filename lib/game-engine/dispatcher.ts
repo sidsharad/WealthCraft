@@ -47,6 +47,7 @@ import {
 } from "./actions";
 import { getTileByPosition } from "./tiles";
 import { trimGameState } from "./utils";
+import { notifyBotsOfEvent } from "./bot-engine";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -109,12 +110,20 @@ function internalDispatch(
       let s = result.state;
 
       const tile = getTileByPosition(result.newPosition);
+      const preIncomeS = s;
       s = tile.effect === "income-freeze"
         ? applyIncomeFreezeToPlayer(s, playerIdx)
         : collectIncome(s, playerIdx);
+      if (tile.effect === "income-freeze") {
+        s = notifyBotsOfEvent(preIncomeS, s, { type: "INCOME_FREEZE", playerId: player.id });
+      } else {
+        s = notifyBotsOfEvent(preIncomeS, s, { type: "INCOME", playerId: player.id, amount: 5 });
+      }
 
       if (result.passedStart) {
+        const preYearEndS = s;
         s = calculateYearEndReturns(s, playerIdx);
+        s = notifyBotsOfEvent(preYearEndS, s, { type: "YEAR_END_RETURN", playerId: player.id, bondReturn: 0, stockReturn: 0 });
         s = { ...s, phase: "year-end" };
       } else {
         s = { ...s, phase: "action" };
@@ -124,7 +133,9 @@ function internalDispatch(
 
     case "lottery-resolve": {
       const diceVal = (payload?.dice as number) ?? (Math.floor(Math.random() * 6) + 1);
+      const preLotteryS = state;
       let s = applyLotteryReward(state, playerIdx, diceVal);
+      s = notifyBotsOfEvent(preLotteryS, s, { type: "LOTTERY", playerId: player.id, amount: diceVal === 6 ? 15 : diceVal === 5 ? 10 : 0 });
       s = { ...s, phase: "trade" };
       return { state: s };
     }
@@ -148,16 +159,16 @@ function internalDispatch(
       let s = state;
 
       switch (effect) {
-        case "bonus": s = applyBonus(s, playerIdx); break;
-        case "stock-rally": s = applyStockRally(s, playerIdx); break;
-        case "stock-crash": s = applyStockCrash(s, playerIdx); break;
-        case "market-crash": s = applyMarketCrash(s, playerIdx); break;
-        case "market-rally": s = applyMarketRally(s, playerIdx); break;
+        case "bonus": { const pre = s; s = applyBonus(s, playerIdx); s = notifyBotsOfEvent(pre, s, { type: "BONUS", playerId: player.id, amount: 15 }); break; }
+        case "stock-rally": { const pre = s; s = applyStockRally(s, playerIdx); s = notifyBotsOfEvent(pre, s, { type: "STOCK_RALLY", playerId: player.id, gain: s.players[playerIdx].stocks - pre.players[playerIdx].stocks }); break; }
+        case "stock-crash": { const pre = s; s = applyStockCrash(s, playerIdx); s = notifyBotsOfEvent(pre, s, { type: "STOCK_CRASH", playerId: player.id, loss: pre.players[playerIdx].stocks - s.players[playerIdx].stocks }); break; }
+        case "market-crash": { const pre = s; s = applyMarketCrash(s, playerIdx); s = notifyBotsOfEvent(pre, s, { type: "MARKET_CRASH", playerId: player.id, loss: pre.players[playerIdx].stocks - s.players[playerIdx].stocks }); break; }
+        case "market-rally": { const pre = s; s = applyMarketRally(s, playerIdx); s = notifyBotsOfEvent(pre, s, { type: "MARKET_RALLY", playerId: player.id, gain: s.players[playerIdx].stocks - pre.players[playerIdx].stocks }); break; }
 
         case "ipo": {
           const amount = payload?.amount as number ?? 0;
           if (player.cash < amount) return { state, sideEffect: { type: "needs-rebalance", penalty: 3 } };
-          s = applyIPO(s, playerIdx, amount);
+          const pre = s; s = applyIPO(s, playerIdx, amount); s = notifyBotsOfEvent(pre, s, { type: "IPO", playerId: player.id, amount });
           break;
         }
         case "emergency": {
@@ -191,7 +202,7 @@ function internalDispatch(
             return { state: s, sideEffect: { type: "show-modal", modal: "emergency-decision" } as any };
           }
           
-          s = applyEmergency(s, playerIdx, amount);
+          const pre = s; s = applyEmergency(s, playerIdx, amount); s = notifyBotsOfEvent(pre, s, { type: "EMERGENCY", playerId: player.id, amount });
           break;
         }
         case "lottery": {
@@ -207,7 +218,7 @@ function internalDispatch(
             s = addLog(s, `${player.name} chose to take no action.`);
           } else {
             const targetIdx = toInt(payload?.targetIdx);
-            const result = applyTaxRaid(s, playerIdx, targetIdx);
+            const pre = s; const result = applyTaxRaid(s, playerIdx, targetIdx);
             if (!result.valid) return { state, sideEffect: { type: "error", message: result.error! } };
             s = result.state;
           }
@@ -222,7 +233,7 @@ function internalDispatch(
             if (assetType !== "cash" && assetType !== "bonds" && assetType !== "stocks") {
               return { state, sideEffect: { type: "error", message: `Invalid asset type requested for takeover: ${assetType}` } };
             }
-            const result = applyHostileTakeover(s, playerIdx, targetIdx, assetType as "cash" | "bonds" | "stocks");
+            const pre = s; const result = applyHostileTakeover(s, playerIdx, targetIdx, assetType as "cash" | "bonds" | "stocks");
             if (!result.valid) return { state, sideEffect: { type: "error", message: result.error! } };
             s = result.state;
           }
@@ -276,7 +287,7 @@ function internalDispatch(
          
          if (p.cash >= amount) {
            // Full emergency payment
-           s = applyEmergency(s, playerIdx, amount);
+           const pre = s; s = applyEmergency(s, playerIdx, amount); s = notifyBotsOfEvent(pre, s, { type: "EMERGENCY", playerId: player.id, amount });
          } else {
            // Player exhausted all legal liquidation options
            // Server-side defensive check
