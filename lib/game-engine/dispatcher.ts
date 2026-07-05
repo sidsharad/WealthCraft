@@ -87,6 +87,7 @@ export function dispatch(
   return result;
 }
 
+
 function internalDispatch(
   state: GameState,
   action: string,
@@ -102,6 +103,17 @@ function internalDispatch(
 
   const playerIdx = state.currentPlayerIndex;
   const player = state.players[playerIdx];
+
+  if (player.isBot) {
+      console.log({
+          TRACE: "BOT_DISPATCH",
+          playerId: player.id,
+          botType: player.botType,
+          phase: state.phase,
+          turn: state.turn,
+          gameVersion: state.version
+      });
+  }
 
   switch (action) {
     case "roll": {

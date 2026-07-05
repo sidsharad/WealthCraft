@@ -255,7 +255,7 @@ async function runPhase5and6() {
                 state = dispatch(state, "roll", {}).state!;
             } else if (state.phase === "action") {
                 const action = getBotDecision(state, state.currentPlayerIndex);
-                if (action.debug?.decisionTree?.candidateActions?.some((c: any) => c.reason?.includes("Mistake Engine"))) totalMistakes++;
+                if (action.debug?.decisionTree?.candidateActions?.some((c: any) => c.explanation?.includes("Mistake Engine"))) totalMistakes++;
                 if (action.type === "tile-action") botActionDist[currentPlayer.botType!]['tile-action']++;
                 else botActionDist[currentPlayer.botType!]['pass']++;
                 
@@ -266,7 +266,7 @@ async function runPhase5and6() {
                 if (result.sideEffect?.modal) state = dispatch(state, "tile-action", { skip: true }).state!;
             } else if (state.phase === "trade") {
                 const action = getBotDecision(state, state.currentPlayerIndex);
-                if (action.debug?.decisionTree?.candidateActions?.some((c: any) => c.reason?.includes("Mistake Engine"))) totalMistakes++;
+                if (action.debug?.decisionTree?.candidateActions?.some((c: any) => c.explanation?.includes("Mistake Engine"))) totalMistakes++;
                 if (action.type === "audit") {
                     totalAudits++;
                     botActionDist[currentPlayer.botType!]['audit']++;
@@ -276,7 +276,7 @@ async function runPhase5and6() {
                 state = dispatch(state, "end-turn", {}).state!;
             } else if (state.phase === "year-end") {
                 const action = getBotDecision(state, state.currentPlayerIndex);
-                if (action.debug?.decisionTree?.candidateActions?.some((c: any) => c.reason?.includes("Mistake Engine"))) totalMistakes++;
+                if (action.debug?.decisionTree?.candidateActions?.some((c: any) => c.explanation?.includes("Mistake Engine"))) totalMistakes++;
                 if (action.type === "rebalance") {
                     totalRebalances++;
                     botActionDist[currentPlayer.botType!]['rebalance']++;

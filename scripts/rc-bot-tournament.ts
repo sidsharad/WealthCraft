@@ -12,6 +12,25 @@ async function runTournament(numGames: number) {
   let audits = 0;
   let taxRaids = 0;
   
+  interface PersonalityMetrics {
+      audits: number;
+      trades: number;
+      rebalances: number;
+      takeovers: number;
+      ipos: number;
+      passes: number; // for passRate
+      cashSamples: number[];
+      stocksSamples: number[];
+      bondsSamples: number[];
+  }
+  
+  const metrics: Record<string, PersonalityMetrics> = {
+      "BULL": { audits: 0, trades: 0, rebalances: 0, takeovers: 0, ipos: 0, passes: 0, cashSamples: [], stocksSamples: [], bondsSamples: [] },
+      "DISCIPLINED": { audits: 0, trades: 0, rebalances: 0, takeovers: 0, ipos: 0, passes: 0, cashSamples: [], stocksSamples: [], bondsSamples: [] },
+      "AUDIT_HAWK": { audits: 0, trades: 0, rebalances: 0, takeovers: 0, ipos: 0, passes: 0, cashSamples: [], stocksSamples: [], bondsSamples: [] },
+      "OPPORTUNIST": { audits: 0, trades: 0, rebalances: 0, takeovers: 0, ipos: 0, passes: 0, cashSamples: [], stocksSamples: [], bondsSamples: [] },
+  };
+  
   const botWins: Record<string, number> = {
     "Bot 1": 0,
     "Bot 2": 0,
@@ -42,6 +61,20 @@ async function runTournament(numGames: number) {
           if (!botAction) {
              throw new Error("Bot returned no action during action phase");
           }
+          
+          const botType = currentPlayer.botType || "UNKNOWN";
+          if (botType in metrics) {
+              if (botAction.type === "audit-action" || botAction.type === "audit") metrics[botType].audits++;
+              else if (botAction.type === "create-trade") metrics[botType].trades++;
+              else if (botAction.type === "hostile-takeover") metrics[botType].takeovers++;
+              else if (botAction.type === "ipo") metrics[botType].ipos++;
+              else if (botAction.type === "skip" || botAction.type === "end-turn") metrics[botType].passes++;
+              
+              metrics[botType].cashSamples.push(currentPlayer.cash);
+              metrics[botType].stocksSamples.push(currentPlayer.stocks);
+              metrics[botType].bondsSamples.push(currentPlayer.bonds);
+          }
+          
           if (botAction.type === "audit-action") audits++;
           if (botAction.type === "tax-raid" || (botAction.type === "tile-action" && botAction.payload?.targetIdx !== undefined)) taxRaids++;
           
@@ -75,6 +108,9 @@ async function runTournament(numGames: number) {
                }
                state = result.state!;
            } else {
+               const botType = state.players[state.currentPlayerIndex].botType || "UNKNOWN";
+               if (botType in metrics) metrics[botType].rebalances++;
+               
                const result = dispatch(state, botAction.type, botAction.payload);
                if (result.sideEffect?.type === "error") {
                    console.error(`Bot Rebalance Error: ${result.sideEffect.message}`, { action: botAction.payload });
@@ -143,6 +179,26 @@ async function runTournament(numGames: number) {
   Object.keys(botWins).forEach(b => {
     console.log(`  ${b}: ${((botWins[b] / numGames) * 100).toFixed(1)}%`);
   });
+  
+  console.log("\n--- Personality Metrics ---");
+  for (const botType of Object.keys(metrics)) {
+      const m = metrics[botType];
+      const totalDecisions = m.audits + m.trades + m.rebalances + m.takeovers + m.ipos + m.passes;
+      const passRate = totalDecisions > 0 ? ((m.passes / totalDecisions) * 100).toFixed(1) : 0;
+      
+      const avg = (arr: number[]) => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : 0;
+      
+      console.log(`${botType}:`);
+      console.log(`  Audits:     ${m.audits}`);
+      console.log(`  Trades:     ${m.trades}`);
+      console.log(`  Rebalances: ${m.rebalances}`);
+      console.log(`  Takeovers:  ${m.takeovers}`);
+      console.log(`  IPOs:       ${m.ipos}`);
+      console.log(`  Pass Rate:  ${passRate}%`);
+      console.log(`  Avg Cash:   ${avg(m.cashSamples)}L`);
+      console.log(`  Avg Stocks: ${avg(m.stocksSamples)}L`);
+      console.log(`  Avg Bonds:  ${avg(m.bondsSamples)}L`);
+  }
   
   if (crashes === 0 && loops === 0) {
     console.log("\n✓ RC-7 PASS");

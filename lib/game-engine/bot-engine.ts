@@ -32,7 +32,20 @@ export interface ThresholdResult {
   confidence: number;
 }
 
-export function getAuditThreshold(year: number) { return year <= 2 ? 20 : 40; }
+export function getAuditThreshold(asset: string, year: number) {
+    const threshold = asset === "cash" ? 20 : (year <= 2 ? 20 : 40);
+    
+    if (process.env.ENABLE_BOT_TELEMETRY !== "false") {
+      console.log({
+          TRACE: "AUDIT_THRESHOLD",
+          year,
+          asset,
+          threshold
+      });
+    }
+
+    return threshold;
+}
 
 export function estimateProbabilityAboveThreshold(model: PlayerModel, asset: "cash" | "bonds" | "stocks", threshold: number): ThresholdResult {
   if (model.hypotheses && model.hypotheses.length > 0) {
@@ -179,19 +192,23 @@ export function normalizeProbabilities(hypotheses: PortfolioHypothesis[]) {
 }
 
 export function checkAuditEligibility(model: PlayerModel, targetId: string, asset: "cash" | "stocks" | "bonds", year: number, memory: Record<string, AuditMemory> | undefined): AuditEligibility {
-  const threshold = getAuditThreshold(year);
+  const threshold = getAuditThreshold(asset, year);
   const lock = memory ? memory[`${targetId}_${asset}`] : undefined;
   
   if (lock) {
     if (lock.state === "CERTAIN" || lock.state === "BOUNDED") {
       if (lock.lockedEstimate.upperBound < threshold) {
+        if (process.env.ENABLE_BOT_TELEMETRY !== "false") console.log({ TRACE:"AUDIT_MEMORY_CHECK", target: targetId, asset, memory: lock, eligible: false });
         return { eligible: false, probability: 0, expectedValue: -9999, reason: "KNOWN_FAIL" };
       }
       if (lock.lockedEstimate.lowerBound >= threshold) {
+        if (process.env.ENABLE_BOT_TELEMETRY !== "false") console.log({ TRACE:"AUDIT_MEMORY_CHECK", target: targetId, asset, memory: lock, eligible: false });
         return { eligible: false, probability: 1, expectedValue: -9999, reason: "KNOWN_SUCCESS" };
       }
     }
   }
+
+  if (process.env.ENABLE_BOT_TELEMETRY !== "false") console.log({ TRACE:"AUDIT_MEMORY_CHECK", target: targetId, asset, memory: lock, eligible: true });
 
   const res = estimateProbabilityAboveThreshold(model, asset, threshold);
   if (res.probability <= 0.70) {
@@ -423,15 +440,16 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
         model[asset].confidence = 100;
         model[asset].source = "AUDIT";
         model[asset].lastUpdatedTurn = turn;
-        const threshold = getAuditThreshold(nextState.year);
+        const threshold = getAuditThreshold(asset, nextState.year);
         newBotState.memory.auditMemory[`${targetId}_${asset}`] = { targetPlayerId: targetId, asset: asset, auditTurn: turn, outcome: "SUCCESS", thresholdUsed: threshold, state: "CERTAIN", lockedEstimate: { lowerBound: threshold, upperBound: threshold, confidence: 100, certainty: true }, estimateLastChangedTurn: turn, auditKnowledgeStrength: 100, suspicionSinceAudit: 0, failedAuditCount: 0, contradictionCount: 0, sourceHistory: [] };
         appendAuditHistory(newBotState.memory.auditMemory[`${targetId}_${asset}`], "SUCCESSFUL_AUDIT", "Audit succeeded and verified exact amount");
+        if (process.env.ENABLE_BOT_TELEMETRY !== "false") console.log({ TRACE:"AUDIT_MEMORY_WRITE", target: targetId, asset, outcome: "SUCCESS", threshold, lockedEstimate: newBotState.memory.auditMemory[`${targetId}_${asset}`].lockedEstimate });
         if (model.hypotheses) model.hypotheses = applyAuditConstraints(model.hypotheses, newBotState.memory.auditMemory, targetId);
         break;
       }
       case "FAILED_AUDIT": {
-        const threshold = getAuditThreshold(nextState.year);
         for (const assetKey of ["cash", "bonds", "stocks"] as const) {
+          const threshold = getAuditThreshold(assetKey, nextState.year);
           model[assetKey].mean = Math.min(model[assetKey].mean, 35);
           model[assetKey].variance = 5;
           model[assetKey].confidence = 100;
@@ -441,6 +459,7 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
           const fails = existing ? existing.failedAuditCount + 1 : 1;
           newBotState.memory.auditMemory[`${targetId}_${assetKey}`] = { targetPlayerId: targetId, asset: assetKey, auditTurn: turn, outcome: "FAIL", thresholdUsed: threshold, state: "BOUNDED", lockedEstimate: { lowerBound: 0, upperBound: threshold - 1, confidence: 100, certainty: true }, estimateLastChangedTurn: turn, auditKnowledgeStrength: 100, suspicionSinceAudit: 0, failedAuditCount: fails, contradictionCount: existing ? existing.contradictionCount : 0, sourceHistory: [] };
           appendAuditHistory(newBotState.memory.auditMemory[`${targetId}_${assetKey}`], "FAILED_AUDIT", "Audit failed, establishing upper bound");
+          if (process.env.ENABLE_BOT_TELEMETRY !== "false") console.log({ TRACE:"AUDIT_MEMORY_WRITE", target: targetId, asset: assetKey, outcome: "FAIL", threshold, lockedEstimate: newBotState.memory.auditMemory[`${targetId}_${assetKey}`].lockedEstimate });
         }
         if (model.hypotheses) model.hypotheses = applyAuditConstraints(model.hypotheses, newBotState.memory.auditMemory, targetId);
         break;
@@ -518,6 +537,12 @@ export function evaluateCandidateAction(
 ): CandidateAction | null {
   if (!bot.botState) return null;
   const b = bot.botState;
+  
+  const rejectAction = (reason: string): CandidateAction => ({
+      action, category: "PASS", priority: 0, hardValid: false,
+      expectedValue: 0, probability: 0, utility: -9999, urgency: 0, risk: 0,
+      explanation: reason, reason
+  });
 
   let category: CandidateAction["category"] = "OPPORTUNISTIC";
   let cost = 0;
@@ -599,22 +624,87 @@ export function evaluateCandidateAction(
           let conf = model ? (model[targetAsset]?.confidence || 0) : 0;
           
           if (conf < profile.auditThreshold) {
-              return null; // Audit Knowledge Bonus threshold check
+              return rejectAction("LOW_CONFIDENCE"); // Audit Knowledge Bonus threshold check
           }
           
           if (b.memory.auditBudget.attempted >= profile.auditBudget) {
-              return null; // Audit Budget exhausted
+              return rejectAction("AUDIT_BUDGET_EXHAUSTED"); // Audit Budget exhausted
           }
           
           // Prevent repeated audits
           if (b.memory.auditMemory[`${target.id}_${targetAsset}`]?.outcome === "SUCCESS") {
-              return null;
+              return rejectAction("AUDIT_ALREADY_SUCCESSFUL");
+          }
+
+          const threshold = getAuditThreshold(targetAsset, state.year);
+          
+          if (process.env.ENABLE_BOT_TELEMETRY !== "false") {
+              console.log({
+                  TRACE: "PORTFOLIO_ESTIMATION",
+                  target: target.id,
+                  estimatedCash: model ? model.cash?.mean : 0,
+                  estimatedStocks: model ? model.stocks?.mean : 0,
+                  estimatedBonds: model ? model.bonds?.mean : 0,
+                  confidenceCash: model ? model.cash?.confidence : 0,
+                  confidenceStocks: model ? model.stocks?.confidence : 0,
+                  confidenceBonds: model ? model.bonds?.confidence : 0,
+                  hypotheses: model ? model.hypotheses : [],
+                  auditKnowledge: b.memory.auditMemory[`${target.id}_${targetAsset}`]
+              });
+
+              console.log({
+                  TRACE: "AUDIT_PIPELINE",
+                  playerId: bot.id,
+                  targetPlayer: target.id,
+                  year: state.year,
+                  totalNetWorth: netWorth(target),
+                  estimatedCash: model ? model.cash?.mean : 0,
+                  estimatedStocks: model ? model.stocks?.mean : 0,
+                  estimatedBonds: model ? model.bonds?.mean : 0,
+                  thresholdCash: getAuditThreshold("cash", state.year),
+                  thresholdStocks: getAuditThreshold("stocks", state.year),
+                  thresholdBonds: getAuditThreshold("bonds", state.year),
+                  auditMemory: b.memory.auditMemory,
+                  probability: 0.7, // Approx
+                  expectedGain: 10,
+                  utility: est < threshold ? -9999 : 0
+              });
+          }
+          
+          console.log({
+              TRACE: "AUDIT_EVALUATION",
+              playerId: bot.id,
+              target: target.id,
+              asset: targetAsset,
+              threshold,
+              lowerBound: model ? model[targetAsset]?.lowerBound || 0 : 0,
+              upperBound: model ? model[targetAsset]?.upperBound || 100 : 100,
+              probability: 0.7, // Approx for now
+              expectedGain: 10, // Confiscation
+              utility: est < threshold ? -9999 : 0, // Estimated utility before bonus
+              eligible: est >= threshold
+          });
+          
+          if (est < threshold) {
+              return {
+                  action,
+                  category: "STRATEGIC",
+                  priority: 0,
+                  hardValid: false,
+                  expectedValue: 0,
+                  probability: 0,
+                  utility: -9999,
+                  urgency: 0,
+                  risk: 0,
+                  explanation: "Below threshold",
+                  reason: "BELOW_THRESHOLD"
+              };
           }
 
           cost = 1;
           probabilitySuccess = 0.7; // Approx
           probabilityFailure = 0.3;
-          expectedGain = est > 20 ? 10 : 0; // Confiscation
+          expectedGain = 10; // Confiscation
           expectedLoss = 1;
           strategicBenefit = 15;
           explanation = `Audit confidence (${conf}%) exceeds threshold`;
@@ -630,7 +720,7 @@ export function evaluateCandidateAction(
       cost = action.payload?.penalty || 0;
       
       const benefit = 5; // Simplified benefit
-      if (cost > benefit) return null; // Rule 3: Rebalance penalty > expected benefit
+      if (cost > benefit) return rejectAction("REBALANCE_NOT_WORTH_IT"); // Rule 3: Rebalance penalty > expected benefit
       
       expectedLoss = cost;
       expectedGain = benefit;
@@ -640,7 +730,7 @@ export function evaluateCandidateAction(
       
       // Rule: Bull never voluntarily sells stocks
       if (profile.type === "BULL" && action.payload?.stocksAmount < bot.stocks) {
-          return null;
+          return rejectAction("BULL_STOCKS_PRESERVATION");
       }
   } else if (action.type === "create-trade") {
       category = "PORTFOLIO";
@@ -674,15 +764,15 @@ export function evaluateCandidateAction(
 
   // Hard rules
   const remainingCash = bot.cash - cost;
-  if (remainingCash < 0) return null; // Rule 1
-  if (remainingCash < profile.hardCashFloor && b.strategicMode !== "DESPERATE") return null; // Rule 2
+  if (remainingCash < 0) return rejectAction("BANKRUPTCY_RISK"); // Rule 1
+  if (remainingCash < profile.hardCashFloor && b.strategicMode !== "DESPERATE") return rejectAction("CASH_FLOOR"); // Rule 2
   
   // Calculate EV
   let expectedValue = (probabilitySuccess * expectedGain) - (probabilityFailure * expectedLoss);
   
   if (expectedValue < 0) {
-      if (action.type === "audit" && profile.type !== "AUDIT_HAWK") return null;
-      if (effRisk < 60) return null; // Rule 4
+      if (action.type === "audit" && profile.type !== "AUDIT_HAWK") return rejectAction("NEGATIVE_EV_AUDIT");
+      if (effRisk < 60) return rejectAction("NEGATIVE_EV"); // Rule 4
   }
   
   // Strategy Mode Modifiers
@@ -745,13 +835,21 @@ export function evaluateCandidateAction(
 
   const utility = strategicBenefit + personalityBias + auditKnowledgeBonus + emotionBonus + motivationBonus + urgencyBonus + expectedValue - riskPenalty - liquidityPenalty - embarrassmentPenalty;
   
+  console.log({
+      TRACE: "UTILITY",
+      action: action.type,
+      utility,
+      expectedValue,
+      probability: probabilitySuccess
+  });
+
   return {
      action,
      category,
      priority: 6,
      hardValid: true,
      expectedValue,
-     probability: 0,
+     probability: probabilitySuccess,
      utility,
      urgency: urgencyBonus,
      risk: riskPenalty,
@@ -813,6 +911,17 @@ export function selectActionHumanized(state: GameState, bot: PlayerState, candid
                     candidates[0] = candidates[chosenIdx];
                     candidates[chosenIdx] = top;
                     candidates[0].explanation += " [Mistake Engine Triggered]";
+                    
+                    console.log({
+                        TRACE: "HUMAN_MISTAKE",
+                        playerId: bot.id,
+                        bestAction: top.action,
+                        selectedAction: candidates[0].action,
+                        utilityGap: top.utility - candidates[0].utility,
+                        frustration: bot.botState.emotions.frustration,
+                        confidence: bot.botState.emotions.confidence,
+                        tilt: bot.botState.tilt
+                    });
                 }
             }
         }
@@ -837,6 +946,12 @@ export function selectActionHumanized(state: GameState, bot: PlayerState, candid
         }
     }
     
+    console.log({
+        TRACE: "HUMANIZATION",
+        candidateActions: candidates.map(c => ({ action: c.action.type, utility: c.utility })),
+        chosenAction: selectedCand.action.type
+    });
+
     if (!selectedCand) selectedCand = candidates[candidates.length - 1]; // Fallback to pass if all rejected
     
     // Attach Decision Tree Debug

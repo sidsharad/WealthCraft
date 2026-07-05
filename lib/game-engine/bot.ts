@@ -110,6 +110,7 @@ export interface CandidateAction {
     urgency: number;
     risk: number;
     explanation: string;
+    reason?: string;
 }
 
 
@@ -232,6 +233,16 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
   const botType = bot.botType || "DISCIPLINED";
   const profile = BOT_PROFILES[botType];
   
+  if (process.env.ENABLE_BOT_TELEMETRY !== "false") {
+      console.log({
+          TRACE:"GET_BOT_DECISION",
+          playerId: bot.id,
+          botType,
+          phase,
+          strategyMode: bot.botState?.strategicMode
+      });
+  }
+  
   if (!bot.botState) return { type: "skip" };
 
   // Bull Recovery Mode
@@ -333,8 +344,18 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
   const candidates: CandidateAction[] = [];
   for (const action of rawActions) {
     const cand = evaluateCandidateAction(state, bot, action, profile);
-    if (cand && cand.hardValid) {
-      candidates.push(cand);
+    if (cand) {
+      if (cand.hardValid) {
+        candidates.push(cand);
+      } else {
+        console.log({
+          TRACE: "ACTION_REJECTED",
+          action: cand.action,
+          reason: cand.reason,
+          utility: cand.utility,
+          expectedValue: cand.expectedValue
+        });
+      }
     }
   }
 
@@ -346,6 +367,23 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
   candidates.sort((a, b) => {
     if (a.priority !== b.priority) return a.priority - b.priority;
     return b.utility - a.utility;
+  });
+
+  console.log({
+      TRACE: "CANDIDATES",
+      playerId: bot.id,
+      botType,
+      strategyMode: bot.botState.strategicMode,
+      phase,
+      candidates: candidates.map(c => ({
+          action: c.action,
+          category: c.category,
+          priority: c.priority,
+          utility: c.utility,
+          expectedValue: c.expectedValue,
+          probability: c.probability,
+          explanation: c.explanation
+      }))
   });
 
   // Step 5: Humanization / Selection
@@ -372,6 +410,20 @@ function getBestRebalance(bot: PlayerState, cost: number, mode: string, required
         s = Math.floor((remaining - b) / 5) * 5;
         c = total - b - s;
     }
+    
+    console.log({
+        TRACE: "REBALANCE",
+        playerId: bot.id,
+        botType: bot.botType,
+        currentPortfolio: { cash: bot.cash, bonds: bot.bonds, stocks: bot.stocks },
+        targetPortfolio: { cash: c, bonds: b, stocks: s },
+        portfolioDrift: Math.abs(bot.cash - c) + Math.abs(bot.bonds - b) + Math.abs(bot.stocks - s),
+        expectedBenefit: 5,
+        rebalancePenalty: cost,
+        utility: 5 - cost,
+        selected: false
+    });
+
     return { newCash: c, newBonds: b, newStocks: s };
 }
 

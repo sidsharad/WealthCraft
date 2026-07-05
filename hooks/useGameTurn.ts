@@ -335,6 +335,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
   const [isBotProcessing, setIsBotProcessing] = useState(false);
   const isBotProcessingRef = useRef(false);
+  const activeBotExecution = useRef<string | null>(null);
   const [botThinkingMessage, setBotThinkingMessage] = useState<string | null>(null);
   const [botDebug, setBotDebug] = useState<any | null>(null);
   const [initialPreview, setInitialPreview] = useState(true);
@@ -1509,6 +1510,12 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
     console.log("BOT TURN START", activeBotIdx);
     console.log("BOT DETECTED", gameState?.players?.[activeBotIdx]?.name);
+    console.log({
+        TRACE: "BOT_PHASE",
+        playerId: gameState?.players?.[activeBotIdx]?.id,
+        phase: gameState?.phase,
+        turn: gameState?.turn
+    });
 
     // If an AI bot is active, immediately dismiss any pass-device screens to keep automation fluid
     if (showPassDevice) {
@@ -1522,97 +1529,213 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
     let active = true;
     const runBotAction = async () => {
+      const executionId = crypto.randomUUID();
+      activeBotExecution.current = executionId;
       isBotProcessingRef.current = true;
       setIsBotProcessing(true);
 
       const botName = gameState?.players?.[activeBotIdx]?.name || "The bot";
-      const thinkingMessages = [
-        `${botName} is evaluating investments...`,
-        `${botName} is analyzing the market...`,
-        `${botName} is planning the next move...`
-      ];
-      setBotThinkingMessage(thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)]);
-
-      // 300 - 700ms delay for human-like experience
-      const delayMs = Math.floor(Math.random() * 401) + 300;
-      await new Promise(r => setTimeout(r, delayMs));
-
-      if (!active) {
-        setBotThinkingMessage(null);
-        return;
+      
+      if (process.env.ENABLE_BOT_TELEMETRY !== "false") {
+        console.log({
+            TRACE:"BOT_TURN_START",
+            turn: gameState?.turn,
+            playerId: gameState?.players?.[activeBotIdx]?.id,
+            playerName: botName,
+            phase: gameState?.phase,
+            isBot: true,
+            lock: true
+        });
       }
       
-      console.log("Calling getBotDecision()");
-      const decision = getBotDecision(gameState, activeBotIdx);
-      console.log("Bot action", decision);
-      if (decision && decision.debug) {
-        setBotDebug(decision.debug);
-      }
-
-      setBotThinkingMessage(null);
-
-      console.log("Dispatching bot action", decision.type);
-      try {
-        if (decision.type === "roll") {
-          setRolling(true);
-          await new Promise(r => setTimeout(r, 800));
-          const dice = Math.floor(Math.random() * 6) + 1;
-          setLastDice(dice);
-          setRolling(false);
-          await new Promise(r => setTimeout(r, 1000));
-
-          if (diceMode === "lottery") {
-            await performAction("lottery-resolve", { dice });
-            setDiceMode("move");
-            setOverlayMessage(null);
-          } else {
-            const result = await performAction("roll", { dice });
-            if (result?.state?.phase !== "year-end" && result?.gameState?.phase !== "year-end") {
-              const pendingEmergency = result?.state?.pendingEmergencyAmount ?? null;
-              const payload: any = {};
-              if (pendingEmergency !== null) {
-                payload.amount = pendingEmergency;
-              }
-              await performAction("tile-action", payload);
-            }
-          }
-        } else if (decision.type === "tile-action") {
-          const payload = decision.payload || {};
-          if (pendingEmergencyAmount !== null) {
-            payload.amount = pendingEmergencyAmount;
-          }
-          await performAction("tile-action", payload);
-        } else if (decision.type === "house-auction-bid") {
-          const bidderId = gameState?.players?.[activeBotIdx]?.id;
-          if (bidderId) {
-            await performAction("bid", { amount: decision.payload?.amount, bidderId });
-          }
-        } else if (decision.type === "rebalance") {
-          const isSetup = gameState?.year === 1 && gameState?.phase === "year-end" && (gameState?.turn ?? 0) < (gameState?.players?.length ?? 0);
-          const wasYearEnd = gameState.phase === "year-end";
-
-          const result = await performAction("rebalance", decision.payload);
-          if (wasYearEnd && !isSetup) {
-            const nextState = result?.state || result?.gameState;
-            const pendingEmergency = nextState?.pendingEmergencyAmount ?? null;
-            const payload: any = {};
-            if (pendingEmergency !== null) {
-              payload.amount = pendingEmergency;
-            }
-            await performAction("tile-action", payload);
-          }
-        } else if (decision.type === "audit") {
-          await performAction("audit", decision.payload);
-        } else if (decision.type === "trade-response") {
-          await performAction("trade-response", decision.payload);
-        } else if (decision.type === "end-turn") {
-          await performAction("end-turn");
+      const watchdogWarning = setTimeout(() => {
+        if (activeBotExecution.current === executionId) {
+          console.error({
+            TRACE: "BOT_STUCK_WARNING",
+            playerId: gameState?.players?.[activeBotIdx]?.id,
+            phase: gameState?.phase
+          });
         }
+      }, 5000);
+
+      const watchdogReset = setTimeout(() => {
+        if (activeBotExecution.current === executionId) {
+          console.error({
+            TRACE: "BOT_DEADLOCK_RECOVERED",
+            playerId: gameState?.players?.[activeBotIdx]?.id,
+            phase: gameState?.phase
+          });
+          isBotProcessingRef.current = false;
+          activeBotExecution.current = null;
+          setIsBotProcessing(false);
+        }
+      }, 10000);
+
+      try {
+        const thinkingMessages = [
+          `${botName} is evaluating investments...`,
+          `${botName} is analyzing the market...`,
+          `${botName} is planning the next move...`
+        ];
+        setBotThinkingMessage(thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)]);
+
+        // 300 - 700ms delay for human-like experience
+        const delayMs = Math.floor(Math.random() * 401) + 300;
+        await new Promise(r => setTimeout(r, delayMs));
+
+        if (!active) {
+          setBotThinkingMessage(null);
+          return;
+        }
+        
+        if (process.env.ENABLE_BOT_TELEMETRY !== "false") {
+            console.log({
+                TRACE:"BOT_ACTION_PHASE",
+                playerId: gameState?.players?.[activeBotIdx]?.id,
+                phase: gameState?.phase,
+                statePhase: gameState?.phase
+            });
+        }
+        
+        console.log("Calling getBotDecision()");
+        const decision = getBotDecision(gameState, activeBotIdx);
+        console.log("Bot action", decision);
+        if (decision && decision.debug) {
+          setBotDebug(decision.debug);
+        }
+
+        setBotThinkingMessage(null);
+
+        console.log("Dispatching bot action", decision.type);
+
+        const executeBotAction = async (decision: any, performAction: any, computedState: any) => {
+            const executionId = `${computedState.currentPlayer}_${computedState.turn}_${decision.type}_${Date.now()}`;
+            
+            console.log({
+                TRACE: "BOT_EXECUTION_BEGIN",
+                executionId,
+                playerId: gameState?.players?.[activeBotIdx]?.id,
+                turn: computedState.turn,
+                phase: computedState.phase,
+                action: decision.type,
+                payload: decision.payload
+            });
+            
+            const latestState = gameStateRef.current;
+            console.log({
+                TRACE: "BOT_STATE_DRIFT",
+                computedState,
+                executedState: {
+                    turn: latestState?.turn,
+                    phase: latestState?.phase,
+                    currentPlayer: latestState?.currentPlayerIndex
+                }
+            });
+
+            console.log({
+                TRACE: "BOT_PAYLOAD",
+                action: decision.type,
+                payload: decision.payload
+            });
+
+            let success = true;
+            try {
+                switch(decision.type) {
+                    case "roll":
+                        setRolling(true);
+                        await new Promise(r => setTimeout(r, 800));
+                        const dice = Math.floor(Math.random() * 6) + 1;
+                        setLastDice(dice);
+                        setRolling(false);
+                        await new Promise(r => setTimeout(r, 1000));
+                        
+                        console.log({
+                            TRACE: "BOT_ROLL",
+                            playerId: gameState?.players?.[activeBotIdx]?.id,
+                            botType: gameState?.players?.[activeBotIdx]?.botType,
+                            phase: gameState?.phase,
+                            turn: gameState?.turn
+                        });
+
+                        if (diceMode === "lottery") {
+                            await performAction("lottery-resolve", { dice });
+                            setDiceMode("move");
+                            setOverlayMessage(null);
+                        } else {
+                            await performAction("roll", { dice });
+                        }
+                        break;
+                    case "tile-action":
+                    case "tax-raid":
+                    case "hostile-takeover":
+                    case "ipo":
+                    case "pass":
+                        const tilePayload = decision.payload || {};
+                        if (pendingEmergencyAmount !== null) {
+                            tilePayload.amount = pendingEmergencyAmount;
+                        }
+                        await performAction("tile-action", tilePayload);
+                        break;
+                    case "house-auction-bid":
+                        const bidderId = gameState?.players?.[activeBotIdx]?.id;
+                        if (bidderId) {
+                            await performAction("bid", { amount: decision.payload?.amount, bidderId });
+                        }
+                        break;
+                    case "rebalance":
+                        await performAction("rebalance", decision.payload);
+                        break;
+                    case "audit":
+                        await performAction("audit", decision.payload);
+                        break;
+                    case "trade-response":
+                    case "accept-trade":
+                    case "reject-trade":
+                        await performAction("trade-response", decision.payload);
+                        break;
+                    case "create-trade":
+                        await performAction("create-trade", decision.payload);
+                        break;
+                    case "end-turn":
+                    case "skip":
+                        await performAction("end-turn");
+                        break;
+                    default:
+                        console.error({
+                            TRACE: "BOT_ACTION_UNSUPPORTED",
+                            action: decision.type,
+                            payload: decision.payload
+                        });
+                        success = false;
+                        break;
+                }
+            } catch(e) {
+                success = false;
+                throw e;
+            } finally {
+                console.log({
+                    TRACE: "BOT_EXECUTION_END",
+                    executionId,
+                    success
+                });
+            }
+        };
+
+        const computedState = {
+            turn: gameState.turn,
+            phase: gameState.phase,
+            currentPlayer: gameState.currentPlayerIndex
+        };
+
+        await executeBotAction(decision, performAction, computedState);
       } catch (err) {
         console.error("Bot action error:", err);
       } finally {
-        if (active) {
+        clearTimeout(watchdogWarning);
+        clearTimeout(watchdogReset);
+        if (activeBotExecution.current === executionId) {
           isBotProcessingRef.current = false;
+          activeBotExecution.current = null;
           setIsBotProcessing(false);
           console.log("Bot action completed, isBotProcessing set to false");
         }
