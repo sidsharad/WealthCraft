@@ -268,11 +268,39 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
 
   let rawActions: BotAction[] = [];
 
-  // Step 1: Generate ALL legal actions for the current phase
-  if (phase === "roll") {
-    rawActions.push({ type: "roll" });
-  } else if (phase === "action") {
-    const tile = getTileByPosition(bot.position);
+  // 1. Emergency Rebalance Override
+  if (state.emergencyState && state.emergencyState.playerId === bot.id && (phase === "action" || phase === "trade")) {
+    if (state.emergencyState.status === "awaiting-decision") {
+      if (!bot.hasTraded && !state.emergencyState.tradeAttempted) {
+        rawActions.push({ type: "emergency-decision", payload: { decision: "trade" } });
+      } else {
+        rawActions.push({ type: "emergency-decision", payload: { decision: "rebalance" } });
+      }
+    } else if (state.emergencyState.status === "awaiting-trade-response") {
+      rawActions.push({ type: "emergency-decision", payload: { decision: "rebalance" } });
+      if (!bot.hasTraded && state.announcement !== "🤝 TRADE REJECTED.") {
+        for (let pIdx = 0; pIdx < state.players.length; pIdx++) {
+          if (pIdx !== botIdx) {
+            if (bot.cash >= 2) rawActions.push({ type: "trade-offer", payload: { toPlayerId: state.players[pIdx].id, tradeType: "direct", offer: { cash: 2, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 1, stocks: 0 } } });
+            if (bot.cash >= 4) rawActions.push({ type: "trade-offer", payload: { toPlayerId: state.players[pIdx].id, tradeType: "direct", offer: { cash: 4, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 0, stocks: 1 } } });
+          }
+        }
+      }
+    } else if (state.emergencyState.status === "rebalance-required") {
+      const requiredCash = state.emergencyState.amount;
+      const rb = getBestRebalance(bot, 3, "balanced", requiredCash);
+      if (rb) {
+        rawActions.push({ type: "rebalance", payload: { ...rb, penalty: 3 } });
+      } else {
+        rawActions.push({ type: "rebalance", payload: { newCash: Math.max(0, bot.cash - 3), newBonds: bot.bonds, newStocks: bot.stocks, penalty: 3 } });
+      }
+    }
+  } else {
+    // Step 1: Generate ALL legal actions for the current phase
+    if (phase === "roll") {
+      rawActions.push({ type: "roll" });
+    } else if (phase === "action") {
+      const tile = getTileByPosition(bot.position);
     
     if (tile.effect === "ipo") {
       for (let i = 0; i <= 5; i++) {
@@ -325,20 +353,23 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
     }
     
     // Trades
-    for (let pIdx = 0; pIdx < state.players.length; pIdx++) {
-      if (pIdx !== botIdx) {
-        if (bot.cash >= 2) rawActions.push({ type: "create-trade", payload: { targetId: state.players[pIdx].id, offer: { cash: 2, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 1, stocks: 0 } } });
-        if (bot.cash >= 4) rawActions.push({ type: "create-trade", payload: { targetId: state.players[pIdx].id, offer: { cash: 4, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 0, stocks: 1 } } });
+    if (!bot.hasTraded && state.announcement !== "🤝 TRADE REJECTED.") {
+      for (let pIdx = 0; pIdx < state.players.length; pIdx++) {
+        if (pIdx !== botIdx) {
+          if (bot.cash >= 2) rawActions.push({ type: "trade-offer", payload: { toPlayerId: state.players[pIdx].id, tradeType: "direct", offer: { cash: 2, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 1, stocks: 0 } } });
+          if (bot.cash >= 4) rawActions.push({ type: "trade-offer", payload: { toPlayerId: state.players[pIdx].id, tradeType: "direct", offer: { cash: 4, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 0, stocks: 1 } } });
+        }
       }
     }
     
     // Rebalance
-    const rb = getBestRebalance(bot, 0, "balanced", 0);
+    const rb = getBestRebalance(bot, 3, "balanced", 0);
     if (rb) rawActions.push({ type: "rebalance", payload: { ...rb, penalty: 3 } }); 
   } else if (phase === "waiting-trade" && state.pendingTrade?.toPlayerId === bot.id) {
     rawActions.push({ type: "trade-response", payload: { accept: true } });
     rawActions.push({ type: "trade-response", payload: { accept: false } });
   }
+  } // Close the normal phase else block
 
   // Step 2 & 3: Filter Hard Rules & Calculate Utility
   const candidates: CandidateAction[] = [];
@@ -391,9 +422,9 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
 }
 
 
-function getBestRebalance(bot: PlayerState, cost: number, mode: string, requiredCash: number) {
+export function getBestRebalance(bot: PlayerState, cost: number, mode: string, requiredCash: number) {
     const target = bot.botState!.personality.targetAllocation;
-    const total = bot.cash + bot.bonds + bot.stocks;
+    const total = Math.max(0, bot.cash + bot.bonds + bot.stocks - cost);
     // Just return target allocation based on bot type
     let c = Math.floor(total * target.cash / 100);
     let b = Math.floor(total * target.bonds / 100);
@@ -406,8 +437,14 @@ function getBestRebalance(bot: PlayerState, cost: number, mode: string, required
     if (requiredCash > c) {
         c = requiredCash;
         let remaining = total - c;
-        b = Math.floor((remaining * (target.bonds / (target.bonds + target.stocks))) / 5) * 5;
-        s = Math.floor((remaining - b) / 5) * 5;
+        let totalInvestTarget = target.bonds + target.stocks;
+        if (totalInvestTarget === 0) {
+            b = 0;
+            s = 0;
+        } else {
+            b = Math.floor((remaining * (target.bonds / totalInvestTarget)) / 5) * 5;
+            s = Math.floor((remaining - b) / 5) * 5;
+        }
         c = total - b - s;
     }
     

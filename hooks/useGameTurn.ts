@@ -334,6 +334,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
   const [overlayMessage, setOverlayMessage] = useState<string | null>(null);
 
   const [isBotProcessing, setIsBotProcessing] = useState(false);
+  const [botActionTrigger, setBotActionTrigger] = useState(0);
   const isBotProcessingRef = useRef(false);
   const activeBotExecution = useRef<string | null>(null);
   const [botThinkingMessage, setBotThinkingMessage] = useState<string | null>(null);
@@ -990,7 +991,12 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         return true;
       }
       if (fx.type === "error") {
-        alert(fx.message);
+        const isBot = stateToSet?.players?.[stateToSet?.currentPlayerIndex]?.isBot;
+        if (!isBot) {
+          alert(fx.message);
+        } else {
+          console.error("BOT DISPATCH ERROR (suppressed alert):", fx.message);
+        }
         return true;
       }
       if (fx.type === "show-pass-device") {
@@ -1571,6 +1577,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         }
       }, 10000);
 
+      let decision: any = null;
       try {
         const thinkingMessages = [
           `${botName} is evaluating investments...`,
@@ -1598,7 +1605,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
         }
         
         console.log("Calling getBotDecision()");
-        const decision = getBotDecision(gameState, activeBotIdx);
+        decision = getBotDecision(gameState, activeBotIdx);
         console.log("Bot action", decision);
         if (decision && decision.debug) {
           setBotDebug(decision.debug);
@@ -1737,6 +1744,9 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
           isBotProcessingRef.current = false;
           activeBotExecution.current = null;
           setIsBotProcessing(false);
+          if (decision && decision.type !== "end-turn" && decision.type !== "skip") {
+            setBotActionTrigger(t => t + 1);
+          }
           console.log("Bot action completed, isBotProcessing set to false");
         }
       }
@@ -1757,6 +1767,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     currentBiddingPlayer?.id,
     initialPreview,
     showPassDevice,
+    botActionTrigger,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ]);
 

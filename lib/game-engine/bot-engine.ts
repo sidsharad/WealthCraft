@@ -435,7 +435,7 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
         break;
       case "SUCCESSFUL_AUDIT": {
         const asset = event.assetConfiscated;
-        model[asset].mean = 40;
+        model[asset].mean = event.amount;
         model[asset].variance = 0;
         model[asset].confidence = 100;
         model[asset].source = "AUDIT";
@@ -450,7 +450,7 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
       case "FAILED_AUDIT": {
         for (const assetKey of ["cash", "bonds", "stocks"] as const) {
           const threshold = getAuditThreshold(assetKey, nextState.year);
-          model[assetKey].mean = Math.min(model[assetKey].mean, 35);
+          model[assetKey].mean = Math.min(model[assetKey].mean, Math.max(0, threshold - 1));
           model[assetKey].variance = 5;
           model[assetKey].confidence = 100;
           model[assetKey].source = "AUDIT";
@@ -474,10 +474,10 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
            mutateAmbiguous(targetId, "stocks", 0, wealthIncrease, state.turn);
            mutateAmbiguous(targetId, "bonds", 0, wealthIncrease, state.turn);
         }
-        model.bonds.mean = event.bondReturn * 5;
+        model.bonds.mean = (event.bondReturn / 1) * 5;
         model.bonds.variance *= 0.5;
         if (event.stockReturn !== undefined) {
-          model.stocks.mean = event.stockReturn * 5;
+          model.stocks.mean = (event.stockReturn / 2) * 5;
           model.stocks.variance *= 0.5;
         }
         if (model.hypotheses) model.hypotheses = applyAuditConstraints(model.hypotheses, newBotState.memory.auditMemory, targetId);
@@ -618,74 +618,51 @@ export function evaluateCandidateAction(
       if (targetIdx !== undefined) {
           const target = state.players[targetIdx];
           const model = b.playerModels[target.id];
-          const targetAsset = (action.payload?.targetAsset || "cash") as "cash" | "bonds" | "stocks";
-          
-          let est = model ? (model[targetAsset]?.mean || 0) : 0;
-          let conf = model ? (model[targetAsset]?.confidence || 0) : 0;
-          
-          if (conf < profile.auditThreshold) {
-              return rejectAction("LOW_CONFIDENCE"); // Audit Knowledge Bonus threshold check
-          }
           
           if (b.memory.auditBudget.attempted >= profile.auditBudget) {
               return rejectAction("AUDIT_BUDGET_EXHAUSTED"); // Audit Budget exhausted
           }
           
-          // Prevent repeated audits
-          if (b.memory.auditMemory[`${target.id}_${targetAsset}`]?.outcome === "SUCCESS") {
-              return rejectAction("AUDIT_ALREADY_SUCCESSFUL");
+          // 2 turn cooldown for ANY audit against this target (prevents consecutive turn spamming across different assets)
+          let mostRecentAuditTurn = -1;
+          for (const key in b.memory.auditMemory) {
+              if (key.startsWith(target.id + "_")) {
+                  mostRecentAuditTurn = Math.max(mostRecentAuditTurn, b.memory.auditMemory[key].auditTurn);
+                  
+                  // Also check if they were already successfully audited and brought down to threshold
+                  if (b.memory.auditMemory[key].outcome === "SUCCESS") {
+                      // We don't permanently lock them anymore, because they can get income later!
+                      // Wait, we DO permanently lock them? No! The user's earlier problem was a permanent lock on SUCCESS.
+                      // Actually, if it was successful, we shouldn't lock them forever. The 2-turn cooldown handles spamming.
+                  }
+              }
+          }
+          if (mostRecentAuditTurn !== -1 && (state.turn - mostRecentAuditTurn < 2)) {
+              return rejectAction("AUDIT_COOLDOWN");
           }
 
-          const threshold = getAuditThreshold(targetAsset, state.year);
+          let totalExpectedGain = 0;
+          let anyAboveThreshold = false;
+          let minConfidence = 100;
           
-          if (process.env.ENABLE_BOT_TELEMETRY !== "false") {
-              console.log({
-                  TRACE: "PORTFOLIO_ESTIMATION",
-                  target: target.id,
-                  estimatedCash: model ? model.cash?.mean : 0,
-                  estimatedStocks: model ? model.stocks?.mean : 0,
-                  estimatedBonds: model ? model.bonds?.mean : 0,
-                  confidenceCash: model ? model.cash?.confidence : 0,
-                  confidenceStocks: model ? model.stocks?.confidence : 0,
-                  confidenceBonds: model ? model.bonds?.confidence : 0,
-                  hypotheses: model ? model.hypotheses : [],
-                  auditKnowledge: b.memory.auditMemory[`${target.id}_${targetAsset}`]
-              });
-
-              console.log({
-                  TRACE: "AUDIT_PIPELINE",
-                  playerId: bot.id,
-                  targetPlayer: target.id,
-                  year: state.year,
-                  totalNetWorth: netWorth(target),
-                  estimatedCash: model ? model.cash?.mean : 0,
-                  estimatedStocks: model ? model.stocks?.mean : 0,
-                  estimatedBonds: model ? model.bonds?.mean : 0,
-                  thresholdCash: getAuditThreshold("cash", state.year),
-                  thresholdStocks: getAuditThreshold("stocks", state.year),
-                  thresholdBonds: getAuditThreshold("bonds", state.year),
-                  auditMemory: b.memory.auditMemory,
-                  probability: 0.7, // Approx
-                  expectedGain: 10,
-                  utility: est < threshold ? -9999 : 0
-              });
+          const assets = ["cash", "bonds", "stocks"] as const;
+          for (const asset of assets) {
+              const threshold = getAuditThreshold(asset, state.year);
+              const est = model ? (model[asset]?.mean || 0) : 0;
+              const conf = model ? (model[asset]?.confidence || 0) : 0;
+              minConfidence = Math.min(minConfidence, conf);
+              
+              if (est > threshold) {
+                  anyAboveThreshold = true;
+                  totalExpectedGain += (est - threshold);
+              }
           }
           
-          console.log({
-              TRACE: "AUDIT_EVALUATION",
-              playerId: bot.id,
-              target: target.id,
-              asset: targetAsset,
-              threshold,
-              lowerBound: model ? model[targetAsset]?.lowerBound || 0 : 0,
-              upperBound: model ? model[targetAsset]?.upperBound || 100 : 100,
-              probability: 0.7, // Approx for now
-              expectedGain: 10, // Confiscation
-              utility: est < threshold ? -9999 : 0, // Estimated utility before bonus
-              eligible: est >= threshold
-          });
+          if (minConfidence < profile.auditThreshold) {
+              return rejectAction("LOW_CONFIDENCE");
+          }
           
-          if (est < threshold) {
+          if (!anyAboveThreshold) {
               return {
                   action,
                   category: "STRATEGIC",
@@ -696,7 +673,7 @@ export function evaluateCandidateAction(
                   utility: -9999,
                   urgency: 0,
                   risk: 0,
-                  explanation: "Below threshold",
+                  explanation: "Below threshold across all assets",
                   reason: "BELOW_THRESHOLD"
               };
           }
@@ -704,10 +681,10 @@ export function evaluateCandidateAction(
           cost = 1;
           probabilitySuccess = 0.7; // Approx
           probabilityFailure = 0.3;
-          expectedGain = 10; // Confiscation
+          expectedGain = totalExpectedGain; // Sum of Confiscation
           expectedLoss = 1;
-          strategicBenefit = 15;
-          explanation = `Audit confidence (${conf}%) exceeds threshold`;
+          strategicBenefit = 15 + (totalExpectedGain > 5 ? 10 : 0);
+          explanation = `Audit confidence (${minConfidence}%) exceeds threshold, expected gain ${totalExpectedGain}L`;
           
           urgencyBonus += profile.urgencyWeights.audit;
           if (profile.type === "AUDIT_HAWK") {
@@ -722,6 +699,9 @@ export function evaluateCandidateAction(
       const benefit = 5; // Simplified benefit
       if (cost > benefit) return rejectAction("REBALANCE_NOT_WORTH_IT"); // Rule 3: Rebalance penalty > expected benefit
       
+      const drift = Math.abs(bot.cash - (action.payload?.newCash || 0)) + Math.abs(bot.bonds - (action.payload?.newBonds || 0)) + Math.abs(bot.stocks - (action.payload?.newStocks || 0));
+      if (drift < 5 && cost > 0) return rejectAction("REBALANCE_NO_OP");
+      
       expectedLoss = cost;
       expectedGain = benefit;
       strategicBenefit = benefit - cost;
@@ -732,7 +712,7 @@ export function evaluateCandidateAction(
       if (profile.type === "BULL" && action.payload?.stocksAmount < bot.stocks) {
           return rejectAction("BULL_STOCKS_PRESERVATION");
       }
-  } else if (action.type === "create-trade") {
+  } else if (action.type === "trade-offer") {
       category = "PORTFOLIO";
       const req = action.payload?.request;
       const off = action.payload?.offer;
@@ -760,12 +740,42 @@ export function evaluateCandidateAction(
           const rivalBidEstimate = (cost + Math.floor(Math.random() * 7) - 3);
           if (cost > rivalBidEstimate) strategicBenefit += 5; 
       }
+  } else if (action.type === "trade-response") {
+      category = "MANDATORY";
+      if (action.payload?.accept === false) {
+          expectedGain = 0;
+          expectedLoss = 0;
+          strategicBenefit = 0;
+          explanation = "Reject trade";
+      } else {
+          // Simplistic EV: since we don't know the exact trade here without state, just give it a slightly positive value to accept sometimes
+          expectedGain = 1;
+          expectedLoss = 0.5;
+          strategicBenefit = 0.5;
+          explanation = "Accept trade";
+      }
+  } else if (action.type === "emergency-decision") {
+      category = "MANDATORY";
+      if (action.payload?.decision === "trade") {
+          expectedGain = 10;
+          expectedLoss = 0;
+          strategicBenefit = 10;
+          explanation = "Attempt trade before rebalancing";
+          if (profile.type === "BULL") personalityBias += 10; // Bull prefers trading to avoid rebalance penalty
+      } else {
+          expectedGain = 0;
+          expectedLoss = 0;
+          strategicBenefit = 0;
+          explanation = "Accept rebalance immediately";
+      }
   }
 
   // Hard rules
   const remainingCash = bot.cash - cost;
-  if (remainingCash < 0) return rejectAction("BANKRUPTCY_RISK"); // Rule 1
-  if (remainingCash < profile.hardCashFloor && b.strategicMode !== "DESPERATE") return rejectAction("CASH_FLOOR"); // Rule 2
+  if (category !== "PASS" && category !== "MANDATORY") {
+      if (remainingCash < 0) return rejectAction("BANKRUPTCY_RISK"); // Rule 1
+      if (remainingCash < profile.hardCashFloor && b.strategicMode !== "DESPERATE") return rejectAction("CASH_FLOOR"); // Rule 2
+  }
   
   // Calculate EV
   let expectedValue = (probabilitySuccess * expectedGain) - (probabilityFailure * expectedLoss);

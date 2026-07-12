@@ -40,7 +40,7 @@ export default function RebalanceModal({ isOpen, player, onRebalance, onClose, p
         setIsInitialDelay(false);
       } else {
         setIsInitialDelay(true);
-        const timer = setTimeout(() => setIsInitialDelay(false), 2000);
+        const timer = setTimeout(() => setIsInitialDelay(false), 10);
         return () => clearTimeout(timer);
       }
     }

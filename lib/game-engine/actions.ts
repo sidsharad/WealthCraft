@@ -448,7 +448,7 @@ export function applyYearEndRebalance(
   penalty: number = 0
 ): { state: GameState; valid: boolean; error?: string } {
   const player = state.players[playerIdx];
-  const totalBefore = player.cash + player.bonds + player.stocks - penalty;
+  const totalBefore = Math.max(0, player.cash + player.bonds + player.stocks - penalty);
   const totalAfter = newCash + newBonds + newStocks;
 
   if (totalAfter !== totalBefore) {
@@ -536,7 +536,7 @@ export function processConcentrationAudit(
   state: GameState,
   auditorIdx: number,
   targetIdx: number
-): { state: GameState; valid: boolean; error?: string; auditFailed?: boolean; needsRebalance?: boolean } {
+): { state: GameState; valid: boolean; error?: string; auditFailed?: boolean; auditSuccess?: boolean; needsRebalance?: boolean; confiscated?: { cash: number; bonds: number; stocks: number } } {
   const auditor = state.players[auditorIdx];
   const target = state.players[targetIdx];
 
@@ -582,7 +582,7 @@ export function processConcentrationAudit(
 
       let s = state;
       let confiscatedMsg = "";
-      const targetUpdates: Partial<PlayerState> = {};
+      const targetUpdates: Partial<PlayerState> = { wealthDeclared: true };
       const auditorUpdates: Partial<PlayerState> = {};
       let auditorCashGain = 0;
       let auditorBondsGain = 0;
@@ -619,7 +619,12 @@ export function processConcentrationAudit(
 
       const msg = `Audit Successful — Excess wealth transferred to auditor.`;
       s = addLog(s, `Successful Audit by ${auditor.name} on ${target.name}: Transferred ${confiscatedMsg.trim()} to auditor.`);
-      return { state: { ...s, announcement: msg }, valid: true };
+      return { 
+        state: { ...s, announcement: msg }, 
+        valid: true, 
+        auditSuccess: true, 
+        confiscated: { cash: auditorCashGain, bonds: auditorBondsGain, stocks: auditorStocksGain } 
+      };
   } else {
     // Failed Audit
     console.log(JSON.stringify({
@@ -633,10 +638,12 @@ export function processConcentrationAudit(
     if (needsRebalance) {
       const msg = `Audit Failed — ${auditor.name} cannot afford ${FALSE_AUDIT_PENALTY}L penalty. Mandatory rebalance required!`;
       let s = addLog(state, `Failed Audit by ${auditor.name} on ${target.name}: ${auditor.name} has insufficient cash and must rebalance.`);
+      s = updatePlayer(s, targetIdx, { wealthDeclared: true });
       return { state: { ...s, announcement: msg }, valid: true, auditFailed: true, needsRebalance: true };
     } else {
       const msg = `Audit Failed — Auditor pays ${FALSE_AUDIT_PENALTY}L penalty.`;
       let s = updatePlayer(state, auditorIdx, { cash: auditor.cash - FALSE_AUDIT_PENALTY });
+      s = updatePlayer(s, targetIdx, { wealthDeclared: true });
       s = addLog(s, `Failed Audit by ${auditor.name} on ${target.name}: ${auditor.name} paid ${FALSE_AUDIT_PENALTY}L penalty.`);
       return { state: { ...s, announcement: msg }, valid: true, auditFailed: true, needsRebalance: false };
     }

@@ -215,6 +215,7 @@ function internalDispatch(
           }
           
           const pre = s; s = applyEmergency(s, playerIdx, amount); s = notifyBotsOfEvent(pre, s, { type: "EMERGENCY", playerId: player.id, amount });
+          s.emergencyState = undefined;
           break;
         }
         case "lottery": {
@@ -324,7 +325,10 @@ function internalDispatch(
         return { state: advanceTurn(s) };
       }
       
-      return { state: { ...s, phase: "action" } };
+      if (s.phase === "action" || s.phase === "year-end") {
+        return { state: { ...s, phase: "action" } };
+      }
+      return { state: s };
     }
 
     case "acknowledge-endgame-trigger": {
@@ -453,6 +457,7 @@ function internalDispatch(
              status: "rebalance-required",
              resolution: "Mandatory Rebalance"
            };
+           s.phase = "action";
         } else {
            // If it was accepted or an open trade completed, check cash
            const proposerIdx = s.players.findIndex(p => p.id === s.emergencyState!.playerId);
@@ -466,6 +471,7 @@ function internalDispatch(
                 status: "rebalance-required",
                 resolution: "Mandatory Rebalance"
               };
+              s.phase = "action";
            }
         }
       }

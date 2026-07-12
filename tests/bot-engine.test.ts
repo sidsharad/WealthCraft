@@ -91,7 +91,7 @@ describe('Agentic Bot Engine - Slice 2: Observation & Inference', () => {
     bot.botState!.playerModels['p1'].stocks.variance = 60;
 
     // Observe a return of 3 bonds and 7 stocks (3*5 = 15L bonds, 7*5 = 35L stocks).
-    const newState = notifyBotsOfEvent(state, state, { type: 'YEAR_END_RETURN', playerId: 'p1', bondReturn: 3, stockReturn: 7 });
+    const newState = notifyBotsOfEvent(state, state, { type: 'YEAR_END_RETURN', playerId: 'p1', bondReturn: 3, stockReturn: 14 });
     
     bot = newState.players.find(p => p.id === 'bot1')!;
     const model = bot.botState?.playerModels['p1'];
