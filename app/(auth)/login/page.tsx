@@ -29,12 +29,12 @@ export default function LoginPage() {
   }
 
   async function handleGoogle() {
-    console.log("[DEBUG-WealthCraft] Initiating Google Sign-In...");
+    if (process.env.NODE_ENV !== "production") { console.log("[DEBUG-WealthCraft] Initiating Google Sign-In..."); }
     try {
       const result = await signIn("google", { callbackUrl: "/lobby" });
-      console.log("[DEBUG-WealthCraft] Google Sign-In request dispatched:", result);
+      if (process.env.NODE_ENV !== "production") { console.log("[DEBUG-WealthCraft] Google Sign-In request dispatched:", result); }
     } catch (err) {
-      console.error("[DEBUG-WealthCraft] Google Sign-In error caught:", err);
+      if (process.env.NODE_ENV !== "production") { console.error("[DEBUG-WealthCraft] Google Sign-In error caught:", err); }
     }
   }
 

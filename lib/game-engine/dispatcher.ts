@@ -220,7 +220,10 @@ function internalDispatch(
         }
         case "lottery": {
           if (payload?.play) {
+            const pre = s;
             s = deductLotteryFee(s, playerIdx);
+            const fee = pre.players[playerIdx].cash - s.players[playerIdx].cash;
+            if (fee > 0) s = notifyBotsOfEvent(pre, s, { type: "LOTTERY_PURCHASE", playerId: player.id, amount: fee });
             return { state: s, sideEffect: { type: "start-lottery-roll" } };
           }
           return { state: advanceTurn(s) };
@@ -281,7 +284,12 @@ function internalDispatch(
       };
       const eligibleCount = state.players.filter(p => !p.hasHouse).length;
       if (s.auctionState!.bids.length >= eligibleCount) {
-        s = resolveHouseAuction(s).state;
+        const pre = s;
+        const res = resolveHouseAuction(s);
+        s = res.state;
+        if (res.winnerId && res.winnerBid) {
+            s = notifyBotsOfEvent(pre, s, { type: "HOUSE_AUCTION_WIN", playerId: res.winnerId, amount: res.winnerBid });
+        }
       } else {
         return { state: s, sideEffect: { type: "show-pass-device" } };
       }
@@ -290,10 +298,12 @@ function internalDispatch(
 
     case "rebalance": {
       const { newCash, newBonds, newStocks, penalty = 0 } = payload as any;
+      const pre = state;
       const result = applyYearEndRebalance(state, playerIdx, newCash, newBonds, newStocks, penalty);
       if (!result.valid) return { state, sideEffect: { type: "error", message: result.error! } };
       
       let s = result.state;
+      s = notifyBotsOfEvent(pre, s, { type: "REBALANCE_COMPLETED", playerId: player.id });
       if (s.emergencyState && s.emergencyState.playerId === player.id) {
          const amount = s.emergencyState.amount;
          const p = s.players[playerIdx];
@@ -504,8 +514,17 @@ function internalDispatch(
       return { state: s };
     }
 
-    case "end-turn":
-      return { state: advanceTurn(state) };
+    case "end-turn": {
+      const pre = state;
+      let s = advanceTurn(state);
+      const prePlayer = pre.players[playerIdx];
+      const nextPlayer = s.players[playerIdx];
+      if (nextPlayer.hasHouse && !prePlayer.hasHouse) {
+          const cost = prePlayer.cash - nextPlayer.cash;
+          if (cost > 0) s = notifyBotsOfEvent(pre, s, { type: "HOUSE_PURCHASE", playerId: player.id, amount: cost });
+      }
+      return { state: s };
+    }
 
     case "audit": {
       const targetIdx = toInt(payload?.targetIdx);

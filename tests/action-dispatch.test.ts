@@ -79,6 +79,7 @@ describe('Parity between Pass & Play (dispatcher) and Online (API Route)', () =>
         timestamp: 0,
       }));
     }
+    delete s.version;
     return s;
   };
 

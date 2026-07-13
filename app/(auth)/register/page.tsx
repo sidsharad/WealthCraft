@@ -16,7 +16,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    console.log("Submitting registration for:", email);
+    if (process.env.NODE_ENV !== "production") console.log("Submitting registration for:", email);
     const res = await fetch("/api/register", {
       method: "POST",
       body: JSON.stringify({ name, email, password }),
@@ -27,7 +27,7 @@ export default function RegisterPage() {
     });
 
     const data = await res.json();
-    console.log("Registration response:", res.status, data);
+    if (process.env.NODE_ENV !== "production") console.log("Registration response:", res.status, data);
     
     if (!res.ok) {
       setError(data.error || "Registration failed.");
@@ -36,14 +36,14 @@ export default function RegisterPage() {
     }
 
     // Auto sign in
-    console.log("Starting auto sign-in...");
+    if (process.env.NODE_ENV !== "production") console.log("Starting auto sign-in...");
     const result = await signIn("credentials", { 
       email, 
       password, 
       redirect: false,
     });
 
-    console.log("Sign-in result:", result);
+    if (process.env.NODE_ENV !== "production") console.log("Sign-in result:", result);
 
     if (result?.error) {
       setError("Account created, but could not sign in automatically. Please go to Login page.");

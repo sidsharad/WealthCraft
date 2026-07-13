@@ -269,6 +269,7 @@ export interface BotState {
     failedAudits: number;
     acceptedTrades: number;
     rejectedTrades: number;
+    lastTradeRejectionTurn?: number;
     revengeTargets: string[];
     auditMemory: Record<string, AuditMemory>;
     auditBudgetYear: number;

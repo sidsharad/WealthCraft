@@ -829,12 +829,29 @@ export function executeTradeTransfer(
     to.stocks >= request.stocks;
 
   if (!fromCanAfford || !toCanAfford) {
-    return { 
+    let s = { 
       ...state, 
       pendingTrade: undefined, 
-      phase: "trade", 
+      phase: "trade" as const, 
       announcement: "🤝 TRADE FAILED: Insufficient assets to complete the trade." 
     };
+    const proposerIdx = s.players.findIndex(p => p.id === state.pendingTrade?.fromPlayerId);
+    if (proposerIdx >= 0 && s.players[proposerIdx].botState) {
+        const bs = s.players[proposerIdx].botState!;
+        s.players = [...s.players];
+        s.players[proposerIdx] = {
+            ...s.players[proposerIdx],
+            botState: {
+                ...bs,
+                memory: {
+                    ...bs.memory,
+                    rejectedTrades: bs.memory.rejectedTrades + 1,
+                    lastTradeRejectionTurn: state.turn
+                }
+            }
+        };
+    }
+    return s;
   }
 
   // Execute trade
@@ -894,7 +911,23 @@ export function resolveTrade(
   const trade = state.pendingTrade;
 
   if (!accept) {
-    return { ...state, pendingTrade: undefined, phase: "trade", announcement: "🤝 TRADE REJECTED." };
+    let s = { ...state, pendingTrade: undefined, phase: "trade" as const, announcement: "🤝 TRADE REJECTED." as string };
+    const proposerIdx = s.players.findIndex(p => p.id === trade.fromPlayerId);
+    if (proposerIdx >= 0 && s.players[proposerIdx].botState) {
+        const bs = s.players[proposerIdx].botState!;
+        s.players[proposerIdx] = {
+            ...s.players[proposerIdx],
+            botState: {
+                ...bs,
+                memory: {
+                    ...bs.memory,
+                    rejectedTrades: bs.memory.rejectedTrades + 1,
+                    lastTradeRejectionTurn: state.turn
+                }
+            }
+        };
+    }
+    return s;
   }
 
   if (!trade.toPlayerId) return state; // Safety check

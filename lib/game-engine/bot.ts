@@ -13,10 +13,11 @@ export interface BotAction {
     | "tile-action"
     | "house-auction-bid"
     | "rebalance"
-    | "create-trade"
+    | "trade-offer"
     | "trade-response"
     | "end-turn"
     | "skip"
+    | "emergency-decision"
     | "audit";
   payload?: any;
   debug?: any;
@@ -170,8 +171,8 @@ export function createInitialBotState(botId: string, botType: "BULL" | "DISCIPLI
     if (p.id === botId) continue;
     playerModels[p.id] = {
       cash: { mean: 10, variance: 0, confidence: 100, lowerBound: 10, upperBound: 10, source: "INITIAL", lastUpdatedTurn: 0 },
-      bonds: { mean: 5, variance: 0, confidence: 100, lowerBound: 5, upperBound: 5, source: "INITIAL", lastUpdatedTurn: 0 },
-      stocks: { mean: 5, variance: 0, confidence: 100, lowerBound: 5, upperBound: 5, source: "INITIAL", lastUpdatedTurn: 0 },
+      bonds: { mean: 0, variance: 0, confidence: 100, lowerBound: 0, upperBound: 0, source: "INITIAL", lastUpdatedTurn: 0 },
+      stocks: { mean: 0, variance: 0, confidence: 100, lowerBound: 0, upperBound: 0, source: "INITIAL", lastUpdatedTurn: 0 },
       property: { ownsProperty: false, acquisitionPrice: 0, confidence: 100, lastUpdatedTurn: 0 },
       hypotheses: [],
       hiddenWealth: 0,
@@ -281,8 +282,9 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
       if (!bot.hasTraded && state.announcement !== "🤝 TRADE REJECTED.") {
         for (let pIdx = 0; pIdx < state.players.length; pIdx++) {
           if (pIdx !== botIdx) {
-            if (bot.cash >= 2) rawActions.push({ type: "trade-offer", payload: { toPlayerId: state.players[pIdx].id, tradeType: "direct", offer: { cash: 2, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 1, stocks: 0 } } });
-            if (bot.cash >= 4) rawActions.push({ type: "trade-offer", payload: { toPlayerId: state.players[pIdx].id, tradeType: "direct", offer: { cash: 4, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 0, stocks: 1 } } });
+            const target = state.players[pIdx];
+            if (bot.cash >= 2 && target.bonds >= 1) rawActions.push({ type: "trade-offer", payload: { toPlayerId: target.id, tradeType: "direct", offer: { cash: 2, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 1, stocks: 0 } } });
+            if (bot.cash >= 4 && target.stocks >= 1) rawActions.push({ type: "trade-offer", payload: { toPlayerId: target.id, tradeType: "direct", offer: { cash: 4, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 0, stocks: 1 } } });
           }
         }
       }
@@ -356,8 +358,9 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
     if (!bot.hasTraded && state.announcement !== "🤝 TRADE REJECTED.") {
       for (let pIdx = 0; pIdx < state.players.length; pIdx++) {
         if (pIdx !== botIdx) {
-          if (bot.cash >= 2) rawActions.push({ type: "trade-offer", payload: { toPlayerId: state.players[pIdx].id, tradeType: "direct", offer: { cash: 2, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 1, stocks: 0 } } });
-          if (bot.cash >= 4) rawActions.push({ type: "trade-offer", payload: { toPlayerId: state.players[pIdx].id, tradeType: "direct", offer: { cash: 4, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 0, stocks: 1 } } });
+          const target = state.players[pIdx];
+          if (bot.cash >= 2 && target.bonds >= 1) rawActions.push({ type: "trade-offer", payload: { toPlayerId: target.id, tradeType: "direct", offer: { cash: 2, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 1, stocks: 0 } } });
+          if (bot.cash >= 4 && target.stocks >= 1) rawActions.push({ type: "trade-offer", payload: { toPlayerId: target.id, tradeType: "direct", offer: { cash: 4, bonds: 0, stocks: 0 }, request: { cash: 0, bonds: 0, stocks: 1 } } });
         }
       }
     }
@@ -425,25 +428,25 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
 export function getBestRebalance(bot: PlayerState, cost: number, mode: string, requiredCash: number) {
     const target = bot.botState!.personality.targetAllocation;
     const total = Math.max(0, bot.cash + bot.bonds + bot.stocks - cost);
-    // Just return target allocation based on bot type
-    let c = Math.floor(total * target.cash / 100);
-    let b = Math.floor(total * target.bonds / 100);
-    // Align to 5L blocks
-    b = Math.floor(b / 5) * 5;
-    let s = total - c - b;
-    s = Math.floor(s / 5) * 5;
-    c = total - b - s;
-
-    if (requiredCash > c) {
-        c = requiredCash;
-        let remaining = total - c;
-        let totalInvestTarget = target.bonds + target.stocks;
-        if (totalInvestTarget === 0) {
-            b = 0;
-            s = 0;
-        } else {
-            b = Math.floor((remaining * (target.bonds / totalInvestTarget)) / 5) * 5;
-            s = Math.floor((remaining - b) / 5) * 5;
+    
+    const ideal_b = (total * target.bonds) / 100;
+    const ideal_s = (total * target.stocks) / 100;
+    
+    let delta_b = Math.round((ideal_b - bot.bonds) / 5) * 5;
+    let delta_s = Math.round((ideal_s - bot.stocks) / 5) * 5;
+    
+    if (bot.bonds + delta_b < 0) delta_b = -Math.floor(bot.bonds / 5) * 5;
+    if (bot.stocks + delta_s < 0) delta_s = -Math.floor(bot.stocks / 5) * 5;
+    
+    let b = bot.bonds + delta_b;
+    let s = bot.stocks + delta_s;
+    let c = total - b - s;
+    
+    while (c < requiredCash && (b >= 5 || s >= 5)) {
+        if (b >= 5 && (s < 5 || (b - ideal_b) >= (s - ideal_s))) {
+            b -= 5;
+        } else if (s >= 5) {
+            s -= 5;
         }
         c = total - b - s;
     }

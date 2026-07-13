@@ -20,8 +20,11 @@ export type ObservationEvent =
   | { type: "INCOME_FREEZE"; playerId: string }
   | { type: "BONUS"; playerId: string; amount: number }
   | { type: "LOTTERY"; playerId: string; amount: number }
+  | { type: "LOTTERY_PURCHASE"; playerId: string; amount: number }
+  | { type: "HOUSE_PURCHASE"; playerId: string; amount: number }
+  | { type: "HOUSE_AUCTION_WIN"; playerId: string; amount: number }
   | { type: "EMERGENCY"; playerId: string; amount: number }
-  | { type: "HIDDEN_REBALANCE"; playerId: string }
+  | { type: "REBALANCE_COMPLETED"; playerId: string }
   | { type: "TAX_RAID"; attackerId: string; targetId: string; attackerCost: number; stolenAmount: number }
   | { type: "HOSTILE_TAKEOVER"; attackerId: string; targetId: string; assetType: "cash"|"bonds"|"stocks"; cost: number; amount: number };
 
@@ -160,7 +163,7 @@ export function degradeAuditKnowledge(memory: AuditMemory, eventType: string) {
   else if (eventType === "TRADE") penalty = 10;
   else if (eventType === "YEAR_END") penalty = 15;
   else if (eventType === "MARKET_RALLY" || eventType === "MARKET_CRASH" || eventType === "STOCK_RALLY" || eventType === "STOCK_CRASH") penalty = 20;
-  else if (eventType === "HIDDEN_REBALANCE") penalty = 40;
+  else if (eventType === "REBALANCE_COMPLETED") penalty = 40;
   else if (eventType === "CONTRADICTION") penalty = 30;
   
   memory.auditKnowledgeStrength = Math.max(0, memory.auditKnowledgeStrength - penalty);
@@ -306,9 +309,9 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
           mem.lockedEstimate.certainty = false;
           mem.suspicionSinceAudit += 1;
           mem.estimateLastChangedTurn = turn || state.turn;
-          appendAuditHistory(mem, "HIDDEN_REBALANCE", `Hidden rebalance invalidated absolute bounds`);
+          appendAuditHistory(mem, "REBALANCE_COMPLETED", `Hidden rebalance invalidated absolute bounds`);
           if (mem.sourceHistory && mem.sourceHistory.length > 0) mem.sourceHistory[mem.sourceHistory.length - 1].turn = turn || state.turn;
-          degradeAuditKnowledge(mem, "HIDDEN_REBALANCE");
+          degradeAuditKnowledge(mem, "REBALANCE_COMPLETED");
         }
       }
     };
@@ -325,8 +328,6 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
     switch (event.type) {
       case "INCOME":
         model.cash.mean += event.amount;
-        model.cash.variance = 0;
-        model.cash.confidence = 100;
         model.cash.source = "INCOME";
         model.cash.lastUpdatedTurn = turn;
         mutateExact(targetId, "cash", event.amount);
@@ -351,6 +352,12 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
       case "LOTTERY":
         model.cash.mean += event.amount;
         mutateExact(targetId, "cash", event.amount);
+        break;
+      case "LOTTERY_PURCHASE":
+      case "HOUSE_PURCHASE":
+      case "HOUSE_AUCTION_WIN":
+        model.cash.mean = Math.max(0, model.cash.mean - event.amount);
+        mutateExact(targetId, "cash", -event.amount);
         break;
       case "STOCK_RALLY": {
         const stockMin = Math.max(0, Math.floor(event.gain * 1.8));
@@ -409,7 +416,7 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
         model.bonds.variance *= 0.25;
         model.stocks.variance *= 0.25;
         break;
-      case "HIDDEN_REBALANCE":
+      case "REBALANCE_COMPLETED":
         mutateHidden(targetId);
         model.cash.confidence = Math.max(40, model.cash.confidence - 20);
         model.bonds.confidence = Math.max(40, model.bonds.confidence - 20);
@@ -714,6 +721,11 @@ export function evaluateCandidateAction(
       }
   } else if (action.type === "trade-offer") {
       category = "PORTFOLIO";
+      
+      if (b.memory.lastTradeRejectionTurn === state.turn) {
+          return rejectAction("RECENTLY_REJECTED");
+      }
+      
       const req = action.payload?.request;
       const off = action.payload?.offer;
       if (req && off) {

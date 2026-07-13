@@ -1,18 +1,18 @@
 import { createInitialGameState } from "../lib/game-engine/actions";
 import { dispatch } from "../lib/game-engine/dispatcher";
 import { getBotDecision, getBestRebalance } from "../lib/game-engine/bot";
-import type { GameState, Player, BotType } from "../lib/db/schema";
-import { getAuditThreshold } from "../lib/game-engine/actions";
+import type { GameState, BotType } from "../lib/db/schema";
+import { getTileByPosition } from "../lib/game-engine/tiles";
+import * as fs from 'fs';
+import * as path from 'path';
 
 const originalLog = console.log;
-// Suppress console logs to speed up execution and prevent massive stdout
 console.log = function() {};
 console.error = function() {};
 console.trace = function() {};
 console.debug = function() {};
 console.info = function() {};
 
-// Deterministic PRNG
 function sfc32(a: number, b: number, c: number, d: number) {
     return function() {
       a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; 
@@ -44,6 +44,8 @@ function seedRand(seed: string) {
 
 const argSeedIndex = process.argv.indexOf("--seed");
 const globalSeed = argSeedIndex !== -1 ? process.argv[argSeedIndex + 1] : Date.now().toString();
+
+const MAX_GAMES = parseInt(process.argv[2]) || 100;
 
 const OriginalMathRandom = Math.random;
 
@@ -81,6 +83,7 @@ const metrics: CertificationMetrics = {
 
 let decisionTimes: number[] = [];
 let turnTimes: number[] = [];
+let failedSeeds: any[] = [];
 
 type FailCategory = "AI_REASONING" | "DISPATCHER" | "TURN_ENGINE" | "ORCHESTRATION" | "VALIDATION" | "STATE_DRIFT" | "UI" | "UNKNOWN";
 class CertificationError extends Error {
@@ -92,12 +95,60 @@ class CertificationError extends Error {
 const botTypes: BotType[] = ["BULL", "SAFETY_BUILDER", "AUDIT_HAWK", "PROPERTY_BUILDER", "DISCIPLINED", "OPPORTUNIST", "RBAL_EXPERT"];
 
 const pStats: Record<string, any> = {};
-botTypes.forEach(t => pStats[t] = { audits: 0, trades: 0, rebalances: 0, takeovers: 0, ipos: 0, passes: 0 });
+botTypes.forEach(t => pStats[t] = { 
+    audits: 0, successfulAudits: 0, failedAudits: 0, trades: 0, rebalances: 0, takeovers: 0, ipos: 0, passes: 0, housesPurchased: 0,
+    cashSum: 0, bondsSum: 0, stocksSum: 0, netWorthSum: 0, gamesCompleted: 0, wins: 0
+});
+
+const coverage: Record<string, number> = {
+    BONUS: 0, LOTTERY: 0, IPO: 0, EMERGENCY: 0, TAX_RAID: 0, HOSTILE_TAKEOVER: 0,
+    SUCCESSFUL_AUDIT: 0, FAILED_AUDIT: 0, YEAR_END_RETURN: 0, MARKET_RALLY: 0, 
+    MARKET_CRASH: 0, STOCK_RALLY: 0, STOCK_CRASH: 0, TRADE: 0, REBALANCE: 0
+};
+
+function trackCoverage(dispatchType: string, dispatchPayload: any, preState: GameState, postState: GameState, actorIdx: number) {
+    if (dispatchType === "rebalance") coverage.REBALANCE++;
+    if (dispatchType === "trade-response" && dispatchPayload?.accept === true) coverage.TRADE++;
+    
+    if (dispatchType === "tile-action") {
+        const p = preState.players[actorIdx];
+        const effect = getTileByPosition(p.position).effect;
+        if (effect === "bonus") coverage.BONUS++;
+        if (effect === "lottery" && dispatchPayload?.play === true) coverage.LOTTERY++;
+        if (effect === "ipo" && (dispatchPayload?.amount || 0) > 0) coverage.IPO++;
+        if (effect === "emergency" && dispatchPayload?.amount) coverage.EMERGENCY++;
+        if (effect === "tax-raid" && !dispatchPayload?.skip) coverage.TAX_RAID++;
+        if (effect === "hostile-takeover" && !dispatchPayload?.skip) coverage.HOSTILE_TAKEOVER++;
+        if (effect === "stock-rally") coverage.STOCK_RALLY++;
+        if (effect === "stock-crash") coverage.STOCK_CRASH++;
+        if (effect === "market-rally") coverage.MARKET_RALLY++;
+        if (effect === "market-crash") coverage.MARKET_CRASH++;
+    }
+
+    if (dispatchType === "audit") {
+        const preMem = preState.players[actorIdx].botState?.memory.successfulAudits || 0;
+        const postMem = postState.players[actorIdx].botState?.memory.successfulAudits || 0;
+        
+        if (postMem > preMem) {
+            coverage.SUCCESSFUL_AUDIT++;
+            pStats[preState.players[actorIdx].botType!].successfulAudits++;
+        } else {
+            coverage.FAILED_AUDIT++;
+            pStats[preState.players[actorIdx].botType!].failedAudits++;
+        }
+    }
+
+    if (postState.year > preState.year) {
+        coverage.YEAR_END_RETURN++;
+    }
+}
+
+const driftEvents: any[] = [];
+const driftSet = new Set<string>();
 
 async function runGames() {
-    console.log(`Starting Production Certification (Seed: ${globalSeed})`);
+    originalLog(`Starting Production Certification (Seed: ${globalSeed}, Games: ${MAX_GAMES})`);
     
-    const MAX_GAMES = 50;
     for (let g = 0; g < MAX_GAMES; g++) {
         const gameSeed = globalSeed + "_" + g;
         Math.random = seedRand(gameSeed);
@@ -113,6 +164,7 @@ async function runGames() {
         const gameStartTime = performance.now();
         let actionHistory: string[] = [];
         let failed = false;
+        let lastError = null;
 
         try {
             while (state.phase !== "finished" && gameTurns < 5000) {
@@ -124,10 +176,7 @@ async function runGames() {
                     actorIdx = state.players.findIndex(p => p.id === state.pendingTrade!.toPlayerId);
                 } else if (state.phase === "auction" && state.auctionState) {
                     actorIdx = state.players.findIndex(p => !p.hasHouse && !state.auctionState!.bids.some(b => b.playerId === p.id));
-                    if (actorIdx === -1) {
-                        // Shouldn't happen if phase is auction, but fallback
-                        actorIdx = state.currentPlayerIndex;
-                    }
+                    if (actorIdx === -1) actorIdx = state.currentPlayerIndex;
                 }
                 const activePlayer = state.players[actorIdx];
                 let fsmState = "START";
@@ -154,8 +203,8 @@ async function runGames() {
                     } else {
                         actionHistory.push(`[${state.turn}] ${activePlayer.id} decision: ${botAction.type}`);
                     }
+                    if (actionHistory.length > 20) actionHistory.shift();
                     
-                    // Validate Rebalance
                     if (botAction.type === "rebalance") {
                         const rb = botAction.payload;
                         if (rb.penalty > 5) {
@@ -169,7 +218,6 @@ async function runGames() {
                             throw new CertificationError("VALIDATION", `Rebalance mismatch: before=${oldTotal}, after=${newTotal}, penalty=${rb.penalty}`);
                         }
                         const drift = Math.abs(activePlayer.cash - rb.newCash) + Math.abs(activePlayer.bonds - rb.newBonds) + Math.abs(activePlayer.stocks - rb.newStocks);
-                        // Drift includes penalty loss, so if penalty is 3, drift is at least 3. A 5L move + 3 penalty = drift 8.
                         if (drift < 5 && rb.penalty > 0) {
                             metrics.invalidActions++;
                             throw new CertificationError("VALIDATION", "Rebalance generated <5L drift but paid penalty");
@@ -177,7 +225,6 @@ async function runGames() {
                         pStats[activePlayer.botType!].rebalances++;
                     }
                     
-                    // Validate Audit
                     if (botAction.type === "audit") {
                         pStats[activePlayer.botType!].audits++;
                         const mem = activePlayer.botState?.memory.auditMemory;
@@ -196,8 +243,10 @@ async function runGames() {
                     if (botAction.type === "hostile-takeover") pStats[activePlayer.botType!].takeovers++;
                     if (botAction.type === "ipo") pStats[activePlayer.botType!].ipos++;
                     if (botAction.type === "skip" || botAction.type === "end-turn" || botAction.type === "pass") pStats[activePlayer.botType!].passes++;
+                    if (botAction.type === "bid" || botAction.type === "house-auction-bid") {
+                        if (botAction.payload?.amount > 0) pStats[activePlayer.botType!].housesPurchased++;
+                    }
                     
-                    // EXECUTION Phase
                     fsmState = "EXECUTION";
                     
                     let dispatchType = botAction.type;
@@ -211,8 +260,7 @@ async function runGames() {
                         dispatchType = "bid";
                     }
 
-                    const totalWealthBefore = state.players.reduce((s, p) => s + p.cash + p.bonds + p.stocks, 0);
-                    
+                    const preState = state;
                     const result = dispatch(state, dispatchType, dispatchPayload);
                     if (result.sideEffect?.type === "error") {
                         metrics.dispatcherFailures++;
@@ -220,7 +268,8 @@ async function runGames() {
                     }
                     state = result.state!;
                     
-                    // Invariants
+                    trackCoverage(dispatchType, dispatchPayload, preState, state, actorIdx);
+                    
                     for (const p of state.players) {
                         if (p.cash < 0 || p.bonds < 0 || p.stocks < 0) {
                             metrics.invariantViolations++;
@@ -228,10 +277,11 @@ async function runGames() {
                         }
                     }
 
-                    // Handle side effects gracefully for the loop
                     if (result.sideEffect?.type === "show-modal") {
                          if (result.sideEffect.modal === "emergency") {
+                             const pState = state;
                              state = dispatch(state, "tile-action", { amount: result.sideEffect.emergencyAmount }).state!;
+                             trackCoverage("tile-action", { amount: result.sideEffect.emergencyAmount }, pState, state, actorIdx);
                          } else if (result.sideEffect.modal === "emergency-decision") {
                              const decisionAction = getBotDecision(state, actorIdx);
                              let decisionResult;
@@ -242,38 +292,43 @@ async function runGames() {
                              }
                              state = decisionResult.state!;
                              
-                             // If the decision was rebalance, we MUST execute the rebalance
                              if (decisionResult.sideEffect?.type === "needs-rebalance") {
                                  const rb = getBotDecision(state, state.currentPlayerIndex);
                                  if (rb && rb.type === "rebalance") {
+                                     const pState = state;
                                      state = dispatch(state, "rebalance", rb.payload).state!;
+                                     trackCoverage("rebalance", rb.payload, pState, state, actorIdx);
                                  } else {
-                                     state = dispatch(state, "rebalance", { newCash: currentPlayer.cash, newBonds: currentPlayer.bonds, newStocks: currentPlayer.stocks, penalty: decisionResult.sideEffect.penalty }).state!;
+                                     const pState = state;
+                                     const freshPlayer = state.players[state.currentPlayerIndex];
+                                     state = dispatch(state, "rebalance", { newCash: freshPlayer.cash, newBonds: freshPlayer.bonds, newStocks: freshPlayer.stocks, penalty: decisionResult.sideEffect.penalty }).state!;
+                                     trackCoverage("rebalance", {}, pState, state, actorIdx);
                                  }
                              }
                          } else if (result.sideEffect.modal === "lottery") {
+                             const pState = state;
                              state = dispatch(state, "tile-action", { play: false }).state!;
+                             trackCoverage("tile-action", { play: false }, pState, state, actorIdx);
                          } else if (result.sideEffect.modal === "tax-raid" || result.sideEffect.modal === "hostile-takeover") {
+                             const pState = state;
                              state = dispatch(state, "tile-action", { skip: true }).state!;
+                             trackCoverage("tile-action", { skip: true }, pState, state, actorIdx);
                          } else if (result.sideEffect.modal === "audit") {
+                             const pState = state;
                              state = dispatch(state, "tile-action", { targetIdx: 0 }).state!;
+                             trackCoverage("tile-action", { targetIdx: 0 }, pState, state, actorIdx);
                          }
-                    } else if (result.sideEffect?.type === "show-trade") {
-                         // Emergency trade unlock
-                         // Do nothing, let the bot offer a trade on the next loop since state phase is still "action"
-                         // Wait, if state phase is STILL "action", the bot won't offer a trade!
-                         // Oh! If the dispatcher returned `show-trade`, it set `status: "awaiting-trade-response"`.
-                         // `bot.ts` needs to know to offer a trade in `phase: "action"` if `status === "awaiting-trade-response"`!
                     } else if (result.sideEffect?.type === "start-lottery-roll") {
                         state = dispatch(state, "roll", { dice: 1 }).state!;
                         state = dispatch(state, "lottery-resolve", { dice: 1 }).state!;
                         const penalty = result.sideEffect.penalty || 0;
-                        const rb = getBestRebalance(currentPlayer, penalty, "balanced", 0);
+                        const freshPlayer = state.players[state.currentPlayerIndex];
+                        const rb = getBestRebalance(freshPlayer, penalty, "balanced", 0);
                         let rbResult;
                         if (rb) {
                             rbResult = dispatch(state, "rebalance", { ...rb, penalty });
                         } else {
-                            rbResult = dispatch(state, "rebalance", { newCash: Math.max(0, currentPlayer.cash - penalty), newBonds: currentPlayer.bonds, newStocks: currentPlayer.stocks, penalty });
+                            rbResult = dispatch(state, "rebalance", { newCash: Math.max(0, freshPlayer.cash - penalty), newBonds: freshPlayer.bonds, newStocks: freshPlayer.stocks, penalty });
                         }
                         if (rbResult.sideEffect?.type === "error") {
                             throw new Error(`Rebalance dispatch failed: ${rbResult.sideEffect.message}`);
@@ -284,20 +339,46 @@ async function runGames() {
                         if (rb && rb.type === "rebalance") {
                             state = dispatch(state, "rebalance", rb.payload).state!;
                         } else {
-                            state = dispatch(state, "rebalance", { newCash: currentPlayer.cash, newBonds: currentPlayer.bonds, newStocks: currentPlayer.stocks, penalty: 0 }).state!;
+                            const freshPlayer = state.players[state.currentPlayerIndex];
+                            state = dispatch(state, "rebalance", { newCash: freshPlayer.cash, newBonds: freshPlayer.bonds, newStocks: freshPlayer.stocks, penalty: 0 }).state!;
                         }
                     }
 
-                    // Compare Bot Models vs Reality
-                    const models = currentPlayer.botState?.playerModels;
+                    const freshObserver = state.players[state.currentPlayerIndex];
+                    const models = freshObserver.botState?.playerModels;
                     if (models) {
                         for (const p of state.players) {
-                            if (p.id !== currentPlayer.id && models[p.id]) {
+                            if (p.id !== freshObserver.id && models[p.id]) {
                                 const m = models[p.id];
-                                if (m.cash && m.cash.confidence > 90) {
-                                    if (p.cash < m.cash.lowerBound || p.cash > m.cash.upperBound) {
-                                        if (m.cash.confidence === 100) {
-                                            metrics.modelDrifts++;
+                                const assets = [
+                                    { name: "cash", act: p.cash, est: m.cash },
+                                    { name: "bonds", act: p.bonds, est: m.bonds },
+                                    { name: "stocks", act: p.stocks, est: m.stocks }
+                                ];
+                                for (const a of assets) {
+                                    if (a.est && a.est.confidence > 90) {
+                                        if (a.act < a.est.lowerBound || a.act > a.est.upperBound) {
+                                            if (a.est.confidence === 100) {
+                                                const driftKey = `${gameSeed}-${state.turn}-${freshObserver.id}-${p.id}-${a.name}`;
+                                                if (!driftSet.has(driftKey)) {
+                                                    driftSet.add(driftKey);
+                                                    metrics.modelDrifts++;
+                                                    driftEvents.push({
+                                                        game: g + 1,
+                                                        seed: gameSeed,
+                                                        turn: state.turn,
+                                                        observingBot: freshObserver.id,
+                                                        observedPlayer: p.id,
+                                                        asset: a.name,
+                                                        actualValue: a.act,
+                                                        estimatedMean: a.est.mean,
+                                                        lowerBound: a.est.lowerBound,
+                                                        upperBound: a.est.upperBound,
+                                                        confidence: a.est.confidence,
+                                                        source: (a.est as any).source || "UNKNOWN"
+                                                    });
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -305,41 +386,23 @@ async function runGames() {
                         }
                     }
 
-                    // END Phase
                     fsmState = "END";
                     const tEnd = performance.now();
                     turnTimes.push(tEnd - turnStartTime);
                 } catch (e: any) {
-                    if (e instanceof CertificationError) {
-                        metrics.gamesFailed++;
-                        if (e.category === "DISPATCHER" || metrics.gamesFailed <= 5) {
-                            originalLog(`\n[GAME ${g + 1} FAILED] Seed: ${gameSeed}`);
-                            originalLog(`Category: ${e.category}`);
-                            originalLog(`Message: ${e.message}`);
-                            originalLog(`FSM Stage: ${fsmState}`);
-                            originalLog(`Turn: ${state.turn}, Phase: ${state.phase}`);
-                            if (state.emergencyState) {
-                                originalLog(`Emergency Status: ${state.emergencyState.status}`);
-                            }
-                        }
-                    } else {
-                        metrics.gamesFailed++;
-                        if (metrics.gamesFailed <= 5) {
-                            originalLog(`\n[GAME ${g + 1} FAILED] Seed: ${gameSeed}`);
-                            originalLog(`Category: UNKNOWN`);
-                            originalLog(`Message: ${e.message}`);
-                            originalLog(`FSM Stage: ${fsmState}`);
-                            originalLog(`Turn: ${state.turn}, Phase: ${state.phase}`);
-                            if (state.emergencyState) {
-                                originalLog(`Emergency Status: ${state.emergencyState.status}`);
-                            }
-                        }
-                    }
-                    console.error(`\n[GAME ${g} FAILED] Seed: ${gameSeed}`);
-                    console.error(`Category: ${e.category || "UNKNOWN"}`);
-                    console.error(`Message: ${e.message}`);
-                    console.error(`FSM Stage: ${fsmState}`);
-                    console.error(`Turn: ${state.turn}, Phase: ${state.phase}, Player: ${currentPlayer.id}`);
+                    failed = true;
+                    metrics.gamesFailed++;
+                    lastError = e;
+                    failedSeeds.push({
+                        game: g + 1,
+                        seed: gameSeed,
+                        turn: state.turn,
+                        phase: state.phase,
+                        activePlayer: activePlayer.id,
+                        category: e.category || "UNKNOWN",
+                        message: e.message,
+                        actionHistory: [...actionHistory]
+                    });
                     break;
                 }
 
@@ -347,55 +410,154 @@ async function runGames() {
                     failed = true;
                     metrics.deadlocks++;
                     metrics.gamesFailed++;
-                    originalLog(`\n[GAME ${g} DEADLOCKED] Seed: ${gameSeed}`);
-                    originalLog(`Exceeded maximum turn limit (infinite loop).`);
-                    originalLog(`Last State: Turn=${state.turn}, Phase=${state.phase}`);
-                    originalLog(`Last Action: ${actionHistory.slice(-5).join(' -> ')}`);
+                    failedSeeds.push({
+                        game: g + 1,
+                        seed: gameSeed,
+                        turn: state.turn,
+                        phase: state.phase,
+                        activePlayer: activePlayer.id,
+                        category: "DEADLOCK",
+                        message: "Exceeded 5000 turns",
+                        actionHistory: [...actionHistory]
+                    });
                     break;
                 }
             }
-            if (!failed) metrics.gamesPassed++;
+            if (!failed) {
+                metrics.gamesPassed++;
+                
+                let winnerNw = -1;
+                let winnerBotType = "";
+                for (const p of state.players) {
+                    const bt = p.botType!;
+                    pStats[bt].gamesCompleted++;
+                    pStats[bt].cashSum += p.cash;
+                    pStats[bt].bondsSum += p.bonds;
+                    pStats[bt].stocksSum += p.stocks;
+                    const nw = p.cash + p.bonds + p.stocks;
+                    pStats[bt].netWorthSum += nw;
+                    
+                    if (nw > winnerNw) {
+                        winnerNw = nw;
+                        winnerBotType = bt;
+                    }
+                }
+                if (winnerBotType) pStats[winnerBotType].wins++;
+            }
             metrics.gamesExecuted++;
         } catch (e: any) {
             metrics.gamesFailed++;
-            console.error(`Game Exception: ${e.message}`);
+            failedSeeds.push({
+                game: g + 1,
+                seed: gameSeed,
+                category: "FATAL_ERROR",
+                message: e.message,
+                actionHistory: []
+            });
         }
     }
     
-    // Check Personalities
     const hawkAudits = pStats["AUDIT_HAWK"].audits;
     const bullAudits = pStats["BULL"].audits;
     if (hawkAudits < bullAudits) metrics.personalitiesPreserved = false;
     
-    console.log = originalLog;
-    console.log(`\n====================================`);
-    console.log(`AI PRODUCTION CERTIFICATION`);
-    console.log(`====================================`);
-    console.log(`Games Executed       : ${metrics.gamesExecuted}`);
-    console.log(`Games Passed         : ${metrics.gamesPassed}`);
-    console.log(`Games Failed         : ${metrics.gamesFailed}`);
-    console.log(`Deadlocks            : ${metrics.deadlocks}`);
-    console.log(`Skipped Turns        : ${metrics.skippedTurns}`);
-    console.log(`Dispatcher Failures  : ${metrics.dispatcherFailures}`);
-    console.log(`Audit Violations     : ${metrics.auditViolations}`);
-    console.log(`Model Drift          : ${metrics.modelDrifts}`);
-    console.log(`Invariant Violations : ${metrics.invariantViolations}`);
-    console.log(`Personality Preserve : ${metrics.personalitiesPreserved ? "PASS" : "FAIL"}`);
+    const calcStats = (arr: number[]) => {
+        if (arr.length === 0) return { avg: 0, median: 0, p95: 0, max: 0 };
+        arr.sort((a,b) => a-b);
+        const avg = arr.reduce((a,b)=>a+b,0)/arr.length;
+        const median = arr[Math.floor(arr.length/2)];
+        const p95 = arr[Math.floor(arr.length * 0.95)];
+        const max = arr[arr.length-1];
+        return { avg, median, p95, max };
+    };
     
-    const avgDec = decisionTimes.reduce((a,b)=>a+b,0)/decisionTimes.length || 0;
-    const maxDec = decisionTimes.reduce((m, v) => v > m ? v : m, 0);
-    const avgTurn = turnTimes.reduce((a,b)=>a+b,0)/turnTimes.length || 0;
-    const maxTurn = turnTimes.reduce((m, v) => v > m ? v : m, 0);
-    
-    console.log("\nPerformance:");
-    console.log(`Avg Decision Time    : ${avgDec.toFixed(2)}ms`);
-    console.log(`Max Decision Time    : ${maxDec.toFixed(2)}ms`);
-    console.log(`Avg Turn Duration    : ${avgTurn.toFixed(2)}ms`);
-    console.log(`Max Turn Duration    : ${maxTurn.toFixed(2)}ms`);
+    const decStats = calcStats(decisionTimes);
+    const trnStats = calcStats(turnTimes);
+
+    const artifactsDir = path.join(process.cwd(), 'artifacts');
+    if (!fs.existsSync(artifactsDir)) {
+        fs.mkdirSync(artifactsDir);
+    }
+
+    if (failedSeeds.length > 0) {
+        fs.writeFileSync(path.join(artifactsDir, 'certification-failures.json'), JSON.stringify(failedSeeds, null, 2));
+    }
+
+    const personalityMetrics: any = {};
+    for (const bt of botTypes) {
+        const stats = pStats[bt];
+        const gc = Math.max(1, stats.gamesCompleted);
+        personalityMetrics[bt] = {
+            audits: stats.audits,
+            auditSuccessRate: stats.audits > 0 ? (stats.successfulAudits / stats.audits).toFixed(2) : "0.00",
+            trades: stats.trades,
+            ipos: stats.ipos,
+            rebalances: stats.rebalances,
+            takeovers: stats.takeovers,
+            passes: stats.passes,
+            housesPurchased: stats.housesPurchased,
+            averageCash: (stats.cashSum / gc).toFixed(2),
+            averageBonds: (stats.bondsSum / gc).toFixed(2),
+            averageStocks: (stats.stocksSum / gc).toFixed(2),
+            averageNetWorth: (stats.netWorthSum / gc).toFixed(2),
+            wins: stats.wins
+        };
+    }
+
+    const report = {
+        commitHash: "dc9ceb1",
+        timestamp: new Date().toISOString(),
+        gamesExecuted: metrics.gamesExecuted,
+        gamesPassed: metrics.gamesPassed,
+        gamesFailed: metrics.gamesFailed,
+        replaySeeds: failedSeeds.map(f => f.seed),
+        failureDetails: failedSeeds,
+        observationCoverage: coverage,
+        personalityMetrics,
+        performanceMetrics: {
+            decisionTime: decStats,
+            turnDuration: trnStats
+        },
+        certificationSummary: {
+            deadlocks: metrics.deadlocks,
+            skippedTurns: metrics.skippedTurns,
+            dispatcherFailures: metrics.dispatcherFailures,
+            auditViolations: metrics.auditViolations,
+            modelDrifts: metrics.modelDrifts,
+            invariantViolations: metrics.invariantViolations
+        }
+    };
+
+    fs.writeFileSync(path.join(artifactsDir, 'ai-production-certification-report.json'), JSON.stringify(report, null, 2));
+    fs.writeFileSync(path.join(artifactsDir, 'drift-events.json'), JSON.stringify(driftEvents, null, 2));
 
     const result = (metrics.gamesFailed === 0 && metrics.personalitiesPreserved && metrics.modelDrifts === 0) 
         ? "PRODUCTION READY" : "REQUIRES FIXES";
-    console.log(`\nOverall Result       : ${result}`);
+
+    originalLog(`\n=============================`);
+    originalLog(`AI PRODUCTION CERTIFICATION`);
+    originalLog(`=============================`);
+    originalLog(``);
+    originalLog(`Commit: dc9ceb1`);
+    originalLog(`Games: ${metrics.gamesExecuted}`);
+    originalLog(`Passed: ${metrics.gamesPassed}`);
+    originalLog(`Failed: ${metrics.gamesFailed}`);
+    originalLog(``);
+    originalLog(`Deadlocks: ${metrics.deadlocks}`);
+    originalLog(`Skipped Turns: ${metrics.skippedTurns}`);
+    originalLog(`Dispatcher Failures: ${metrics.dispatcherFailures}`);
+    originalLog(`Audit Violations: ${metrics.auditViolations}`);
+    originalLog(`Model Drift: ${metrics.modelDrifts}`);
+    originalLog(`Invariant Violations: ${metrics.invariantViolations}`);
+    originalLog(``);
+    originalLog(`Replay Seeds Saved: ${failedSeeds.length > 0 ? failedSeeds.map(f => f.seed).slice(0, 3).join(', ') + (failedSeeds.length > 3 ? '...' : '') : 'None'}`);
+    originalLog(``);
+    originalLog(`Overall:`);
+    originalLog(``);
+    originalLog(result);
+    originalLog(``);
 }
 
-runGames().catch(console.error).finally(() => { Math.random = OriginalMathRandom; });
+runGames().catch(e => {
+    originalLog("FATAL:", e);
+}).finally(() => { Math.random = OriginalMathRandom; });

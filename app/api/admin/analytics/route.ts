@@ -16,10 +16,10 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  console.log(JSON.stringify({ event: "ANALYTICS_API_REQUEST" }));
+  if (process.env.NODE_ENV !== "production") { console.log(JSON.stringify({ event: "ANALYTICS_API_REQUEST" })); }
 
   try {
-    console.log("ANALYTICS_STEP", "rooms query");
+    if (process.env.NODE_ENV !== "production") { console.log("ANALYTICS_STEP", "rooms query"); }
     const [createdResult] = await db.select({ count: sql<number>`count(*)` }).from(rooms);
     const gamesCreated = Number(createdResult.count);
 
@@ -32,12 +32,12 @@ export async function GET() {
       .where(and(ne(rooms.status, "finished"), lt(rooms.updatedAt, oneDayAgo)));
     const gamesAbandoned = Number(abandonedResult.count);
 
-    console.log("ANALYTICS_STEP", "game results query");
+    if (process.env.NODE_ENV !== "production") { console.log("ANALYTICS_STEP", "game results query"); }
     // Fetch all game results for aggregation
     const results = await db.select().from(gameResults);
     const gamesCompleted = results.length;
 
-    console.log("ANALYTICS_STEP", "aggregation");
+    if (process.env.NODE_ENV !== "production") { console.log("ANALYTICS_STEP", "aggregation"); }
     const startRate = gamesCreated > 0 ? Number(((gamesStarted / gamesCreated) * 100).toFixed(2)) : 0;
     const completionRate = gamesStarted > 0 ? Number(((gamesCompleted / gamesStarted) * 100).toFixed(2)) : 0;
 
