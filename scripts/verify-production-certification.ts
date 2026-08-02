@@ -169,6 +169,7 @@ async function runGames() {
         try {
             while (state.phase !== "finished" && gameTurns < 5000) {
                 gameTurns++;
+                if (gameTurns % 1000 === 0) originalLog('Game ' + g + ' turn ' + gameTurns);
                 const turnStartTime = performance.now();
                 const currentPlayer = state.players[state.currentPlayerIndex];
                 let actorIdx = state.currentPlayerIndex;
@@ -538,7 +539,11 @@ async function runGames() {
     originalLog(`AI PRODUCTION CERTIFICATION`);
     originalLog(`=============================`);
     originalLog(``);
-    originalLog(`Commit: dc9ceb1`);
+    let commitHash = "unknown";
+    try {
+        commitHash = require("child_process").execSync("git rev-parse --short HEAD").toString().trim();
+    } catch (e) {}
+    originalLog(`Commit: ${commitHash}`);
     originalLog(`Games: ${metrics.gamesExecuted}`);
     originalLog(`Passed: ${metrics.gamesPassed}`);
     originalLog(`Failed: ${metrics.gamesFailed}`);

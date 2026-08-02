@@ -30,13 +30,13 @@ export const BOT_PROFILES: Record<string, BotProfile> = {
     type: "BULL",
     hardCashFloor: 0,
     softCashTarget: 3,
-    auditBudget: 2,
+    auditBudget: 1,
     riskTolerance: 95,
     aggression: 90,
     personalityVariance: 3,
     tiltSensitivity: 20,
-    auditThreshold: 60,
-    urgencyWeights: { property: 0, survival: 100, growth: 80, audit: 20 }
+    auditThreshold: 90,
+    urgencyWeights: { property: 0, survival: 100, growth: 80, audit: 10 }
   },
   DISCIPLINED: {
     type: "DISCIPLINED",
@@ -54,13 +54,13 @@ export const BOT_PROFILES: Record<string, BotProfile> = {
     type: "AUDIT_HAWK",
     hardCashFloor: 5,
     softCashTarget: 10,
-    auditBudget: 3,
+    auditBudget: 5,
     riskTolerance: 60,
     aggression: 95,
     personalityVariance: 1.5,
     tiltSensitivity: 30,
-    auditThreshold: 60,
-    urgencyWeights: { property: 0, survival: 100, growth: 40, audit: 90 }
+    auditThreshold: 40,
+    urgencyWeights: { property: 0, survival: 100, growth: 40, audit: 100 }
   },
   OPPORTUNIST: {
     type: "OPPORTUNIST",
@@ -323,9 +323,10 @@ export function getBotDecision(state: GameState, botIdx: number): BotAction {
       rawActions.push({ type: "tile-action", payload: { skip: true } });
       for (let pIdx = 0; pIdx < state.players.length; pIdx++) {
         if (pIdx !== botIdx) {
-          rawActions.push({ type: "tile-action", payload: { targetIdx: pIdx, demandType: "cash" } });
-          rawActions.push({ type: "tile-action", payload: { targetIdx: pIdx, demandType: "bonds" } });
-          rawActions.push({ type: "tile-action", payload: { targetIdx: pIdx, demandType: "stocks" } });
+          const t = state.players[pIdx];
+          if (t.cash > 0) rawActions.push({ type: "tile-action", payload: { targetIdx: pIdx, demandType: "cash" } });
+          if (t.bonds > 0) rawActions.push({ type: "tile-action", payload: { targetIdx: pIdx, demandType: "bonds" } });
+          if (t.stocks > 0) rawActions.push({ type: "tile-action", payload: { targetIdx: pIdx, demandType: "stocks" } });
         }
       }
     } else {

@@ -7,12 +7,13 @@ export type ObservationEvent =
   | { type: "IPO"; playerId: string; amount: number }
   | { type: "STOCK_RALLY"; playerId: string; gain: number }
   | { type: "STOCK_CRASH"; playerId: string; loss: number }
-  | { type: "MARKET_RALLY"; playerId: string; gain: number }
-  | { type: "MARKET_CRASH"; playerId: string; loss: number }
+  | { type: "MARKET_RALLY"; playerId: string; gain: number; cashGain: number; bondGain: number; stockGain: number }
+  | { type: "MARKET_CRASH"; playerId: string; loss: number; cashLoss: number; bondLoss: number; stockLoss: number }
   | { type: "PUBLIC_TRADE"; playerId: string; cashDiff: number; bondDiff: number; stockDiff: number; proposerId?: string; responderId?: string; proposerDiff?: any; responderDiff?: any }
   | { type: "PUBLIC_REBALANCE"; playerId: string; cashDiff: number; bondDiff: number; stockDiff: number }
-  | { type: "SUCCESSFUL_AUDIT"; playerId: string; auditorId: string; assetConfiscated: "cash" | "bonds" | "stocks"; amount: number }
-  | { type: "FAILED_AUDIT"; playerId: string; auditorId: string }
+  | { type: "TAX_RAID"; attackerId: string; targetId: string; attackerDiff: number; targetDiff: number }
+  | { type: "SUCCESSFUL_AUDIT"; auditorId: string; targetId: string; assetConfiscated: "cash"|"bonds"|"stocks"; amount: number }
+  | { type: "FAILED_AUDIT"; auditorId: string; targetId: string; auditorDiff: number }
   | { type: "YEAR_END_RETURN"; playerId: string; bondReturn: number; stockReturn: number }
   | { type: "TRADE_ACCEPTED"; proposerId: string; responderId: string }
   | { type: "TRADE_REJECTED"; proposerId: string; responderId: string }
@@ -25,7 +26,6 @@ export type ObservationEvent =
   | { type: "HOUSE_AUCTION_WIN"; playerId: string; amount: number }
   | { type: "EMERGENCY"; playerId: string; amount: number }
   | { type: "REBALANCE_COMPLETED"; playerId: string }
-  | { type: "TAX_RAID"; attackerId: string; targetId: string; attackerCost: number; stolenAmount: number }
   | { type: "HOSTILE_TAKEOVER"; attackerId: string; targetId: string; assetType: "cash"|"bonds"|"stocks"; cost: number; amount: number };
 
 export interface ThresholdResult {
@@ -36,7 +36,7 @@ export interface ThresholdResult {
 }
 
 export function getAuditThreshold(asset: string, year: number) {
-    const threshold = asset === "cash" ? 20 : (year <= 2 ? 20 : 40);
+    const threshold = (year <= 2 ? 20 : 40);
     
     if (process.env.ENABLE_BOT_TELEMETRY !== "false") {
       console.log({
@@ -237,8 +237,9 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
     if (event.type === "SUCCESSFUL_AUDIT") {
       if (event.auditorId === botPlayer.id) {
         newBotState.memory.successfulAudits++;
+        newBotState.memory.auditBudget.attempted = (newBotState.memory.auditBudget.attempted || 0) + 1;
         newBotState.emotions.confidence = Math.min(100, newBotState.emotions.confidence + 20);
-      } else if (event.playerId === botPlayer.id) {
+      } else if (event.targetId === botPlayer.id) {
         newBotState.emotions.revenge = Math.min(100, newBotState.emotions.revenge + 40);
         if (!newBotState.memory.revengeTargets.includes(event.auditorId)) {
           newBotState.memory.revengeTargets.push(event.auditorId);
@@ -247,8 +248,9 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
     } else if (event.type === "FAILED_AUDIT") {
       if (event.auditorId === botPlayer.id) {
         newBotState.memory.failedAudits++;
+        newBotState.memory.auditBudget.attempted = (newBotState.memory.auditBudget.attempted || 0) + 1;
         newBotState.emotions.fear = Math.min(100, newBotState.emotions.fear + 10);
-      } else if (event.playerId === botPlayer.id) {
+      } else if (event.targetId === botPlayer.id) {
         newBotState.emotions.revenge = Math.min(100, newBotState.emotions.revenge + 20);
         if (!newBotState.memory.revengeTargets.includes(event.auditorId)) {
           newBotState.memory.revengeTargets.push(event.auditorId);
@@ -272,6 +274,11 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
     };
     
     const mutateExact = (pid: string, asset: "cash"|"stocks"|"bonds", delta: number, turn: number = 0) => {
+      const pm = newBotState.playerModels[pid];
+      if (pm && pm[asset]) {
+        pm[asset].lowerBound = Math.max(0, pm[asset].lowerBound + delta);
+        pm[asset].upperBound = Math.max(0, pm[asset].upperBound + delta);
+      }
       if (!newBotState.memory.auditMemory) return;
       const mem = newBotState.memory.auditMemory[`${pid}_${asset}`];
       if (mem) {
@@ -286,6 +293,12 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
     };
 
     const mutateAmbiguous = (pid: string, asset: "cash"|"stocks"|"bonds", lowerDelta: number, upperDelta: number, turn: number = 0) => {
+      const pm = newBotState.playerModels[pid];
+      if (pm && pm[asset]) {
+        pm[asset].lowerBound = Math.max(0, pm[asset].lowerBound + lowerDelta);
+        pm[asset].upperBound = Math.max(0, pm[asset].upperBound + upperDelta);
+        pm[asset].confidence = Math.max(0, pm[asset].confidence - 20); // Degrading confidence on ambiguity
+      }
       if (!newBotState.memory.auditMemory) return;
       const mem = newBotState.memory.auditMemory[`${pid}_${asset}`];
       if (mem) {
@@ -316,14 +329,66 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
       }
     };
 
-    const targetId = getTargetId();
+    const clampConf = (v: number) => Math.max(0, Math.min(100, 100 - v));
+    const turn = state.turn;
+
+    // Handle multi-target and third-party exact mutations before single-target early return
+    if (event.type === "TAX_RAID") {
+       if (event.attackerId !== botPlayer.id) mutateExact(event.attackerId, "cash", event.attackerDiff, turn);
+       if (event.targetId !== botPlayer.id) mutateExact(event.targetId, "cash", event.targetDiff, turn);
+    }
+    if (event.type === "SUCCESSFUL_AUDIT") {
+       if (event.auditorId !== botPlayer.id) mutateExact(event.auditorId, event.assetConfiscated, event.amount, turn);
+    }
+    if (event.type === "FAILED_AUDIT") {
+       if (event.auditorId !== botPlayer.id) mutateExact(event.auditorId, "cash", event.auditorDiff, turn);
+    }
+    if (event.type === "HOSTILE_TAKEOVER") {
+       if (event.attackerId !== botPlayer.id) {
+           mutateExact(event.attackerId, event.assetType, event.amount, turn);
+       }
+       if (event.targetId !== botPlayer.id) {
+           mutateExact(event.targetId, event.assetType, -event.amount, turn);
+       }
+       return { ...botPlayer, botState: newBotState };
+    }
+    if (event.type === "PUBLIC_TRADE") {
+       if (event.proposerId && event.proposerId !== botPlayer.id && event.proposerDiff) {
+           mutateExact(event.proposerId, "cash", event.proposerDiff.cash, turn);
+           mutateExact(event.proposerId, "bonds", event.proposerDiff.bonds, turn);
+           mutateExact(event.proposerId, "stocks", event.proposerDiff.stocks, turn);
+           const m = newBotState.playerModels[event.proposerId];
+           if (m) {
+               m.cash.mean += event.proposerDiff.cash; m.bonds.mean += event.proposerDiff.bonds; m.stocks.mean += event.proposerDiff.stocks;
+               m.cash.variance *= 0.25; m.bonds.variance *= 0.25; m.stocks.variance *= 0.25;
+           }
+       }
+       if (event.responderId && event.responderId !== botPlayer.id && event.responderDiff) {
+           mutateExact(event.responderId, "cash", event.responderDiff.cash, turn);
+           mutateExact(event.responderId, "bonds", event.responderDiff.bonds, turn);
+           mutateExact(event.responderId, "stocks", event.responderDiff.stocks, turn);
+           const m = newBotState.playerModels[event.responderId];
+           if (m) {
+               m.cash.mean += event.responderDiff.cash; m.bonds.mean += event.responderDiff.bonds; m.stocks.mean += event.responderDiff.stocks;
+               m.cash.variance *= 0.25; m.bonds.variance *= 0.25; m.stocks.variance *= 0.25;
+           }
+       }
+       return { ...botPlayer, botState: newBotState };
+    }
+    if (event.type === "PUBLIC_REBALANCE") {
+       if (event.playerId !== botPlayer.id) {
+           mutateExact(event.playerId, "cash", event.cashDiff, turn);
+           mutateExact(event.playerId, "bonds", event.bondDiff, turn);
+           mutateExact(event.playerId, "stocks", event.stockDiff, turn);
+       }
+       return { ...botPlayer, botState: newBotState };
+    }
+
+    const targetId = ("playerId" in event) ? (event as any).playerId : (("targetId" in event) ? (event as any).targetId : null);
     if (!targetId || botPlayer.id === targetId) return { ...botPlayer, botState: newBotState };
     
     const model = newBotState.playerModels[targetId];
     if (!model) return { ...botPlayer, botState: newBotState };
-
-    const clampConf = (v: number) => Math.max(0, Math.min(100, 100 - v));
-    const turn = state.turn;
 
     switch (event.type) {
       case "INCOME":
@@ -360,13 +425,8 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
         mutateExact(targetId, "cash", -event.amount);
         break;
       case "STOCK_RALLY": {
-        const stockMin = Math.max(0, Math.floor(event.gain * 1.8));
-        const stockMax = stockMin + 4;
-        mutateAmbiguous(targetId, "stocks", stockMin, stockMax);
-        model.stocks.mean = stockMin + 2;
-        model.stocks.lowerBound = stockMin;
-        model.stocks.upperBound = stockMax;
-        model.stocks.confidence = 90;
+        mutateExact(targetId, "stocks", event.gain);
+        model.stocks.mean += event.gain;
         model.stocks.source = "RALLY";
         model.stocks.lastUpdatedTurn = turn;
         if (model.hypotheses) {
@@ -375,15 +435,8 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
         break;
       }
       case "STOCK_CRASH": {
-        const prevStockMin = Math.max(0, Math.floor(event.loss * 1.8));
-        const prevStockMax = prevStockMin + 4;
-        const stockMin = Math.max(0, prevStockMin - event.loss);
-        const stockMax = Math.max(0, prevStockMax - event.loss);
-        mutateAmbiguous(targetId, "stocks", -prevStockMax, -event.loss);
-        model.stocks.mean = stockMin + 2;
-        model.stocks.lowerBound = stockMin;
-        model.stocks.upperBound = stockMax;
-        model.stocks.confidence = 85;
+        mutateExact(targetId, "stocks", -event.loss);
+        model.stocks.mean = Math.max(0, model.stocks.mean - event.loss);
         model.stocks.source = "CRASH";
         model.stocks.lastUpdatedTurn = turn;
         if (model.hypotheses) {
@@ -392,29 +445,18 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
         break;
       }
       case "MARKET_RALLY":
-        model.stocks.mean += (event.gain * 5 / 3);
+        mutateExact(targetId, "cash", event.cashGain);
+        mutateExact(targetId, "bonds", event.bondGain);
+        mutateExact(targetId, "stocks", event.stockGain);
+        model.stocks.mean += (event.stockGain * 5 / 3);
         model.stocks.variance *= 0.8;
         break;
       case "MARKET_CRASH":
-        model.stocks.mean = Math.max(0, model.stocks.mean - (event.loss * 5 / 3));
+        mutateExact(targetId, "cash", -event.cashLoss);
+        mutateExact(targetId, "bonds", -event.bondLoss);
+        mutateExact(targetId, "stocks", -event.stockLoss);
+        model.stocks.mean = Math.max(0, model.stocks.mean - (event.stockLoss * 5 / 3));
         model.stocks.variance *= 0.8;
-        break;
-      case "PUBLIC_TRADE":
-        if (targetId === event.proposerId && event.proposerDiff) {
-            mutateExact(targetId, "cash", event.proposerDiff.cash);
-            mutateExact(targetId, "bonds", event.proposerDiff.bonds);
-            mutateExact(targetId, "stocks", event.proposerDiff.stocks);
-        } else if (targetId === event.responderId && event.responderDiff) {
-            mutateExact(targetId, "cash", event.responderDiff.cash);
-            mutateExact(targetId, "bonds", event.responderDiff.bonds);
-            mutateExact(targetId, "stocks", event.responderDiff.stocks);
-        }
-        model.cash.mean += event.cashDiff;
-        model.bonds.mean += event.bondDiff;
-        model.stocks.mean += event.stockDiff;
-        model.cash.variance *= 0.25;
-        model.bonds.variance *= 0.25;
-        model.stocks.variance *= 0.25;
         break;
       case "REBALANCE_COMPLETED":
         mutateHidden(targetId);
@@ -425,21 +467,6 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
         model.bonds.variance = (model.bonds.variance || 1) * 1.5;
         model.stocks.variance = (model.stocks.variance || 1) * 1.5;
         break;
-      case "TAX_RAID":
-        if (targetId === event.attackerId) {
-            mutateExact(targetId, "cash", -event.attackerCost);
-        } else if (targetId === event.targetId) {
-            mutateExact(targetId, "cash", -event.stolenAmount);
-        }
-        break;
-      case "HOSTILE_TAKEOVER":
-        if (targetId === event.attackerId) {
-            mutateExact(targetId, "cash", -event.cost);
-            mutateExact(targetId, event.assetType, event.amount);
-        } else if (targetId === event.targetId) {
-            mutateExact(targetId, event.assetType, -event.amount);
-        }
-        break;
       case "SUCCESSFUL_AUDIT": {
         const asset = event.assetConfiscated;
         model[asset].mean = event.amount;
@@ -448,6 +475,13 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
         model[asset].source = "AUDIT";
         model[asset].lastUpdatedTurn = turn;
         const threshold = getAuditThreshold(asset, nextState.year);
+        // On successful audit, the player's wealth in that asset was exactly the threshold limit after confiscation
+        // Actually, if amount > 0 was confiscated, they are left with exactly the threshold!
+        // But event.amount is the CONFISCATED amount. The remaining is threshold.
+        // Wait, the event.amount is the confiscated amount. We should set mean to threshold, not event.amount!
+        model[asset].mean = threshold;
+        model[asset].lowerBound = threshold;
+        model[asset].upperBound = threshold;
         newBotState.memory.auditMemory[`${targetId}_${asset}`] = { targetPlayerId: targetId, asset: asset, auditTurn: turn, outcome: "SUCCESS", thresholdUsed: threshold, state: "CERTAIN", lockedEstimate: { lowerBound: threshold, upperBound: threshold, confidence: 100, certainty: true }, estimateLastChangedTurn: turn, auditKnowledgeStrength: 100, suspicionSinceAudit: 0, failedAuditCount: 0, contradictionCount: 0, sourceHistory: [] };
         appendAuditHistory(newBotState.memory.auditMemory[`${targetId}_${asset}`], "SUCCESSFUL_AUDIT", "Audit succeeded and verified exact amount");
         if (process.env.ENABLE_BOT_TELEMETRY !== "false") console.log({ TRACE:"AUDIT_MEMORY_WRITE", target: targetId, asset, outcome: "SUCCESS", threshold, lockedEstimate: newBotState.memory.auditMemory[`${targetId}_${asset}`].lockedEstimate });
@@ -472,19 +506,12 @@ export function notifyBotsOfEvent(previousState: GameState, nextState: GameState
         break;
       }
       case "YEAR_END_RETURN":
-        const targetPlayerPrev = previousState.players.find(p => p.id === targetId);
-        const targetPlayerNext = nextState.players.find(p => p.id === targetId);
-        if (targetPlayerPrev && targetPlayerNext) {
-           const prevNW = netWorth(targetPlayerPrev);
-           const nextNW = netWorth(targetPlayerNext);
-           const wealthIncrease = nextNW - prevNW;
-           mutateAmbiguous(targetId, "stocks", 0, wealthIncrease, state.turn);
-           mutateAmbiguous(targetId, "bonds", 0, wealthIncrease, state.turn);
-        }
-        model.bonds.mean = (event.bondReturn / 1) * 5;
+        mutateExact(targetId, "bonds", event.bondReturn);
+        model.bonds.mean = (event.bondReturn / 1) * 5 + event.bondReturn;
         model.bonds.variance *= 0.5;
         if (event.stockReturn !== undefined) {
-          model.stocks.mean = (event.stockReturn / 2) * 5;
+          mutateExact(targetId, "stocks", event.stockReturn);
+          model.stocks.mean = (event.stockReturn / 2) * 5 + event.stockReturn;
           model.stocks.variance *= 0.5;
         }
         if (model.hypotheses) model.hypotheses = applyAuditConstraints(model.hypotheses, newBotState.memory.auditMemory, targetId);
@@ -607,7 +634,7 @@ export function evaluateCandidateAction(
       } else if (action.payload?.amount !== undefined) {
          // IPO
          cost = action.payload.amount;
-         category = "STRATEGIC";
+         category = cost === 0 ? "PASS" : "STRATEGIC";
          expectedGain = cost * 2;
          expectedLoss = cost;
          probabilitySuccess = 0.6;
@@ -760,6 +787,12 @@ export function evaluateCandidateAction(
           strategicBenefit = 0;
           explanation = "Reject trade";
       } else {
+          // Verify we can actually afford the trade we are asked for
+          const req = state.pendingTrade?.request;
+          if (req && (bot.cash < req.cash || bot.bonds < req.bonds || bot.stocks < req.stocks)) {
+              return rejectAction("BANKRUPTCY_RISK");
+          }
+          
           // Simplistic EV: since we don't know the exact trade here without state, just give it a slightly positive value to accept sometimes
           expectedGain = 1;
           expectedLoss = 0.5;
