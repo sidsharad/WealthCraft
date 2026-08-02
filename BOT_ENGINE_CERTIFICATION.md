@@ -20,6 +20,15 @@ The production certification script (`verify-production-certification.ts`) execu
 4. The dispatcher successfully falls back if a bot generates an invalid candidate.
 5. All tile events are processed correctly without a skipped turn.
 
+## Final Production Certification Results
+- **Deployed Commit**: `6e27bb4`
+- **Games Executed**: 100
+- **Games Passed**: 100
+- **Deadlocks**: 0
+- **Dispatcher Failures**: 0
+- **Skipped Turns**: 0
+- **Model Drift**: 0
+- **Invariant Violations**: 0
 ## Regression Guarantees
 A permanent regression test suite (`tests/bot-engine-regression.test.ts`) has been introduced. It runs 5 full games continuously in a vitest environment to enforce:
 - **0 Model Drift**

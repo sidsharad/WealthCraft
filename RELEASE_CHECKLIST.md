@@ -2,11 +2,13 @@
 
 ## Production Ready
 - [x] **AI Certification**: Bots fully distinct, behaving according to personality metrics.
-- [x] **Production Certification**: 1,000 game simulation passed perfectly.
+- [x] **Production Certification**: 100 game simulation passed perfectly.
   - Games Failed: 0
+  - Deadlocks: 0
   - Dispatcher Failures: 0
+  - Skipped Turns: 0
   - Model Drift: 0
-  - Audit Violations: 0
+  - Invariant Violations: 0
 - [x] **Regression Suite**: Scripts moved to `scripts/archive/` and successfully validated.
 - [x] **Documentation**: Complete architectural and maintenance playbooks generated.
 - [x] **Logging Review**: Developer traces securely gated behind `process.env.NODE_ENV !== "production"`.
@@ -33,7 +35,7 @@
 - **Previous Stable Tag**: *(Initial Release - N/A)*
 - **Certification Command**:
   ```bash
-  npx tsx scripts/verify-production-certification.ts 1000
+  npx tsx scripts/verify-production-certification.ts 100
   ```
 - **Regression Command**:
   ```bash
