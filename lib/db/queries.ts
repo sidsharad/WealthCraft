@@ -77,7 +77,7 @@ export async function insertAnalyticsGameResult(
   yearCount: number,
   startedAt: Date | null,
 ) {
-  await db.insert(gameResults).values({
+  return await db.insert(gameResults).values({
     roomId,
     roomCode,
     winnerId,
@@ -90,7 +90,7 @@ export async function insertAnalyticsGameResult(
     yearCount,
     startedAt,
     completedAt: new Date(),
-  });
+  }).onConflictDoNothing({ target: gameResults.roomId }).returning({ id: gameResults.id });
 }
 
 export async function getRoomByCode(code: string) {

@@ -496,16 +496,9 @@ export async function POST(
 
         console.log(JSON.stringify({ event: "WINNER_COMPUTED", winnerId: winner?.id }));
 
-        // Persist results for human players
-        if (winner && !winner.isBot) {
-          const loserIds = leaderboard.slice(1).filter((p) => !p.isBot).map((p) => p.id);
-          await recordGameResult(winner.id, loserIds);
-        }
-
-        // Record Analytics Game Result
         if (winner) {
           const winnerNetWorth = winner.cash + winner.stocks + winner.bonds + (winner.hasHouse ? 50 : 0);
-          await insertAnalyticsGameResult(
+          const insertResult = await insertAnalyticsGameResult(
             roomId,
             room.code,
             winner.id,
@@ -519,13 +512,27 @@ export async function POST(
             room.createdAt // Use room's createdAt as startedAt
           );
           
-          console.log(JSON.stringify({
-            event: "GAME_RESULT_RECORDED",
-            roomCode: room.code,
-            winnerName: winner.name,
-            turns: nextState.turn,
-            years: nextState.year
-          }));
+          if (insertResult && insertResult.length > 0) {
+            // Only the request that successfully inserts gameResults may call recordGameResult
+            if (!winner.isBot) {
+              const loserIds = leaderboard.slice(1).filter((p) => !p.isBot).map((p) => p.id);
+              await recordGameResult(winner.id, loserIds);
+            }
+
+            console.log(JSON.stringify({
+              event: "GAME_RESULT_RECORDED",
+              roomCode: room.code,
+              winnerName: winner.name,
+              turns: nextState.turn,
+              years: nextState.year
+            }));
+          } else {
+            console.log(JSON.stringify({
+              event: "GAME_ALREADY_FINALIZED",
+              roomCode: room.code,
+              message: "Duplicate finalization attempt skipped."
+            }));
+          }
         }
 
         await db.update(rooms).set({ status: "finished" }).where(eq(rooms.id, roomId));

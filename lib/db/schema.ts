@@ -384,7 +384,7 @@ export interface GameState {
 // ─── GAME RESULTS (Analytics) ─────────────────────────────────────────────────
 export const gameResults = pgTable("game_results", {
   id: uuid("id").primaryKey().defaultRandom(),
-  roomId: uuid("room_id").notNull(),
+  roomId: uuid("room_id").notNull().unique(),
   roomCode: text("room_code").notNull(),
   winnerId: text("winner_id").notNull(),
   winnerName: text("winner_name").notNull(),

@@ -34,7 +34,16 @@ export async function GET() {
 
     if (process.env.NODE_ENV !== "production") { console.log("ANALYTICS_STEP", "game results query"); }
     // Fetch all game results for aggregation
-    const results = await db.select().from(gameResults);
+    const rawResults = await db.select().from(gameResults);
+    
+    // Deduplicate by roomId (keep only one result per game to handle race conditions)
+    const resultsMap = new Map<string, typeof rawResults[0]>();
+    for (const r of rawResults) {
+      if (!resultsMap.has(r.roomId)) {
+        resultsMap.set(r.roomId, r);
+      }
+    }
+    const results = Array.from(resultsMap.values());
     const gamesCompleted = results.length;
 
     if (process.env.NODE_ENV !== "production") { console.log("ANALYTICS_STEP", "aggregation"); }

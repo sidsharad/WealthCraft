@@ -65,10 +65,20 @@ export default function AnalyticsDashboard() {
     <div className="container mx-auto py-10 space-y-8">
       <h1 className="text-4xl font-bold tracking-tight">WealthCraft Analytics</h1>
 
-      <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-8">
+      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8">
+        <div className="flex">
+          <div className="ml-3">
+            <p className="text-sm text-yellow-700">
+              <strong>Note:</strong> &quot;Currently Tracked Rooms&quot; represents active rooms in the database, which may be periodically deleted. &quot;Games Completed&quot; and player statistics represent a permanent historical ledger and are not deleted when a room is removed. Because these metrics have different lifecycles, funnel rates (like Completion Rate) are currently disabled.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-6">
         <div className="rounded-xl border bg-card text-card-foreground shadow">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium">Games Created</h3>
+            <h3 className="tracking-tight text-sm font-medium">Currently Tracked Rooms</h3>
           </div>
           <div className="p-6 pt-0">
             <div className="text-2xl font-bold">{data.gamesCreated}</div>
@@ -76,7 +86,7 @@ export default function AnalyticsDashboard() {
         </div>
         <div className="rounded-xl border bg-card text-card-foreground shadow">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium">Games Started</h3>
+            <h3 className="tracking-tight text-sm font-medium">Currently Tracked Started Rooms</h3>
           </div>
           <div className="p-6 pt-0">
             <div className="text-2xl font-bold">{data.gamesStarted}</div>
@@ -96,22 +106,6 @@ export default function AnalyticsDashboard() {
           </div>
           <div className="p-6 pt-0">
             <div className="text-2xl font-bold">{data.gamesAbandoned}</div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
-          <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium">Start Rate</h3>
-          </div>
-          <div className="p-6 pt-0">
-            <div className="text-2xl font-bold">{data.startRate}%</div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
-          <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium">Completion Rate</h3>
-          </div>
-          <div className="p-6 pt-0">
-            <div className="text-2xl font-bold">{data.completionRate}%</div>
           </div>
         </div>
         <div className="rounded-xl border bg-card text-card-foreground shadow">
