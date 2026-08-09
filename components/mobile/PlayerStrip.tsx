@@ -1,7 +1,6 @@
 // components/mobile/PlayerStrip.tsx
 import React from "react";
-// Define the return type of useGameTurn
-type UseGameTurnReturn = ReturnType<typeof import("@/hooks/useGameTurn").useGameTurn>;
+
 import type { PlayerState } from "@/lib/db/schema";
 
 
