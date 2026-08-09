@@ -107,10 +107,7 @@ export default function MobileGameRoom() {
             privateMessage={turn.myPrivateMessage}
             disabled={turn.isInitialSetup}
           />
-          {/* Tip area – optional */}
-          <div className="p-2 bg-[var(--navy)] text-white text-center">
-            {turn.TIPS && turn.TIPS[turn.activeTipIndex]}
-          </div>
+          
         </div>
 
         {/* Right – Right rail */}
@@ -133,10 +130,10 @@ export default function MobileGameRoom() {
       />
       <AuctionModal
         isOpen={turn.showAuction && turn.gameState.phase === "auction" && !turn.showPassDevice && !turn.initialPreview}
-        currentPlayer={turn.isLocal ? (turn.currentBiddingPlayer || turn.currentPlayer!) : turn.gameState.players.find((p: any) => p.id === turn.stableUserId)!}
-        hasBid={turn.isLocal ? !turn.currentBiddingPlayer : !!turn.gameState.auctionState?.bids.find((b: any) => b.playerId === turn.stableUserId)}
+        currentPlayer={turn.isLocal ? (turn.currentBiddingPlayer || turn.currentPlayer!) : turn.gameState.players.find((p: any) => p.id === turn.currentPlayer?.id)!}
+        hasBid={turn.isLocal ? !turn.currentBiddingPlayer : !!turn.gameState.auctionState?.bids.find((b: any) => b.playerId === turn.currentPlayer?.id)}
         onBid={(amount) => {
-          const bidderId = turn.isLocal ? turn.currentBiddingPlayer?.id : turn.stableUserId;
+          const bidderId = turn.isLocal ? turn.currentBiddingPlayer?.id : turn.currentPlayer?.id;
           turn.performAction("bid", { amount, bidderId });
           turn.setShowAuction(false);
         }}
@@ -208,7 +205,7 @@ export default function MobileGameRoom() {
       {turn.gameState.pendingTrade?.tradeType !== "open" ? (
         <TradeResponseModal
           isOpen={
-            turn.gameState.phase === "waiting-trade" && (turn.isLocal || turn.gameState.pendingTrade?.toPlayerId === turn.stableUserId)
+            turn.gameState.phase === "waiting-trade" && (turn.isLocal || turn.gameState.pendingTrade?.toPlayerId === turn.currentPlayer?.id)
           }
           offer={turn.gameState!.pendingTrade!}
           fromPlayer={turn.gameState!.players.find((p: any) => p.id === turn.gameState!.pendingTrade?.fromPlayerId)!}
@@ -219,9 +216,9 @@ export default function MobileGameRoom() {
         <OpenTradeModal
           isOpen={turn.gameState.phase === "waiting-trade"}
           offer={turn.gameState!.pendingTrade!}
-          currentPlayer={turn.isLocal ? turn.currentPlayer : turn.gameState!.players.find((p: any) => p.id === turn.stableUserId) || turn.currentPlayer!}
+          currentPlayer={turn.isLocal ? turn.currentPlayer : turn.gameState!.players.find((p: any) => p.id === turn.currentPlayer?.id) || turn.currentPlayer!}
           players={turn.gameState!.players}
-          onResponse={(accept) => turn.performAction("trade-response", { accept, responderId: turn.stableUserId })}
+          onResponse={(accept) => turn.performAction("trade-response", { accept, responderId: turn.currentPlayer?.id })}
           onSelectWinner={(winnerId) => turn.performAction("open-trade-select", { winnerId })}
         />
       )}
