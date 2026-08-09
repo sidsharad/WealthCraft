@@ -22,6 +22,8 @@ import OpenTradeModal from "@/components/game/OpenTradeModal";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
 import EndgameNotifyModal from "@/components/game/EndgameNotifyModal";
 import { LogOut, MessageSquare, ShieldAlert } from "lucide-react";
+import useIsMobileLandscape from "@/hooks/useIsMobileLandscape";
+import MobileGameRoom from "@/components/mobile/MobileGameRoom";
 
 const PLAYER_COLORS = ["#3B82F6", "#F97316", "#A855F7", "#EC4899"];
 
@@ -29,6 +31,9 @@ function GameRoomContent() {
   const params = useParams();
   const { data: session } = useSession();
   const router = useRouter();
+  if (!params?.code) {
+    return <div className="min-h-screen flex items-center justify-center bg-[var(--cream)]"><div className="animate-spin text-4xl">💰</div></div>;
+  }
   const code = params.code as string;
   const isLocal = code === "play-local";
   const userId = (session?.user as { id?: string })?.id;
@@ -635,9 +640,10 @@ function GameRoomContent() {
 }
 
 export default function GameRoomPage() {
+  const isMobileLandscape = useIsMobileLandscape();
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[var(--cream)]"><div className="animate-spin text-4xl">💰</div></div>}>
-      <GameRoomContent />
+      {isMobileLandscape ? <MobileGameRoom /> : <GameRoomContent />}
     </Suspense>
   );
 }
