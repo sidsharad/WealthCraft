@@ -6,6 +6,8 @@ import Board from "@/components/board/Board";
 import PlayerStrip from "@/components/mobile/PlayerStrip";
 import ActionBar from "@/components/mobile/ActionBar";
 import PortraitLockOverlay from "@/components/mobile/PortraitLockOverlay";
+import RightRail from "@/components/mobile/RightRail";
+import PanelOverlay from "@/components/mobile/PanelOverlay";
 import { TILES } from "@/lib/game-engine/tiles";
 
 export default function MobileGameRoom() {
@@ -14,6 +16,7 @@ export default function MobileGameRoom() {
   const turn = useGameTurn({ code, isLocal });
 
   const [isPortrait, setIsPortrait] = useState(false);
+  const [activePanel, setActivePanel] = useState<string | null>(null);
 
   useEffect(() => {
     const update = () => setIsPortrait(window.innerHeight > window.innerWidth);
@@ -47,20 +50,28 @@ export default function MobileGameRoom() {
   if (!turn.gameState) return null;
 
   return (
-    <div className="flex flex-col h-screen bg-[var(--cream)] overflow-hidden relative">
-      <PortraitLockOverlay />
-      <Board
-        tiles={TILES}
-        players={turn.gameState.players}
-        rolling={turn.rolling}
-        dice={turn.lastDice}
-        overlayMessage={turn.overlayMessage}
-        announcement={turn.gameState.announcement}
-        privateMessage={turn.myPrivateMessage}
-        disabled={turn.isInitialSetup}
-      />
+    <div id="app" className="flex h-screen bg-[var(--cream)]">
       <PlayerStrip turn={turn} />
-      <ActionBar turn={turn} />
+      <div id="center" className="flex-1 flex flex-col min-w-0 min-h-0">
+        <div className="flex-1 overflow-y-auto">
+          <Board
+            tiles={TILES}
+            players={turn.gameState.players}
+            rolling={turn.rolling}
+            dice={turn.lastDice}
+            overlayMessage={turn.overlayMessage}
+            announcement={turn.gameState.announcement}
+            privateMessage={turn.myPrivateMessage}
+            disabled={turn.isInitialSetup}
+          />
+        </div>
+        <ActionBar turn={turn} />
+        <div id="bottom-spacer" style={{ height: 'var(--actionbar-h)' }} />
+      </div>
+      <RightRail activePanel={activePanel} setActivePanel={setActivePanel} turn={turn} />
+      {activePanel && (
+        <PanelOverlay activePanel={activePanel} turn={turn} onClose={() => setActivePanel(null)} />
+      )}
     </div>
   );
 }

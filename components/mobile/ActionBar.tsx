@@ -48,10 +48,10 @@ export default function ActionBar({ turn }: ActionBarProps) {
 
   return (
     <>
-      <div className="flex justify-around bg-[var(--cream)] p-2 border-t border-gray-200">
-        <TouchButton onClick={handleRoll} disabled={disabled}>Roll Dice</TouchButton>
-        <TouchButton onClick={handleEndTurn} disabled={disabled}>End Turn</TouchButton>
-        <TouchButton onClick={openRebalance} disabled={disabled}>Rebalance</TouchButton>
+      <div id="action-bar" className="flex items-center justify-center h-[var(--actionbar-h)] bg-white border-t border-gray-200 gap-2 p-0">
+        <TouchButton onClick={handleRoll} disabled={disabled} className="h-[clamp(44px,8vh,48px)] rounded-md border border-gray-300 bg-[#e6a817] text-white font-bold px-3 flex items-center gap-2">Roll Dice</TouchButton>
+        <TouchButton onClick={handleEndTurn} disabled={disabled} className="h-[clamp(44px,8vh,48px)] rounded-md border border-gray-300 bg-white text-gray-800 font-semibold px-3 flex items-center gap-2">End Turn</TouchButton>
+        <TouchButton onClick={openRebalance} disabled={disabled} className="h-[clamp(44px,8vh,48px)] rounded-md border border-gray-300 bg-white text-gray-800 font-semibold px-3 flex items-center gap-2">Rebalance</TouchButton>
       </div>
 
       {showRebalance && (

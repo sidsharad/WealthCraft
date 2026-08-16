@@ -14,17 +14,17 @@ export default function PlayerStrip({ turn }: PlayerStripProps) {
   const currentIdx = gameState?.currentPlayerIndex;
 
   return (
-    <div className="player-strip">
+    <div id="player-strip" className="flex flex-col overflow-hidden">
       {players.map((player, idx) => {
         const isCurrent = idx === currentIdx;
         return (
-          <div key={player.id} className={`player-item ${isCurrent ? "current-player" : ""}`}>
+          <div key={player.id} className={`player-card ${isCurrent ? "active" : ""}`}>
             <div className="player-avatar">
               {/* Simple avatar placeholder */}
               <span>{player.name?.charAt(0) ?? "?"}</span>
             </div>
             <div className="player-info">
-              <div className="player-name">{player.name}</div>
+              <div className="player-name">{player.name}</div>{isCurrent && <span className="turn-badge">Your Turn</span>}
               <div className="player-resources">
                 <span className="resource cash">💰 {player.cash}</span>
                 <span className="resource bonds">📄 {player.bonds}</span>
