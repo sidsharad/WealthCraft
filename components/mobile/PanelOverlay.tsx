@@ -21,17 +21,20 @@ export default function PanelOverlay({ activePanel, turn, onClose }: PanelOverla
         {activePanel === "log" && (
             <div>
               {turn.gameState?.log && Array.isArray(turn.gameState.log) ? (
-                turn.gameState.log.map((entry: unknown, idx: number) => (
-                  <div key={idx} className="log-entry">
-                    {(() => {
-                      const e = entry as any;
+              turn.gameState.log.map((entry: unknown, idx: number) => (
+                <div key={idx} className="log-entry">
+                  {(() => {
+                    if (typeof entry === "object" && entry !== null && "turn" in entry && "text" in entry) {
+                      const e = entry as { turn: number; text: string };
                       return `${e.turn}: ${e.text}`;
-                    })()}
-                  </div>
-                ))
-              ) : (
-                <p>No log available.</p>
-              )}
+                    }
+                    return String(entry);
+                  })()}
+                </div>
+              ))
+            ) : (
+              <p>No log available.</p>
+            )}
             </div>
           )}
         {activePanel === "rules" && (
