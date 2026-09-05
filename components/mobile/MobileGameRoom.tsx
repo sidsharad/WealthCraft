@@ -129,7 +129,7 @@ export default function MobileGameRoom() {
         <TradeResponseModal
           isOpen={
             turn.gameState.phase === "waiting-trade" &&
-            (isLocal || turn.gameState.pendingTrade?.toPlayerId === turn.stableUserId)
+            (isLocal || turn.gameState.pendingTrade?.toPlayerId === turn.myPlayer?.id)
           }
           offer={turn.gameState!.pendingTrade!}
           fromPlayer={turn.gameState!.players.find(p => p.id === turn.gameState!.pendingTrade?.fromPlayerId)!}
@@ -140,9 +140,9 @@ export default function MobileGameRoom() {
         <OpenTradeModal
           isOpen={turn.gameState.phase === "waiting-trade"}
           offer={turn.gameState!.pendingTrade!}
-          currentPlayer={(isLocal ? turn.currentPlayer : turn.gameState!.players.find(p => p.id === turn.stableUserId)) || turn.currentPlayer!}
+          currentPlayer={(isLocal ? turn.currentPlayer : turn.gameState!.players.find(p => p.id === turn.myPlayer?.id)) || turn.currentPlayer!}
           players={turn.gameState!.players}
-          onResponse={(accept) => turn.performAction("trade-response", { accept, responderId: turn.stableUserId })}
+          onResponse={(accept) => turn.performAction("trade-response", { accept, responderId: turn.myPlayer?.id })}
           onSelectWinner={(winnerId) => turn.performAction("open-trade-select", { winnerId })}
         />
       )}
