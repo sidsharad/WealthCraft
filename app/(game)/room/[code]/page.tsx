@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useState, useEffect, useMemo, useRef } from "react";
+import MobileGameRoom from "@/components/mobile/MobileGameRoom";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -323,11 +324,11 @@ function GameRoomContent() {
                 />
               )}
 
-              {!turn.isSetupPhase && turn.timeLeft !== null && (
-                <div className={`flex flex-col items-center justify-center px-4 py-2 rounded-2xl border-2 transition-colors ${turn.timeLeft < 10 ? 'border-red-500 bg-red-50 animate-pulse' : 'border-blue-100 bg-blue-50'}`}>
+              {!turn.isSetupPhase && turn.turnTimeLeft !== null && (
+                <div className={`flex flex-col items-center justify-center px-4 py-2 rounded-2xl border-2 transition-colors ${turn.turnTimeLeft < 10 ? 'border-red-500 bg-red-50 animate-pulse' : 'border-blue-100 bg-blue-50'}`}>
                   <div className="text-[8px] font-black uppercase text-gray-400 tracking-widest mb-1">Time</div>
-                  <div className={`text-xl font-black ${turn.timeLeft < 10 ? 'text-red-600' : 'text-blue-600'}`}>
-                    {turn.timeLeft}s
+                  <div className={`text-xl font-black ${turn.turnTimeLeft < 10 ? 'text-red-600' : 'text-blue-600'}`}>
+                    {turn.turnTimeLeft}s
                   </div>
                 </div>
               )}
@@ -635,9 +636,18 @@ function GameRoomContent() {
 }
 
 export default function GameRoomPage() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 820);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[var(--cream)]"><div className="animate-spin text-4xl">💰</div></div>}>
-      <GameRoomContent />
+      {isMobile ? <MobileGameRoom /> : <GameRoomContent />}
     </Suspense>
   );
 }

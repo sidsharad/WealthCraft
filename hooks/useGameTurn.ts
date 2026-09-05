@@ -330,6 +330,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
 
   const [pendingEmergencyAmount, setPendingEmergencyAmount] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [turnTimeLeft, setTurnTimeLeft] = useState<number | null>(null);
   const [rebalancePenaltyOverride, setRebalancePenaltyOverride] = useState<number | null>(null);
   const [overlayMessage, setOverlayMessage] = useState<string | null>(null);
 
@@ -1248,24 +1249,47 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     } catch (e: any) {
       setIsSubmitting(false);
       setIsRecovering(false);
-      console.error(JSON.stringify({
-        timestamp: new Date().toISOString(),
-        event: "CLIENT_ACTION_FAILED",
-        roomId: roomId || "unknown",
-        playerId: stableUserId,
-        actionId,
-        actionType: action,
-        durationMs: Date.now() - requestStartTime,
-        timeoutFlag: false,
-        reconnectCount: pusherReconnectsCount,
-        watchdogRefreshCount: watchdogRefreshes,
-        pusherState: connectionStatus,
-        error: e?.message || e
-      }));
-      setFailedActionsCount(prev => prev + 1);
-      setError(e.message);
+      
+      const isForceTimeoutBufferError = action === "force-timeout" && e?.message?.includes("Timeout deadline not reached");
+      
+      if (!isForceTimeoutBufferError) {
+        console.error(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          event: "CLIENT_ACTION_FAILED",
+          roomId: roomId || "unknown",
+          playerId: stableUserId,
+          actionId,
+          actionType: action,
+          durationMs: Date.now() - requestStartTime,
+          timeoutFlag: false,
+          reconnectCount: pusherReconnectsCount,
+          watchdogRefreshCount: watchdogRefreshes,
+          pusherState: connectionStatus,
+          error: e?.message || e
+        }));
+        setFailedActionsCount(prev => prev + 1);
+        setError(e.message);
+      } else {
+        console.log("Suppressed expected force-timeout deadlock-recovery rejection:", e?.message);
+      }
     }
   }, [code, gameState, isLocal, stableUserId, setGameState]);
+
+  // ─── DISPLAY-ONLY TURN COUNTDOWN (driven by server-authoritative turnStartTimestamp) ───
+  useEffect(() => {
+    if (!gameState || gameState.phase === "finished" || !gameState.turnStartTimestamp) {
+      if (turnTimeLeft !== null) setTurnTimeLeft(null);
+      return;
+    }
+
+    const update = () => {
+      const elapsed = (Date.now() - gameState.turnStartTimestamp!) / 1000;
+      setTurnTimeLeft(Math.max(0, Math.round(30 - elapsed)));
+    };
+    update();
+    const id = setInterval(update, 250);
+    return () => clearInterval(id);
+  }, [gameState?.turnStartTimestamp, gameState?.phase]);
 
   // Turn Timer
   const timeoutStateRef = useRef({
@@ -1793,6 +1817,7 @@ export function useGameTurn({ code, isLocal, userId }: UseGameTurnProps) {
     lastDice,
     diceMode,
     timeLeft,
+    turnTimeLeft,
     overlayMessage,
     initialPreview,
     isLocal,

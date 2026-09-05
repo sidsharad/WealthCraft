@@ -96,6 +96,19 @@ function internalDispatch(
   // Always check for expired open trades before processing any action
   state = checkAndResolveExpiredTrades(state);
 
+  // ----- Server-authoritative 30‑second turn timeout -----
+  // If a human player's turn has exceeded 30 s, automatically end the turn.
+  // This runs on every dispatch, ensuring that even if the serverless instance
+  // recycles the in‑memory timer, the persisted `turnStartTimestamp` is the source
+  // of truth. Bots are unaffected because they typically act instantly; the
+  // timeout check applies universally but only triggers when the timestamp is
+  // present and the elapsed time is >= 30 000 ms.
+  if (state.turnStartTimestamp && Date.now() - state.turnStartTimestamp >= 30000) {
+    // Advance the turn using the existing logic (same as manual end-turn).
+    const timeoutState = advanceTurn(state);
+    return { state: timeoutState };
+  }
+
   // Pause turn flow while a trade is pending
   if (state.phase === "waiting-trade" && !["trade-response", "open-trade-select", "acknowledge-endgame-trigger", "acknowledge-endgame-cancellation"].includes(action)) {
     return { state, sideEffect: { type: "error", message: "Cannot perform action while a trade is pending." } };
@@ -290,6 +303,10 @@ function internalDispatch(
           return { state: advanceTurn(s) };
         }  break;
         case "tax-raid": {
+          if (payload?.skip) {
+            s = addLog(s, `${player.name} chose to skip Tax Raid.`);
+            break;
+          }
           const targetIdx = toInt(payload?.targetIdx);
           const pre = s; 
           const result = applyTaxRaid(s, playerIdx, targetIdx);

@@ -1044,9 +1044,10 @@ export function advanceTurn(state: GameState): GameState {
     ...s,
     currentPlayerIndex: nextIdx,
     turn: nextTurn,
-    phase: nextTurn < s.players.length ? "year-end" : "roll",
+    phase: nextTurn % s.players.length === 0 ? "year-end" : "roll",
     announcement: undefined,
     privateMessage: undefined,
+    turnStartTimestamp: Date.now(), // Record timestamp for the new turn
   };
 
   // Reset per-player private messages and hasTraded for the new round/turn

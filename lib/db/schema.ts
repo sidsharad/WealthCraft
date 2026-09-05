@@ -360,6 +360,7 @@ export interface EmergencyState {
 export interface GameState {
   version: number;
   turn: number;
+  turnStartTimestamp?: number; // timestamp when the current turn started
   year: number;
   currentPlayerIndex: number;
   phase: "roll" | "action" | "trade" | "year-end" | "auction" | "finished" | "waiting-trade";

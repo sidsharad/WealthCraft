@@ -124,6 +124,77 @@ function validateGameState(state: GameState, room: any): { valid: boolean; error
   };
 }
 
+async function finalizeGame(roomId: string, room: any, previousState: GameState, nextState: GameState, actionVersion: number, userId: string) {
+  if (nextState.phase === "finished" && previousState.phase !== "finished") {
+    const leaderboard = getLeaderboard(nextState);
+    const winner = leaderboard[0];
+
+    console.log(JSON.stringify({ event: "WINNER_COMPUTED", winnerId: winner?.id }));
+
+    if (winner) {
+      const winnerNetWorth = winner.cash + winner.stocks + winner.bonds + (winner.hasHouse ? 50 : 0);
+      const insertResult = await insertAnalyticsGameResult(
+        roomId,
+        room.code,
+        winner.id,
+        winner.name,
+        winnerNetWorth,
+        nextState.players.map(p => p.id),
+        nextState.players.map(p => p.name),
+        nextState.players.length,
+        nextState.turn,
+        nextState.year,
+        room.createdAt
+      );
+      
+      if (insertResult && insertResult.length > 0) {
+        if (!winner.isBot) {
+          const loserIds = leaderboard.slice(1).filter((p) => !p.isBot).map((p) => p.id);
+          await recordGameResult(winner.id, loserIds);
+        }
+        console.log(JSON.stringify({
+          event: "GAME_RESULT_RECORDED",
+          roomCode: room.code,
+          winnerName: winner.name,
+          turns: nextState.turn,
+          years: nextState.year
+        }));
+      } else {
+        console.log(JSON.stringify({
+          event: "GAME_ALREADY_FINALIZED",
+          roomCode: room.code,
+          message: "Duplicate finalization attempt skipped."
+        }));
+      }
+    }
+
+    await db.update(rooms).set({ status: "finished" }).where(eq(rooms.id, roomId));
+    console.log(JSON.stringify({ event: "GAME_FINISHED_COMMIT" }));
+
+    console.log(
+      "PUSHER_BROADCAST",
+      {
+        roomId,
+        gameVersion: actionVersion,
+        turn: nextState.turn,
+        currentPlayer: nextState.currentPlayerIndex,
+      }
+    );
+    safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_FINISHED, { timestamp: Date.now(), version: actionVersion }).catch(err =>
+      console.error(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        event: "PUSHER_TRIGGER_FAILURE",
+        roomId,
+        playerId: userId,
+        action: "finish-game",
+        error: err?.message || err
+      }))
+    );
+    return true;
+  }
+  return false;
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -489,75 +560,8 @@ export async function POST(
       const endTurnUpdate = await updateGameState(roomId, nextState, room.gameVersion ?? 1);
       const endTurnTs = endTurnUpdate.ts;
       const endTurnVersion = endTurnUpdate.gameVersion;
-
-      if (nextState.phase === "finished" && gameState.phase !== "finished") {
-        const leaderboard = getLeaderboard(nextState);
-        const winner = leaderboard[0];
-
-        console.log(JSON.stringify({ event: "WINNER_COMPUTED", winnerId: winner?.id }));
-
-        if (winner) {
-          const winnerNetWorth = winner.cash + winner.stocks + winner.bonds + (winner.hasHouse ? 50 : 0);
-          const insertResult = await insertAnalyticsGameResult(
-            roomId,
-            room.code,
-            winner.id,
-            winner.name,
-            winnerNetWorth,
-            nextState.players.map(p => p.id),
-            nextState.players.map(p => p.name),
-            nextState.players.length,
-            nextState.turn,
-            nextState.year,
-            room.createdAt // Use room's createdAt as startedAt
-          );
-          
-          if (insertResult && insertResult.length > 0) {
-            // Only the request that successfully inserts gameResults may call recordGameResult
-            if (!winner.isBot) {
-              const loserIds = leaderboard.slice(1).filter((p) => !p.isBot).map((p) => p.id);
-              await recordGameResult(winner.id, loserIds);
-            }
-
-            console.log(JSON.stringify({
-              event: "GAME_RESULT_RECORDED",
-              roomCode: room.code,
-              winnerName: winner.name,
-              turns: nextState.turn,
-              years: nextState.year
-            }));
-          } else {
-            console.log(JSON.stringify({
-              event: "GAME_ALREADY_FINALIZED",
-              roomCode: room.code,
-              message: "Duplicate finalization attempt skipped."
-            }));
-          }
-        }
-
-        await db.update(rooms).set({ status: "finished" }).where(eq(rooms.id, roomId));
-        console.log(JSON.stringify({ event: "GAME_FINISHED_COMMIT" }));
-        
-        console.log(
-          "PUSHER_BROADCAST",
-          {
-            roomId,
-            gameVersion: endTurnVersion,
-            turn: nextState.turn,
-            currentPlayer: nextState.currentPlayerIndex,
-          }
-        );
-        safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_FINISHED, { timestamp: Date.now(), version: endTurnVersion }).catch(err =>
-          console.error(JSON.stringify({
-            timestamp: new Date().toISOString(),
-            event: "PUSHER_TRIGGER_FAILURE",
-            roomId,
-            playerId: userId,
-            action: "end-turn",
-            error: err?.message || err
-          }))
-        );
-      } else {
+      const isFinished = await finalizeGame(roomId, room, gameState, nextState, endTurnVersion, userId);
+      if (!isFinished) {
         safeTrigger(getRoomChannel(room.code), PUSHER_EVENTS.GAME_STATE_UPDATE, { timestamp: Date.now() }).catch(err =>
           console.error(JSON.stringify({
             timestamp: new Date().toISOString(),
@@ -650,34 +654,38 @@ export async function POST(
     const actionTs = actionUpdate.ts;
     const actionVersion = actionUpdate.gameVersion;
 
-    // Use the appropriate Pusher event
-    const pusherEvent = action === "trade-offer"
-      ? PUSHER_EVENTS.TRADE_OFFER
-      : PUSHER_EVENTS.GAME_STATE_UPDATE;
+    const isFinished = await finalizeGame(roomId, room, gameState, state, actionVersion, userId);
+    
+    if (!isFinished) {
+      // Use the appropriate Pusher event
+      const pusherEvent = action === "trade-offer"
+        ? PUSHER_EVENTS.TRADE_OFFER
+        : PUSHER_EVENTS.GAME_STATE_UPDATE;
 
-    // Send a lightweight payload to trigger clients to fetch the state
-    const pusherPayload: Record<string, unknown> = { timestamp: Date.now(), version: actionVersion };
+      // Send a lightweight payload to trigger clients to fetch the state
+      const pusherPayload: Record<string, unknown> = { timestamp: Date.now(), version: actionVersion };
 
-    console.log(
-      "PUSHER_BROADCAST",
-      {
-        roomId,
-        gameVersion: actionVersion,
-        turn: state.turn,
-        currentPlayer: state.currentPlayerIndex,
-      }
-    );
+      console.log(
+        "PUSHER_BROADCAST",
+        {
+          roomId,
+          gameVersion: actionVersion,
+          turn: state.turn,
+          currentPlayer: state.currentPlayerIndex,
+        }
+      );
 
-    safeTrigger(getRoomChannel(room.code), pusherEvent, pusherPayload).catch(err =>
-      console.error(JSON.stringify({
-        timestamp: new Date().toISOString(),
-        event: "PUSHER_TRIGGER_FAILURE",
-        roomId,
-        playerId: userId,
-        action,
-        error: err?.message || err
-      }))
-    );
+      safeTrigger(getRoomChannel(room.code), pusherEvent, pusherPayload).catch(err =>
+        console.error(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          event: "PUSHER_TRIGGER_FAILURE",
+          roomId,
+          playerId: userId,
+          action,
+          error: err?.message || err
+        }))
+      );
+    }
 
     // Build response — include extra fields consumers may need
     const response: Record<string, unknown> = { gameState: state, gameVersion: actionVersion, appVersion: process.env.NEXT_PUBLIC_APP_VERSION, updatedAt: actionTs.getTime() };
