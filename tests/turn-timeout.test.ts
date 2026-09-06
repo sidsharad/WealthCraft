@@ -2,7 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { dispatch } from '@/lib/game-engine/dispatcher';
-import { createInitialGameState } from '@/lib/game-engine/actions';
+import { createInitialGameState, advanceTurn } from '@/lib/game-engine/actions';
 import type { GameState } from '@/lib/db/schema';
 
 /**
@@ -16,6 +16,14 @@ describe('Server‑authoritative 30‑second turn timeout', () => {
       { id: 'p2', name: 'Player 2', avatar: '', isBot: false },
     ];
     let state: GameState = createInitialGameState(mockPlayers);
+
+    // Advance past initial setup (both players do initial rebalance)
+    for (let i = 0; i < mockPlayers.length; i++) {
+      state = advanceTurn(state);
+    }
+    // Now Player 0 is on their first real turn with phase = "roll"
+    expect(state.phase).toBe('roll');
+
     // Simulate that the turn started >30s ago
     state = { ...state, turnStartTimestamp: Date.now() - 31000 };
 

@@ -11,7 +11,7 @@ function createMockState(): GameState {
     ],
     currentPlayerIndex: 0,
     phase: 'action',
-    turn: 1,
+    turn: 3,
     year: 1,
     log: [],
     endgameCandidate: false,
